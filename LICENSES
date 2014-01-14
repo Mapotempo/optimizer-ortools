@@ -1,0 +1,11 @@
+Mapotempo'S LICENSES
+
+Mapotempo is free software, licensed under the terms of the GNU Affero
+General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later
+version. You can redistribute it and/or modify since you respect the
+terms of this License.
+
+Finally, Mapotempo is made using external components and libraries (under
+their own license). See list under optimizer/doc/dependencies and
+server/doc/dependencies.
