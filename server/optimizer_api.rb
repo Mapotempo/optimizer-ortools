@@ -28,10 +28,12 @@ post '/0.1/optimize_tsptw' do
   begin
     optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'])
     if !optim
+      puts "No optim result !"
       halt(500)
     end
     {status: :ok, optim: optim}.to_json
   rescue Exception => e
+    puts e
     halt(500, e.to_s)
   end
 end
