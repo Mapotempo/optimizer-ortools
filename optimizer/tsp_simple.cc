@@ -61,7 +61,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         cumul_var->SetMin(ready);
       }
       if (due > 0 && due < 2147483647) {
-        cumul_var->SetMax(due);
+        routing.SetCumulVarSoftUpperBound(i, "time", due, 5);
       }
 
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
@@ -95,7 +95,6 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   }
 
   Solver *solver = routing.solver();
-  IntVar *costVar = routing.CostVar();
 
   const Assignment* solution = routing.Solve(NULL);
 
