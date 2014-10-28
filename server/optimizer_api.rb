@@ -26,7 +26,7 @@ end
 post '/0.1/optimize_tsptw' do
   jdata = JSON.parse(params[:data])
   begin
-    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'])
+    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['optimize_time'])
     if !optim
       puts "No optim result !"
       halt(500)
@@ -39,10 +39,10 @@ post '/0.1/optimize_tsptw' do
 end
 
 
-def optimize(capacity, matrix, time_window)
+def optimize(capacity, matrix, time_window, optimize_time = nil)
   @exec = settings.optimizer_exec
   @tmp_dir = settings.optimizer_tmp_dir
-  @time = settings.optimizer_time
+  @time = optimize_time || settings.optimizer_default_time
 
   input = Tempfile.new('optimize-route-input', tmpdir=@tmp_dir)
   output = Tempfile.new('optimize-route-output', tmpdir=@tmp_dir)
