@@ -162,7 +162,7 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
   ++line_number_;
 
   static const char kWordDelimiters[] = " ";
-  std::vector<string> words;
+  std::vector<std::string> words;
   SplitStringUsing(line, kWordDelimiters, &words);
   
   
