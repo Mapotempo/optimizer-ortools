@@ -257,8 +257,7 @@ void TSPTWSolution::ProcessNewLine(char*const line) {
   ++line_number_;
   CHECK_LE(line_number_, 2) << "Solution file for TSPTW is of wrong format and contains more than 2 lines.";
   static const char kWordDelimiters[] = " ";
-  std::vector<std::string> words;
-  SplitStringUsing(line, kWordDelimiters, &words);
+  std::vector<std::string> words = strings::Split(line, kWordDelimiters, strings::SkipEmpty());
 
   if (line_number_ == 1) {
     size_ = words.size();

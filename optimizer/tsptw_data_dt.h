@@ -10,6 +10,7 @@
 #include "base/split.h"
 #include "base/strtoint.h"
 
+
 #include "routing_data_dt.h"
 
 namespace operations_research {
@@ -162,8 +163,7 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
   ++line_number_;
 
   static const char kWordDelimiters[] = " ";
-  std::vector<std::string> words;
-  SplitStringUsing(line, kWordDelimiters, &words);
+  std::vector<std::string> words = strings::Split(line, kWordDelimiters, strings::SkipEmpty());
   
   
   static const int DSU_data_tokens = 7;
