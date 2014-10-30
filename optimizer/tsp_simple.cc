@@ -43,6 +43,8 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime),
     horizon, horizon, true, "time");
 
+  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
+
   //  Setting time windows
   for (RoutingModel::NodeIndex i(1); i < size; ++i) {
     int64 index = routing.NodeToIndex(i);
@@ -61,7 +63,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         cumul_var->SetMin(ready);
       }
       if (due > 0 && due < 2147483647) {
-        routing.SetCumulVarSoftUpperBound(i, "time", due, 5);
+        routing.SetCumulVarSoftUpperBound(i, "time", due, 3);
       }
 
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
