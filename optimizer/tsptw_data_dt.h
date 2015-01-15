@@ -23,15 +23,24 @@ public:
   }
   void LoadInstance(const std::string & filename);
   
-  void SetDepot(RoutingModel::NodeIndex d) {
-    CHECK_LT(d, Size());
-    depot_ = d;
+  void SetStart(RoutingModel::NodeIndex s) {
+    CHECK_LT(s, Size());
+    start_ = s;
   }
 
-  RoutingModel::NodeIndex Depot() const {
-    return depot_;
+  void SetStop(RoutingModel::NodeIndex s) {
+    CHECK_LT(s, Size());
+    stop_ = s;
   }
-  
+
+  RoutingModel::NodeIndex Start() const {
+    return start_;
+  }
+
+  RoutingModel::NodeIndex Stop() const {
+    return stop_;
+  }
+
   int64 Horizon() const {
     return horizon_;
   }
@@ -99,7 +108,7 @@ private:
 
 
   bool instantiated_;
-  RoutingModel::NodeIndex depot_;
+  RoutingModel::NodeIndex start_, stop_;
   struct TSPTWClient {
     TSPTWClient(int cust_no, double d, double r_t, double d_t, double s_t) :
     customer_number(cust_no), demand(d), ready_time(r_t), due_time(d_t), service_time(s_t) {}
@@ -152,8 +161,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].due_time);
   }
 
-  // Setting depot: always first node
-  depot_ = RoutingModel::NodeIndex(tsptw_clients_[0].customer_number - 1);
+  // Setting start: always first node
+  start_ = RoutingModel::NodeIndex(tsptw_clients_[0].customer_number - 1);
+
+  // Setting stop: always last node
+  stop_ = RoutingModel::NodeIndex(tsptw_clients_[Size() - 1].customer_number);
 
   filename_ = filename;
   instantiated_ = true;

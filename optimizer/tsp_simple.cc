@@ -35,8 +35,9 @@ void TSPTWSolver(const TSPTWDataDT & data) {
 
   const int size = data.Size();
 
-  RoutingModel routing(size, 1);
-  routing.SetDepot(data.Depot());
+  std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
+  (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
+  RoutingModel routing(size + 1, 1, *start_ends); // + 1 is extra end depot
   routing.SetCost(NewPermanentCallback(&data, &TSPTWDataDT::Distance));
 
   const int64 horizon = data.Horizon();
@@ -107,7 +108,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         std::cout << routing.IndexToNode(index) << " ";
       }
-      std::cout << routing.IndexToNode(routing.Start(route_nbr)) << std::endl;
+      std::cout << routing.IndexToNode(routing.End(route_nbr)) << std::endl;
     }
   } else {
     std::cout << "No solution found..." << std::endl;
