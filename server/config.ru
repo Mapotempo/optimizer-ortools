@@ -23,6 +23,7 @@ configure do
   set :optimizer_exec, '../optimizer/tsp_simple'
   set :optimizer_tmp_dir, Dir.tmpdir
   set :optimizer_default_time, 30000
+  set :optimizer_soft_upper_bound, 3
 end
 
 require './optimizer_api'

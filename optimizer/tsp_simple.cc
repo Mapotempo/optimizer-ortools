@@ -28,6 +28,7 @@
 #include "routing_common/routing_common_flags.h"
 
 DEFINE_int64(time_limit_in_ms, 2000, "Time limit in ms, 0 means no limit.");
+DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
 
 namespace operations_research {
 
@@ -64,7 +65,11 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         cumul_var->SetMin(ready);
       }
       if (due > 0 && due < 2147483647) {
-        routing.SetCumulVarSoftUpperBound(i, "time", due, 3);
+        if (FLAGS_soft_upper_bound > 0) {
+          routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
+        } else {
+          cumul_var->SetMax(due);
+        }
       }
 
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);

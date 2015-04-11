@@ -26,7 +26,7 @@ end
 post '/0.1/optimize_tsptw' do
   jdata = JSON.parse(params[:data])
   begin
-    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['optimize_time'])
+    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['optimize_time'], jdata['soft_upper_bound'])
     if !optim
       puts "No optim result !"
       halt(500)
@@ -39,10 +39,11 @@ post '/0.1/optimize_tsptw' do
 end
 
 
-def optimize(capacity, matrix, time_window, optimize_time = nil)
+def optimize(capacity, matrix, time_window, optimize_time = nil, soft_upper_bound = nil)
   @exec = settings.optimizer_exec
   @tmp_dir = settings.optimizer_tmp_dir
   @time = optimize_time || settings.optimizer_default_time
+  @soft_upper_bound = soft_upper_bound || settings.optimizer_soft_upper_bound
 
   input = Tempfile.new('optimize-route-input', tmpdir=@tmp_dir)
   output = Tempfile.new('optimize-route-output', tmpdir=@tmp_dir)
@@ -59,7 +60,7 @@ def optimize(capacity, matrix, time_window, optimize_time = nil)
 
     input.close
 
-    cmd = "#{@exec} -time_limit_in_ms #{@time} -instance_file '#{input.path}' > '#{output.path}'"
+    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound}  -instance_file '#{input.path}' > '#{output.path}'"
     puts cmd
     system(cmd)
     puts $?.exitstatus
