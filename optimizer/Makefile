@@ -1,4 +1,4 @@
-OR_TOOLS_TOP=../../or-tools/or-tools-read-only
+OR_TOOLS_TOP=../../or-tools/or-tools
 OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/src
 
 TUTORIAL=../../or-tools/tuto-or-tools
