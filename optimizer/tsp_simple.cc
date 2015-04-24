@@ -123,7 +123,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
 } // namespace operations_research
 
 int main(int argc, char **argv) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
   operations_research::TSPTWSolver(tsptw_data);
 
