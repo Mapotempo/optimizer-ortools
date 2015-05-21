@@ -26,7 +26,7 @@ end
 post '/0.1/optimize_tsptw' do
   jdata = JSON.parse(params[:data])
   begin
-    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['optimize_time'], jdata['soft_upper_bound'])
+    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['rest_window'], jdata['optimize_time'], jdata['soft_upper_bound'])
     if !optim
       puts "No optim result !"
       halt(500)
@@ -39,7 +39,7 @@ post '/0.1/optimize_tsptw' do
 end
 
 
-def optimize(capacity, matrix, time_window, optimize_time = nil, soft_upper_bound = nil)
+def optimize(capacity, matrix, time_window, rest_window, optimize_time = nil, soft_upper_bound = nil)
   @exec = settings.optimizer_exec
   @tmp_dir = settings.optimizer_tmp_dir
   @time = optimize_time || settings.optimizer_default_time
@@ -53,14 +53,18 @@ def optimize(capacity, matrix, time_window, optimize_time = nil, soft_upper_boun
 
     input.write(matrix.size)
     input.write("\n")
+    input.write(rest_window.size)
+    input.write("\n")
     input.write(matrix.collect{ |a| a.collect{ |b| b.join(" ") }.join(" ") }.join("\n"))
     input.write("\n")
-    input.write(time_window.collect{ |a| [a[0] ? a[0]:0, a[1]? a[1]:2147483647, a[2]].join(" ") }.join("\n"))
+    input.write((time_window + time_window[-1..-1]).collect{ |a| [a[0] ? a[0]:0, a[1]? a[1]:2147483647, a[2]].join(" ") }.join("\n"))
+    input.write("\n")
+    input.write(rest_window.collect{ |a| [a[0] ? a[0]:0, a[1]? a[1]:2147483647, a[2]].join(" ") }.join("\n"))
     input.write("\n")
 
     input.close
 
-    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound}  -instance_file '#{input.path}' > '#{output.path}'"
+    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound} -instance_file '#{input.path}' > '#{output.path}'"
     puts cmd
     system(cmd)
     puts $?.exitstatus

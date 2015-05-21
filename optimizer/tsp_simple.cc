@@ -1,4 +1,4 @@
-// Copyright © Mapotempo, 2013-2014
+// Copyright © Mapotempo, 2013-2015
 //
 // This file is part of Mapotempo.
 //
@@ -35,10 +35,12 @@ namespace operations_research {
 void TSPTWSolver(const TSPTWDataDT & data) {
 
   const int size = data.Size();
+  const int size_matrix = data.SizeMatrix();
+  const int size_rest = data.SizeRest();
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
   (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
-  RoutingModel routing(size + 1, 1, *start_ends); // + 1 is extra end depot
+  RoutingModel routing(size, 1, *start_ends);
   routing.SetCost(NewPermanentCallback(&data, &TSPTWDataDT::Distance));
 
   const int64 horizon = data.Horizon();
@@ -48,7 +50,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
 
   //  Setting time windows
-  for (RoutingModel::NodeIndex i(1); i < size; ++i) {
+  for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
     int64 index = routing.NodeToIndex(i);
     IntVar* const cumul_var = routing.CumulVar(index, "time");
     int64 const ready = data.ReadyTime(i);
@@ -82,6 +84,29 @@ void TSPTWSolver(const TSPTWDataDT & data) {
     }
   }
 
+  for (int n = 0; n < size_rest; ++n) {
+    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(size_matrix);
+    RoutingModel::NodeIndex rest(size_matrix + n);
+    int p = 0;
+    for (RoutingModel::NodeIndex i((1 + n) * size_matrix); i < (2 + n) * size_matrix; ++i, ++p) {
+      (*vect)[p] = i;
+
+      int64 index = routing.NodeToIndex(i);
+      IntVar* const cumul_var = routing.CumulVar(index, "time");
+      int64 const ready = data.ReadyTime(rest);
+      int64 const due = data.DueTime(rest);
+
+      if (ready > 0) {
+        cumul_var->SetMin(ready);
+      }
+      if (due > 0 && due < 2147483647) {
+        routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
+        // cumul_var->SetMax(due);
+      }
+    }
+    routing.AddDisjunction(*vect);
+  }
+
   //  Search strategy
   // routing.set_first_solution_strategy(RoutingModel::ROUTING_DEFAULT_STRATEGY);
   // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_GLOBAL_CHEAPEST_ARC);
@@ -111,7 +136,9 @@ void TSPTWSolver(const TSPTWDataDT & data) {
     TSPTWSolution sol(data, &routing, solution);
     for(int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
-        std::cout << routing.IndexToNode(index) << " ";
+        RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
+        nodeIndex = data.RestShiftValue(nodeIndex.value());
+        std::cout << nodeIndex << " ";
       }
       std::cout << routing.IndexToNode(routing.End(route_nbr)) << std::endl;
     }

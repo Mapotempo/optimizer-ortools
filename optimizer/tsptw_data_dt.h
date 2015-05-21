@@ -45,20 +45,71 @@ public:
     return horizon_;
   }
 
-    int64 ReadyTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].ready_time;
+  int64 RestShiftValue(int64 value) const {
+    if (value < SizeMatrix()) {
+      return value;
+    }
+    else {
+      return (value - SizeMatrix()) / SizeMatrix() + SizeMatrix();
+    }
+  }
+
+  int64 ReadyTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[RestShiftValue(i.value())].ready_time;
   }
 
   int64 DueTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].due_time;
+    return tsptw_clients_[RestShiftValue(i.value())].due_time;
   }
 
   int64 ServiceTime(RoutingModel::NodeIndex i)  const {
-    return  tsptw_clients_[i.value()].service_time;
+    return tsptw_clients_[RestShiftValue(i.value())].service_time;
   }
 
   int64 Demand(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].demand;
+    return tsptw_clients_[RestShiftValue(i.value())].demand;
+  }
+
+  // Override
+  int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return times_.Cost(i, j);
+    }
+    else {
+      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
+      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
+      return times_.Cost(ii, jj);
+    }
+  }
+
+  // Override
+  int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return distances_.Cost(i, j);
+    }
+    else {
+      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
+      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
+      return distances_.Cost(ii, jj);
+    }
+  }
+
+  // Override
+  int64& InternalDistance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) {
+    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return distances_.Cost(i,j);
+    }
+    else {
+      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
+      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
+      return distances_.Cost(ii, jj);
+    }
   }
 
   //  Transit quantity at a node "from"
@@ -85,8 +136,17 @@ public:
   void WriteLIBInstance(const std::string & filename) const;
   void WriteDSUInstance(const std::string & filename) const;
 
+  int32 SizeMatrix() const {
+    return size_matrix_;
+  }
+
+  int32 SizeRest() const {
+    return size_rest_;
+  }
   
 private:
+  int32 size_matrix_;
+  int32 size_rest_;
   void ProcessNewLine(char* const line);
   void InitLoadInstance() {
     line_number_ = 0;
@@ -144,6 +204,7 @@ private:
 void TSPTWDataDT::LoadInstance(const std::string & filename) {
   InitLoadInstance();
   size_ = 0;
+  size_matrix_ = 0;
   FileLineReader reader(filename.c_str());
   reader.set_line_callback(NewPermanentCallback(
                            this,
@@ -153,19 +214,19 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     LOG(ERROR) << "Could not open TSPTW file " << filename;
   }
 
-  //  Number of clients
-  size_ = tsptw_clients_.size();
+  // Problem size
+  size_ = size_matrix_ + size_rest_ * size_matrix_;
 
   // Compute horizon
-  for (int32 i = 0; i < Size(); ++i  ) {
+  for (int32 i = 0; i < size_matrix_ + size_rest_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].due_time);
   }
 
-  // Setting start: always first node
-  start_ = RoutingModel::NodeIndex(tsptw_clients_[0].customer_number - 1);
+  // Setting start: always first matrix node
+  start_ = RoutingModel::NodeIndex(tsptw_clients_[0].customer_number);
 
-  // Setting stop: always last node
-  stop_ = RoutingModel::NodeIndex(tsptw_clients_[Size() - 1].customer_number);
+  // Setting stop: always last matrix node
+  stop_ = RoutingModel::NodeIndex(tsptw_clients_[SizeMatrix() - 1].customer_number);
 
   filename_ = filename;
   instantiated_ = true;
@@ -185,30 +246,39 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
   if (words.size() == 0) {
     return;
   }
-
-  if (size_ == 0) {
-      size_ = atoi32(words[0]);
-      CreateRoutingData(size_);
+  else if (line_number_ == 1) {
+    size_matrix_ = atoi32(words[0]);
   }
-
-          if (words.size() == size_ * 2) {
-            CHECK_LE(line_number_ - 1, size_) << "Distance matrix in TSPTW instance file is ill formed.";
-            for (int j = 0; j < Size(); ++j) {
-              SetMatrix(line_number_ - 2, j) = static_cast<int64>(atof(words[j*2].c_str()));
-              SetTimeMatrix(line_number_ - 2, j) = static_cast<int64>(atof(words[j*2+1].c_str()));
-            }
-          }
-          else if (words.size() == 3) {
-            CHECK_LE(line_number_, 2 * Size() + 1) << "Not the right number of clients in TSPTW instance file.";
-
-            tsptw_clients_.push_back(TSPTWClient(line_number_ - Size() -1,
-                                                  atof(words[0].c_str()),
-                                                  atof(words[1].c_str()),
-                                                  atof(words[2].c_str())
-            ));
-          }
-
-    }  //  void ProcessNewLine(char* const line)
+  else if (line_number_ == 2) {
+    size_rest_ = atoi32(words[0]);
+    CreateRoutingData(size_matrix_ + size_rest_);
+    // Matrix default values
+    for (int64 i=0; i < size_matrix_ + size_rest_; ++i) {
+      for (int64 j=0; j < size_matrix_ + size_rest_; ++j) {
+        SetMatrix(i, j) = 0;
+        SetTimeMatrix(i, j) = 0;
+      }
+    }
+  }
+  else if (line_number_ > 2 && line_number_ <= 2 + SizeMatrix()) {
+    CHECK_EQ(words.size(), SizeMatrix() * 2) << "Distance matrix in TSPTW instance file is ill formed : " << line_number_;
+    for (int j = 0; j < SizeMatrix(); ++j) {
+      SetMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2].c_str()));
+      SetTimeMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2+1].c_str()));
+    }
+  }
+  else if (line_number_ > 2 + SizeMatrix() && line_number_ <= 2 + SizeMatrix() + Size()) {
+    CHECK_EQ(words.size(), 3) << "Time window in TSPTW instance file is ill formed : " << line_number_;
+    tsptw_clients_.push_back(TSPTWClient(line_number_ - 3 - SizeMatrix(),
+                                         atof(words[0].c_str()),
+                                         atof(words[1].c_str()),
+                                         atof(words[2].c_str())
+    ));
+  }
+  else {
+    VLOG(0) << "Unexpected line :" << line_number_;
+  }
+}  //  void ProcessNewLine(char* const line)
 
 }  //  namespace operations_research
 
