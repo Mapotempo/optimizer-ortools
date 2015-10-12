@@ -100,8 +100,11 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         cumul_var->SetMin(ready);
       }
       if (due > 0 && due < 2147483647) {
-        routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
-        // cumul_var->SetMax(due);
+        if (FLAGS_soft_upper_bound > 0) {
+          routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
+        } else {
+          cumul_var->SetMax(due);
+        }
       }
     }
     routing.AddDisjunction(*vect);
