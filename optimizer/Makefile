@@ -1,7 +1,7 @@
 OR_TOOLS_TOP=../../or-tools/or-tools
 OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/src
 
-TUTORIAL=../../or-tools/tuto-or-tools
+TUTORIAL=../../or-tools/or-tools/documentation/tutorials/cplusplus
 
 
 include $(OR_TOOLS_TOP)/Makefile
