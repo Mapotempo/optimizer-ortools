@@ -6,7 +6,16 @@ Compute an optimized solution to the Vehicle Routing Problem with Time Windows u
 Installation
 ============
 
+## Optimizer
+
 Require OR-Tools for the C++ part. Fetch source code at [https://github.com/google/or-tools](https://github.com/google/or-tools)
+
+Compile the C++ optimizer
+
+    cd optimizer
+    make tsp_simple
+
+## Ruby server
 
 Install ruby from system package.
 Install ruby bundle gem by :
@@ -20,6 +29,7 @@ Now add gem bin directory to path with :
 
 And finally install gem project dependencies with :
 
+    cd server
     bundle install
 
 Configuration
@@ -32,6 +42,7 @@ Running
 
 Start standalone app server with
 
+    cd server
     ruby config.ru
 
 Now API is on [http://localhost:4567](http://localhost:4567)
