@@ -21,7 +21,6 @@ class APITest < MiniTest::Unit::TestCase
     ]
     time_window = [
       [0, 2147483647, 1],
-      [0, 2147483647, 1],
       [0, 2147483647, 1]
     ]
     rest_window = [
