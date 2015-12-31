@@ -85,26 +85,23 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   }
 
   for (int n = 0; n < size_rest; ++n) {
-    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(size_matrix);
+    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     RoutingModel::NodeIndex rest(size_matrix + n);
-    int p = 0;
-    for (RoutingModel::NodeIndex i((1 + n) * size_matrix); i < (2 + n) * size_matrix; ++i, ++p) {
-      (*vect)[p] = i;
+    (*vect)[0] = rest;
 
-      int64 index = routing.NodeToIndex(i);
-      IntVar* const cumul_var = routing.CumulVar(index, "time");
-      int64 const ready = data.ReadyTime(rest);
-      int64 const due = data.DueTime(rest);
+    int64 index = routing.NodeToIndex(rest);
+    IntVar* const cumul_var = routing.CumulVar(index, "time");
+    int64 const ready = data.ReadyTime(rest);
+    int64 const due = data.DueTime(rest);
 
-      if (ready > 0) {
-        cumul_var->SetMin(ready);
-      }
-      if (due > 0 && due < 2147483647) {
-        if (FLAGS_soft_upper_bound > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
-        } else {
-          cumul_var->SetMax(due);
-        }
+    if (ready > 0) {
+      cumul_var->SetMin(ready);
+    }
+    if (due > 0 && due < 2147483647) {
+      if (FLAGS_soft_upper_bound > 0) {
+        routing.SetCumulVarSoftUpperBound(rest, "time", due, FLAGS_soft_upper_bound);
+      } else {
+        cumul_var->SetMax(due);
       }
     }
     routing.AddDisjunction(*vect);
@@ -140,7 +137,6 @@ void TSPTWSolver(const TSPTWDataDT & data) {
     for(int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        nodeIndex = data.RestShiftValue(nodeIndex.value());
         std::cout << nodeIndex << " ";
       }
       std::cout << routing.IndexToNode(routing.End(route_nbr)) << std::endl;

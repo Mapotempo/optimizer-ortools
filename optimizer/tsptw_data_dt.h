@@ -45,71 +45,41 @@ public:
     return horizon_;
   }
 
-  int64 RestShiftValue(int64 value) const {
-    if (value < SizeMatrix()) {
-      return value;
-    }
-    else {
-      return (value - SizeMatrix()) / SizeMatrix() + SizeMatrix();
-    }
-  }
-
   int64 ReadyTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[RestShiftValue(i.value())].ready_time;
+    return tsptw_clients_[i.value()].ready_time;
   }
 
   int64 DueTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[RestShiftValue(i.value())].due_time;
+    return tsptw_clients_[i.value()].due_time;
   }
 
   int64 ServiceTime(RoutingModel::NodeIndex i)  const {
-    return tsptw_clients_[RestShiftValue(i.value())].service_time;
+    return tsptw_clients_[i.value()].service_time;
   }
 
   int64 Demand(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[RestShiftValue(i.value())].demand;
+    return tsptw_clients_[i.value()].demand;
   }
 
   // Override
   int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
-    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       return times_.Cost(i, j);
-    }
-    else {
-      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
-      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
-      return times_.Cost(ii, jj);
-    }
   }
 
   // Override
   int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
-    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       return distances_.Cost(i, j);
-    }
-    else {
-      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
-      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
-      return distances_.Cost(ii, jj);
-    }
   }
 
   // Override
   int64& InternalDistance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) {
-    if (i.value() < SizeMatrix() && j.value() < SizeMatrix()) {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       return distances_.Cost(i,j);
-    }
-    else {
-      RoutingModel::NodeIndex ii(RestShiftValue(i.value()));
-      RoutingModel::NodeIndex jj(RestShiftValue(i.value()));
-      return distances_.Cost(ii, jj);
-    }
   }
 
   //  Transit quantity at a node "from"
@@ -215,7 +185,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   }
 
   // Problem size
-  size_ = size_matrix_ + size_rest_ * size_matrix_;
+  size_ = size_matrix_ + size_rest_;
 
   // Compute horizon
   for (int32 i = 0; i < size_matrix_ + size_rest_; ++i) {
