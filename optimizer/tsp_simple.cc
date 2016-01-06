@@ -70,7 +70,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         if (FLAGS_soft_upper_bound > 0) {
           routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
         } else {
-          cumul_var->SetMax(due);
+          routing.SetCumulVarSoftUpperBound(i, "time", due, 10000000);
         }
       }
 
@@ -101,7 +101,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
       if (FLAGS_soft_upper_bound > 0) {
         routing.SetCumulVarSoftUpperBound(rest, "time", due, FLAGS_soft_upper_bound);
       } else {
-        cumul_var->SetMax(due);
+        routing.SetCumulVarSoftUpperBound(rest, "time", due, 10000000);
       }
     }
     routing.AddDisjunction(*vect);
