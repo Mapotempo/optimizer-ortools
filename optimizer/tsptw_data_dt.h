@@ -175,6 +175,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   InitLoadInstance();
   size_ = 0;
   size_matrix_ = 0;
+  horizon_ = 0;
   FileLineReader reader(filename.c_str());
   reader.set_line_callback(NewPermanentCallback(
                            this,
@@ -234,15 +235,15 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
     CHECK_EQ(words.size(), SizeMatrix() * 2) << "Distance matrix in TSPTW instance file is ill formed : " << line_number_;
     for (int j = 0; j < SizeMatrix(); ++j) {
       SetMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2].c_str()));
-      SetTimeMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2+1].c_str()));
+      SetTimeMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2+1].c_str())*100+0.5);
     }
   }
   else if (line_number_ > 2 + SizeMatrix() && line_number_ <= 2 + SizeMatrix() + Size()) {
     CHECK_EQ(words.size(), 3) << "Time window in TSPTW instance file is ill formed : " << line_number_;
     tsptw_clients_.push_back(TSPTWClient(line_number_ - 3 - SizeMatrix(),
-                                         atof(words[0].c_str()),
-                                         atof(words[1].c_str()),
-                                         atof(words[2].c_str())
+                                         atof(words[0].c_str())*100,
+                                         atof(words[1].c_str())*100,
+                                         atof(words[2].c_str())*100
     ));
   }
   else {
