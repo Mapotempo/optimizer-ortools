@@ -69,7 +69,7 @@ public:
   int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      if(times_.Cost(i, j) < 10*MinimalTimeDistanceNonEqu())
+      if(times_.Cost(i, j) < 5*MinimalTimeDistanceNonEqu())
         return times_.Cost(i, j) + std::sqrt(times_.Cost(i, j)/100);
       else
         return times_.Cost(i, j) + MinimalTimeDistanceNonEqu()/10;
