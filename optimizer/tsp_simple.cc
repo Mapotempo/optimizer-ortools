@@ -37,6 +37,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
+  const long int fix_penalty = std::pow(2,56);
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
   (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
@@ -76,11 +77,11 @@ void TSPTWSolver(const TSPTWDataDT & data) {
 
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
       (*vect)[0] = i;
-      routing.AddDisjunction(*vect, 10000000);
+      routing.AddDisjunction(*vect, fix_penalty);
     } else {
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
       (*vect)[0] = i;
-      routing.AddDisjunction(*vect, 10000000);
+      routing.AddDisjunction(*vect, fix_penalty);
     }
 
 
@@ -107,7 +108,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
         routing.SetCumulVarSoftUpperBound(rest, "time", due, 10000000);
       }
     }
-    routing.AddDisjunction(*vect, 10000000);
+    routing.AddDisjunction(*vect, fix_penalty);
   }
 
   //  Search strategy
