@@ -45,10 +45,6 @@ public:
     return horizon_;
   }
 
-  int64 MinimalTimeDistanceNonEqu() const {
-    return minim_time_distance_;
-  }
-
   int64 ReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -64,15 +60,17 @@ public:
   int64 Demand(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].demand;
   }
+  int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+    CheckNodeIsValid(i);
+    CheckNodeIsValid(j);
+    return 100*std::sqrt(times_.Cost(i, j)) ;
+  }
 
   // Override
   int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      if(times_.Cost(i, j) < 5*MinimalTimeDistanceNonEqu())
-        return times_.Cost(i, j) + std::sqrt(times_.Cost(i, j)/100);
-      else
-        return times_.Cost(i, j) + MinimalTimeDistanceNonEqu()/10;
+      return times_.Cost(i, j);
   }
 
   // Override
@@ -166,7 +164,6 @@ private:
   std::string details_;
   std::string filename_;
   int64 horizon_;
-  int64 minim_time_distance_;
   bool visualizable_;
   bool two_dimension_;
   bool symmetric_;
@@ -184,7 +181,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   size_ = 0;
   size_matrix_ = 0;
   horizon_ = 0;
-  minim_time_distance_ = 2147483647;
   FileLineReader reader(filename.c_str());
   reader.set_line_callback(NewPermanentCallback(
                            this,
@@ -193,7 +189,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   if (!reader.loaded_successfully()) {
     LOG(ERROR) << "Could not open TSPTW file " << filename;
   }
-
   // Problem size
   size_ = size_matrix_ + size_rest_;
 
@@ -245,8 +240,6 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
     for (int j = 0; j < SizeMatrix(); ++j) {
       SetMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2].c_str()));
       SetTimeMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2+1].c_str())*100+0.5);
-      if(static_cast<int64>(atof(words[j*2+1].c_str())) != 0)
-        minim_time_distance_ = std::min(minim_time_distance_, static_cast<int64>(atof(words[j*2+1].c_str())*100+0.5));
     }
   }
   else if (line_number_ > 2 + SizeMatrix() && line_number_ <= 2 + SizeMatrix() + Size()) {

@@ -29,6 +29,7 @@
 
 DEFINE_int64(time_limit_in_ms, 2000, "Time limit in ms, 0 means no limit.");
 DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
+DEFINE_bool(nearby, false, "short segment priority");
 
 namespace operations_research {
 
@@ -47,6 +48,11 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   const int64 horizon = data.Horizon();
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime),
     horizon, horizon, true, "time");
+  if(FLAGS_nearby) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder),
+      horizon, horizon, true, "order");
+    routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
+  }
 
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
 
