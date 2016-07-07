@@ -27,6 +27,9 @@
 #include "tsptw_solution_dt.h"
 #include "routing_common/routing_common_flags.h"
 
+#include "constraint_solver/routing.h"
+#include "constraint_solver/routing_flags.h"
+
 DEFINE_int64(time_limit_in_ms, 2000, "Time limit in ms, 0 means no limit.");
 DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
 DEFINE_bool(nearby, false, "short segment priority");
@@ -127,19 +130,20 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_BEST_INSERTION);
 
   // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_GREEDY_DESCENT);
-  routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_GUIDED_LOCAL_SEARCH);
+  RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
+  parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_SIMULATED_ANNEALING);
   // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_TABU_SEARCH);
 
   // routing.SetCommandLineOption("routing_no_lns", "true");
 
   if (FLAGS_time_limit_in_ms > 0) {
-    routing.UpdateTimeLimit(FLAGS_time_limit_in_ms);
+    parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);
   }
 
   Solver *solver = routing.solver();
 
-  const Assignment* solution = routing.Solve(NULL);
+  const Assignment* solution = routing.SolveWithParameters(parameters);
 
   if (solution != NULL) {
     std::cout << "Cost: " << solution->ObjectiveValue() << std::endl;

@@ -1,7 +1,7 @@
-OR_TOOLS_TOP=../../or-tools/or-tools
+OR_TOOLS_TOP=../../or-tools
 OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/src
 
-TUTORIAL=../../or-tools/or-tools/documentation/tutorials/cplusplus
+TUTORIAL=../../or-tools/documentation/tutorials/cplusplus
 
 
 include $(OR_TOOLS_TOP)/Makefile
@@ -18,7 +18,12 @@ tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h \
 	$(CCC) $(CFLAGS) -I $(TUTORIAL) -c tsp_simple.cc -o tsp_simple.o
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o
-	$(CCC) $(CFLAGS) -g tsp_simple.o $(DYNAMIC_ROUTING_LNK) $(DYNAMIC_LD_FLAGS) -o tsp_simple
+	$(CCC) $(CFLAGS) -g tsp_simple.o $(OR_TOOLS_LD_FLAGS) \
+	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lcvrptw_lib -ldimacs -lortools \
+	-o tsp_simple
 
 local_clean:
 	rm *.o
+
+mrproper: local_clean
+	rm tsp_simple
