@@ -64,7 +64,7 @@ def optimize(capacity, matrix, time_window, rest_window, optimize_time = nil, so
 
     input.close
 
-    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound} -instance_file '#{input.path}' > '#{output.path}'"
+    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound} -nearby -instance_file '#{input.path}' > '#{output.path}'"
     puts cmd
     system(cmd)
     puts $?.exitstatus
