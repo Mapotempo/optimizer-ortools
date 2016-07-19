@@ -46,10 +46,10 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
   (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
   RoutingModel routing(size, 1, *start_ends);
-  routing.SetCost(NewPermanentCallback(&data, &TSPTWDataDT::Distance));
 
   const int64 horizon = data.Horizon();
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
+  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
   if (FLAGS_nearby) {
     routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
     routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
@@ -141,7 +141,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const Assignment *solution = routing.SolveWithParameters(parameters);
 
   if (solution != NULL) {
-    float cost = solution->ObjectiveValue() / 501.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
+    float cost = solution->ObjectiveValue() / 500.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
     std::cout << "Cost: " << cost << std::endl;
     TSPTWSolution sol(data, &routing, solution);
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
