@@ -36,12 +36,12 @@ DEFINE_bool(nearby, false, "short segment priority");
 
 namespace operations_research {
 
-void TSPTWSolver(const TSPTWDataDT & data) {
+void TSPTWSolver(const TSPTWDataDT &data) {
 
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
-  const long int fix_penalty = std::pow(2,56);
+  const long int fix_penalty = std::pow(2, 56);
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
   (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
@@ -49,11 +49,9 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   routing.SetCost(NewPermanentCallback(&data, &TSPTWDataDT::Distance));
 
   const int64 horizon = data.Horizon();
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime),
-    horizon, horizon, true, "time");
-  if(FLAGS_nearby) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder),
-      horizon, horizon, true, "order");
+  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
+  if (FLAGS_nearby) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
     routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
   }
 
@@ -62,7 +60,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
   //  Setting time windows
   for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
     int64 index = routing.NodeToIndex(i);
-    IntVar* const cumul_var = routing.CumulVar(index, "time");
+    IntVar *const cumul_var = routing.CumulVar(index, "time");
     int64 const ready = data.ReadyTime(i);
     int64 const due = data.DueTime(i);
 
@@ -70,8 +68,8 @@ void TSPTWSolver(const TSPTWDataDT & data) {
       std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
       (*vect)[0] = i;
       routing.AddDisjunction(*vect, 0); // skip node for free
-        cumul_var->SetMin(0);
-        cumul_var->SetMax(0);
+      cumul_var->SetMin(0);
+      cumul_var->SetMax(0);
     } else if (ready > 0 || due > 0) {
       if (ready > 0) {
         cumul_var->SetMin(ready);
@@ -92,9 +90,6 @@ void TSPTWSolver(const TSPTWDataDT & data) {
       (*vect)[0] = i;
       routing.AddDisjunction(*vect, fix_penalty);
     }
-
-
-
   }
 
   for (int n = 0; n < size_rest; ++n) {
@@ -103,7 +98,7 @@ void TSPTWSolver(const TSPTWDataDT & data) {
     (*vect)[0] = rest;
 
     int64 index = routing.NodeToIndex(rest);
-    IntVar* const cumul_var = routing.CumulVar(index, "time");
+    IntVar *const cumul_var = routing.CumulVar(index, "time");
     int64 const ready = data.ReadyTime(rest);
     int64 const due = data.DueTime(rest);
 
@@ -143,12 +138,12 @@ void TSPTWSolver(const TSPTWDataDT & data) {
 
   Solver *solver = routing.solver();
 
-  const Assignment* solution = routing.SolveWithParameters(parameters);
+  const Assignment *solution = routing.SolveWithParameters(parameters);
 
   if (solution != NULL) {
     std::cout << "Cost: " << solution->ObjectiveValue() << std::endl;
     TSPTWSolution sol(data, &routing, solution);
-    for(int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+    for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
         std::cout << nodeIndex << " ";
