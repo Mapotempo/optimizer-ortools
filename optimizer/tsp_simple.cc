@@ -141,7 +141,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const Assignment *solution = routing.SolveWithParameters(parameters);
 
   if (solution != NULL) {
-    std::cout << "Cost: " << solution->ObjectiveValue() << std::endl;
+    float cost = solution->ObjectiveValue() / 501.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
+    std::cout << "Cost: " << cost << std::endl;
     TSPTWSolution sol(data, &routing, solution);
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
