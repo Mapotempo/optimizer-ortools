@@ -25,6 +25,7 @@
 
 #include "tsptw_data_dt.h"
 #include "tsptw_solution_dt.h"
+#include "limits.h"
 #include "routing_common/routing_common_flags.h"
 
 #include "constraint_solver/routing.h"
@@ -33,6 +34,7 @@
 DEFINE_int64(time_limit_in_ms, 2000, "Time limit in ms, 0 means no limit.");
 DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
 DEFINE_bool(nearby, false, "short segment priority");
+DEFINE_int64(no_solution_improvement_limit, 100, "Iterations whitout improvement");
 
 namespace operations_research {
 
@@ -56,7 +58,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
-
   //  Setting time windows
   for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
     int64 index = routing.NodeToIndex(i);
@@ -136,7 +137,12 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);
   }
 
+  routing.CloseModel();
+
   Solver *solver = routing.solver();
+
+  NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
+  routing.AddSearchMonitor(no_improvement_limit);
 
   const Assignment *solution = routing.SolveWithParameters(parameters);
 
