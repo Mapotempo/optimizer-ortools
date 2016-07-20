@@ -31,10 +31,10 @@
 #include "constraint_solver/routing.h"
 #include "constraint_solver/routing_flags.h"
 
-DEFINE_int64(time_limit_in_ms, 2000, "Time limit in ms, 0 means no limit.");
+DEFINE_int64(time_limit_in_ms, -1, "Time limit in ms, 0 means no limit.");
 DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
 DEFINE_bool(nearby, false, "short segment priority");
-DEFINE_int64(no_solution_improvement_limit, 100, "Iterations whitout improvement");
+DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
 
 namespace operations_research {
 
@@ -141,8 +141,10 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   Solver *solver = routing.solver();
 
-  NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
-  routing.AddSearchMonitor(no_improvement_limit);
+  if (FLAGS_no_solution_improvement_limit > 0) {
+    NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
+    routing.AddSearchMonitor(no_improvement_limit);
+  }
 
   const Assignment *solution = routing.SolveWithParameters(parameters);
 
@@ -166,8 +168,13 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
 int main(int argc, char **argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
-  operations_research::TSPTWSolver(tsptw_data);
+
+  if(FLAGS_time_limit_in_ms > 0 || FLAGS_no_solution_improvement_limit > 0) {
+    operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
+    operations_research::TSPTWSolver(tsptw_data);
+  } else {
+    std::cout << "No Stop condition" << std::endl;
+  }
 
   return 0;
 }
