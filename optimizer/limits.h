@@ -28,6 +28,7 @@ class NoImprovementLimit : public SearchLimit {
       solver_(solver), prototype_(new Assignment(solver_)),
       solution_nbr_tolerance_(solution_nbr_tolerance),
       nbr_solutions_with_no_better_obj_(0),
+      iteration_counter_(0),
       minimize_(minimize),
       limit_reached_(false) {
         if (minimize_) {
@@ -60,16 +61,18 @@ class NoImprovementLimit : public SearchLimit {
 
   virtual bool AtSolution() {
     ++nbr_solutions_with_no_better_obj_;
+    ++iteration_counter_;
 
     prototype_->Store();
 
     const IntVar* objective = prototype_->Objective();
-
     if (minimize_ && objective->Min() < best_result_) {
       best_result_ = objective->Min();
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     } else if (!minimize_ && objective->Max() > best_result_) {
       best_result_ = objective->Max();
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     }
 
@@ -106,6 +109,7 @@ class NoImprovementLimit : public SearchLimit {
     int solution_nbr_tolerance_;
     bool minimize_;
     bool limit_reached_;
+    int iteration_counter_;
     int nbr_solutions_with_no_better_obj_;
     std::unique_ptr<Assignment> prototype_;
 };
