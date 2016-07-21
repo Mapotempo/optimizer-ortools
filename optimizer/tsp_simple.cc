@@ -137,13 +137,18 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);
   }
 
-  routing.CloseModel();
+  routing.CloseModelWithParameters(parameters);
 
   Solver *solver = routing.solver();
 
-  if (FLAGS_no_solution_improvement_limit > 0) {
-    NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
-    routing.AddSearchMonitor(no_improvement_limit);
+  if(data.Size() > 3) {
+    if (FLAGS_no_solution_improvement_limit > 0) {
+      NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
+      routing.AddSearchMonitor(no_improvement_limit);
+    }
+  } else {
+    SearchLimit * const limit = solver->MakeLimit(kint64max,kint64max,kint64max,1);
+    routing.AddSearchMonitor(limit);
   }
 
   const Assignment *solution = routing.SolveWithParameters(parameters);
