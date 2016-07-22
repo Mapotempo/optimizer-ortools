@@ -148,7 +148,10 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   Solver *solver = routing.solver();
 
-  if(data.Size() > 3) {
+  LoggerMonitor * const logger = MakeLoggerMonitor(routing.solver(), routing.CostVar(), true);
+  routing.AddSearchMonitor(logger);
+
+  if (data.Size() > 3) {
     if (FLAGS_no_solution_improvement_limit > 0) {
       NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, true);
       routing.AddSearchMonitor(no_improvement_limit);
@@ -162,7 +165,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   if (solution != NULL) {
     float cost = solution->ObjectiveValue() / 500.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
-    std::cout << "Cost: " << cost << std::endl;
+    logger->GetFinalLog();
     TSPTWSolution sol(data, &routing, solution);
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {

@@ -68,11 +68,9 @@ class NoImprovementLimit : public SearchLimit {
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && objective->Min() < best_result_) {
       best_result_ = objective->Min();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     } else if (!minimize_ && objective->Max() > best_result_) {
       best_result_ = objective->Max();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     }
 
@@ -117,8 +115,101 @@ class NoImprovementLimit : public SearchLimit {
 
 } // namespace
 
+
 NoImprovementLimit * MakeNoImprovementLimit(Solver * const solver, IntVar * const objective_var, const int solution_nbr_tolerance, const bool minimize = true) {
   return solver->RevAlloc(new NoImprovementLimit(solver, objective_var, solution_nbr_tolerance, minimize));
+}
+
+namespace {
+
+//  Don't use this class within a MakeLimit factory method!
+class LoggerMonitor : public SearchLimit {
+  public:
+    LoggerMonitor(Solver * const solver, IntVar * const objective_var, const bool minimize = true) :
+    SearchLimit(solver),
+      solver_(solver), prototype_(new Assignment(solver_)),
+      iteration_counter_(0),
+      minimize_(minimize) {
+        if (minimize_) {
+          best_result_ = kint64max;
+        } else {
+          best_result_ = kint64min;
+        }
+
+      CHECK_NOTNULL(objective_var);
+      prototype_->AddObjective(objective_var);
+
+  }
+
+  virtual void Init() {
+    iteration_counter_ = 0;
+    if (minimize_) {
+      best_result_ = kint64max;
+    } else {
+      best_result_ = kint64min;
+    }
+  }
+
+  //  Returns true if limit is reached, false otherwise.
+  virtual bool Check() {
+    //VLOG(2) << "NoImprovementLimit's limit reached? " << limit_reached_;
+
+    return false;
+  }
+
+  virtual bool AtSolution() {
+    ++iteration_counter_;
+
+    prototype_->Store();
+
+    const IntVar* objective = prototype_->Objective();
+    if (minimize_ && objective->Min() < best_result_) {
+      best_result_ = objective->Min();
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
+    } else if (!minimize_ && objective->Max() > best_result_) {
+      best_result_ = objective->Max();
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
+    }
+    return true;
+  }
+
+  virtual void Copy(const SearchLimit* const limit) {
+    const LoggerMonitor* const copy_limit =
+    reinterpret_cast<const LoggerMonitor* const>(limit);
+
+    best_result_ = copy_limit->best_result_;
+    iteration_counter_ = copy_limit->iteration_counter_;
+    minimize_ = copy_limit->minimize_;
+    limit_reached_ = copy_limit->limit_reached_;
+  }
+
+  // Allocates a clone of the limit
+  virtual SearchLimit* MakeClone() const {
+    // we don't to copy the variables
+    return solver_->RevAlloc(new LoggerMonitor(solver_, prototype_->Objective(), minimize_));
+  }
+
+  virtual std::string DebugString() const {
+    return StringPrintf("LoggerMonitor(crossed = %i)", limit_reached_);
+  }
+
+  void GetFinalLog() {
+      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
+  }
+
+  private:
+    Solver * const solver_;
+    int64 best_result_;
+    bool minimize_;
+    bool limit_reached_;
+    int iteration_counter_;
+    std::unique_ptr<Assignment> prototype_;
+};
+
+} // namespace
+
+LoggerMonitor * MakeLoggerMonitor(Solver * const solver, IntVar * const objective_var, const bool minimize = true) {
+  return solver->RevAlloc(new LoggerMonitor(solver, objective_var, minimize));
 }
 }  //  namespace operations_research
 
