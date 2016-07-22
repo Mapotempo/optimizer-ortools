@@ -88,6 +88,7 @@ class NoImprovementLimit : public SearchLimit {
 
     best_result_ = copy_limit->best_result_;
     solution_nbr_tolerance_ = copy_limit->solution_nbr_tolerance_;
+    iteration_counter_ = copy_limit->iteration_counter_;
     minimize_ = copy_limit->minimize_;
     limit_reached_ = copy_limit->limit_reached_;
     nbr_solutions_with_no_better_obj_ = copy_limit->nbr_solutions_with_no_better_obj_;
