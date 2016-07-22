@@ -116,20 +116,27 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     routing.AddDisjunction(*vect, fix_penalty);
   }
 
-  //  Search strategy
-  // routing.set_first_solution_strategy(RoutingModel::ROUTING_DEFAULT_STRATEGY);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_GLOBAL_CHEAPEST_ARC);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_LOCAL_CHEAPEST_ARC);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_PATH_CHEAPEST_ARC);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_EVALUATOR_STRATEGY);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_ALL_UNPERFORMED);
-  // routing.set_first_solution_strategy(RoutingModel::RoutingStrategy::ROUTING_BEST_INSERTION);
-
-  // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_GREEDY_DESCENT);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
+
+  // Search strategy
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE); // Default
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::ALL_UNPERFORMED);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::BEST_INSERTION);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_ARC);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
+
+  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_GREEDY_DESCENT);
   parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
-  // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_SIMULATED_ANNEALING);
-  // routing.set_metaheuristic(RoutingModel::RoutingMetaheuristic::ROUTING_TABU_SEARCH);
+  // parameters.set_guided_local_search_lambda_coefficient(0.5);
+  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_SIMULATED_ANNEALING);
+  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_TABU_SEARCH);
 
   // routing.SetCommandLineOption("routing_no_lns", "true");
 
