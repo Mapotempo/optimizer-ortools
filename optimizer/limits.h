@@ -68,11 +68,11 @@ class NoImprovementLimit : public SearchLimit {
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && objective->Min() < best_result_) {
       best_result_ = objective->Min();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     } else if (!minimize_ && objective->Max() > best_result_) {
       best_result_ = objective->Max();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
       nbr_solutions_with_no_better_obj_ = 0;
     }
 
