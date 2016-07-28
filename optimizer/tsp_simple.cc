@@ -58,61 +58,60 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
-  //  Setting time windows
+
+  //  Setting visit time windows
   for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
-    int64 index = routing.NodeToIndex(i);
-    IntVar *const cumul_var = routing.CumulVar(index, "time");
     int64 const ready = data.ReadyTime(i);
     int64 const due = data.DueTime(i);
 
-    if (ready <= 0 && due <= 0) {
-      std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-      (*vect)[0] = i;
-      routing.AddDisjunction(*vect, 0); // skip node for free
-      cumul_var->SetMin(0);
-      cumul_var->SetMax(0);
-    } else if (ready > 0 || due > 0) {
-      if (ready > 0) {
+    if (ready > -2147483648 || due < 2147483647) {
+      int64 index = routing.NodeToIndex(i);
+      IntVar *const cumul_var = routing.CumulVar(index, "time");
+
+      if (ready > -2147483648) {
         cumul_var->SetMin(ready);
       }
-      if (due > 0 && due < 2147483647) {
+
+      if (due < 2147483647) {
         if (FLAGS_soft_upper_bound > 0) {
           routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
         } else {
           routing.SetCumulVarSoftUpperBound(i, "time", due, 10000000);
         }
       }
-
-      std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-      (*vect)[0] = i;
-      routing.AddDisjunction(*vect, fix_penalty);
-    } else {
-      std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-      (*vect)[0] = i;
-      routing.AddDisjunction(*vect, fix_penalty);
     }
+
+    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
+    (*vect)[0] = i;
+    routing.AddDisjunction(*vect, fix_penalty);
   }
 
+  // Setting rest time windows
   for (int n = 0; n < size_rest; ++n) {
-    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     RoutingModel::NodeIndex rest(size_matrix + n);
-    (*vect)[0] = rest;
 
-    int64 index = routing.NodeToIndex(rest);
-    IntVar *const cumul_var = routing.CumulVar(index, "time");
     int64 const ready = data.ReadyTime(rest);
     int64 const due = data.DueTime(rest);
 
-    if (ready > 0) {
-      cumul_var->SetMin(ready);
-    }
-    if (due > 0 && due < 2147483647) {
-      if (FLAGS_soft_upper_bound > 0) {
-        routing.SetCumulVarSoftUpperBound(rest, "time", due, FLAGS_soft_upper_bound);
-      } else {
-        routing.SetCumulVarSoftUpperBound(rest, "time", due, 10000000);
+    if (ready > -2147483648 || due < 2147483647) {
+      int64 index = routing.NodeToIndex(rest);
+      IntVar *const cumul_var = routing.CumulVar(index, "time");
+
+      if (ready > -2147483648) {
+        cumul_var->SetMin(ready);
+      }
+
+      if (due < 2147483647) {
+        if (FLAGS_soft_upper_bound > 0) {
+          routing.SetCumulVarSoftUpperBound(rest, "time", due, FLAGS_soft_upper_bound);
+        } else {
+          routing.SetCumulVarSoftUpperBound(rest, "time", due, 10000000);
+        }
       }
     }
+
+    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
+    (*vect)[0] = rest;
     routing.AddDisjunction(*vect, fix_penalty);
   }
 
