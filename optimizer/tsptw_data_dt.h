@@ -45,12 +45,20 @@ public:
     return horizon_;
   }
 
-  int64 ReadyTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].ready_time;
+  int64 FirstTWReadyTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].first_ready_time;
   }
 
-  int64 DueTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].due_time;
+  int64 FirstTWDueTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].first_due_time;
+  }
+
+  int64 secondTWReadyTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].second_ready_time;
+  }
+
+  int64 secondTWDueTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].second_due_time;
   }
 
   int64 ServiceTime(RoutingModel::NodeIndex i)  const {
@@ -145,18 +153,21 @@ private:
   bool instantiated_;
   RoutingModel::NodeIndex start_, stop_;
   struct TSPTWClient {
-    TSPTWClient(int cust_no, double d, double r_t, double d_t, double s_t) :
-    customer_number(cust_no), demand(d), ready_time(r_t), due_time(d_t), service_time(s_t) {}
-    TSPTWClient(int cust_no, double r_t, double d_t):
-    customer_number(cust_no), demand(0.0), ready_time(r_t), due_time(d_t), service_time(0.0){
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t):
+    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t){
     }
-    TSPTWClient(int cust_no, double r_t, double d_t, double s_t):
-    customer_number(cust_no), demand(0.0), ready_time(r_t), due_time(d_t), service_time(s_t){
+    TSPTWClient(int cust_no, double d, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t) :
+    customer_number(cust_no), demand(d), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t) {
+    }
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
+    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0){
     }
     int customer_number;
     int64 demand;
-    int64 ready_time;
-    int64 due_time;
+    int64 first_ready_time;
+    int64 first_due_time;
+    int64 second_ready_time;
+    int64 second_due_time;
     int64 service_time;
   };
 
@@ -194,7 +205,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   // Compute horizon
   for (int32 i = 0; i < size_matrix_ + size_rest_; ++i) {
-    horizon_ = std::max(horizon_, tsptw_clients_[i].due_time);
+    horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
 
   // Setting start: always first matrix node
@@ -243,11 +254,13 @@ void TSPTWDataDT::ProcessNewLine(char* const line) {
     }
   }
   else if (line_number_ > 2 + SizeMatrix() && line_number_ <= 2 + SizeMatrix() + Size()) {
-    CHECK_EQ(words.size(), 3) << "Time window in TSPTW instance file is ill formed : " << line_number_;
+    CHECK_EQ(words.size(), 5) << "Time window in TSPTW instance file is ill formed : " << line_number_;
     tsptw_clients_.push_back(TSPTWClient(line_number_ - 3 - SizeMatrix(),
                                          atof(words[0].c_str())*100,
                                          atof(words[1].c_str())*100,
-                                         atof(words[2].c_str())*100
+                                         atof(words[2].c_str())*100,
+                                         atof(words[3].c_str())*100,
+                                         atof(words[4].c_str())*100
     ));
   }
   else {

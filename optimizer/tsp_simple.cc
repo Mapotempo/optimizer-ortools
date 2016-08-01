@@ -62,8 +62,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   //  Setting visit time windows
   for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
-    int64 const ready = data.ReadyTime(i);
-    int64 const due = data.DueTime(i);
+    int64 const ready = data.FirstTWReadyTime(i);
+    int64 const due = data.FirstTWDueTime(i);
 
     if (ready > -2147483648 || due < 2147483647) {
       int64 index = routing.NodeToIndex(i);
@@ -91,8 +91,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   for (int n = 0; n < size_rest; ++n) {
     RoutingModel::NodeIndex rest(size_matrix + n);
 
-    int64 const ready = data.ReadyTime(rest);
-    int64 const due = data.DueTime(rest);
+    int64 const ready = data.FirstTWReadyTime(rest);
+    int64 const due = data.FirstTWDueTime(rest);
 
     if (ready > -2147483648 || due < 2147483647) {
       int64 index = routing.NodeToIndex(rest);

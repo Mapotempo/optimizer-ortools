@@ -152,19 +152,19 @@ namespace operations_research {
       total_time += data_.Distance(from_node, to_node);
       VLOG(1) << std::setw(11 + width) << std::left << "travel to"
               << std::setw(6 + width) << std::right << to_node.value()
-              << std::setw(9 + width) << std::right << data_.ReadyTime(to_node)
-              << std::setw(10 + width) << std::right << data_.DueTime(to_node)
+              << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(to_node)
+              << std::setw(10 + width) << std::right << data_.FirstTWDueTime(to_node)
               << std::setw(9 + width) << std::right << data_.ServiceTime(to_node)
               << std::setw(10 + width) << data_.Distance(from_node, to_node)
               << std::setw(5 + width) << total_time;
       //  test if we can service client immediatly or not
-      waiting_time = data_.ReadyTime(to_node) - total_time;
+      waiting_time = data_.FirstTWReadyTime(to_node) - total_time;
       if (waiting_time > 0) {
-        total_time = data_.ReadyTime(to_node);
+        total_time = data_.FirstTWReadyTime(to_node);
         VLOG(1) << std::setw(11 + width) << std::left << "wait in"
                 << std::setw(6 + width) << std::right << to_node.value()
-                << std::setw(9 + width) << std::right << data_.ReadyTime(to_node)
-                << std::setw(10 + width) << std::right << data_.DueTime(to_node)
+                << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(to_node)
+                << std::setw(10 + width) << std::right << data_.FirstTWDueTime(to_node)
                 << std::setw(9 + width) << std::right << data_.ServiceTime(to_node)
                 << std::setw(10 + width) << waiting_time
                 << std::setw(5 + width) << total_time;
@@ -172,12 +172,12 @@ namespace operations_research {
       total_time += data_.ServiceTime(to_node);
       VLOG(1) << std::setw(11 + width) << std::left << "serve"
               << std::setw(6 + width) << std::right << to_node.value()
-              << std::setw(9 + width) << std::right << data_.ReadyTime(to_node)
-              << std::setw(10 + width) << std::right << data_.DueTime(to_node)
+              << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(to_node)
+              << std::setw(10 + width) << std::right << data_.FirstTWDueTime(to_node)
               << std::setw(9 + width) << std::right << data_.ServiceTime(to_node)
               << std::setw(10 + width) << data_.ServiceTime(to_node)
               << std::setw(5 + width) << total_time;
-      if (total_time  > data_.DueTime(to_node)) {
+      if (total_time  > data_.FirstTWDueTime(to_node)) {
         return false;
       }
       from_node = to_node;
@@ -187,19 +187,19 @@ namespace operations_research {
     total_time += data_.Distance(to_node, first_node);
     VLOG(1) << std::setw(11 + width) << std::left << "travel to"
             << std::setw(6 + width) << std::right << first_node.value()
-            << std::setw(9 + width) << std::right << data_.ReadyTime(first_node)
-            << std::setw(10 + width) << std::right << data_.DueTime(first_node)
+            << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(first_node)
+            << std::setw(10 + width) << std::right << data_.FirstTWDueTime(first_node)
             << std::setw(9 + width) << std::right << data_.ServiceTime(first_node)
             << std::setw(10 + width) << data_.Distance(to_node, first_node)
             << std::setw(5 + width) << total_time;
     //  test if we can service client immediatly or not
-    waiting_time = data_.ReadyTime(first_node) - total_time;
+    waiting_time = data_.FirstTWReadyTime(first_node) - total_time;
     if (waiting_time > 0) {
-      total_time = data_.ReadyTime(first_node);
+      total_time = data_.FirstTWReadyTime(first_node);
       VLOG(1) << std::setw(11 + width) << std::left << "wait in"
               << std::setw(6 + width) << std::right << first_node.value()
-              << std::setw(9 + width) << std::right << data_.ReadyTime(first_node)
-              << std::setw(10 + width) << std::right << data_.DueTime(first_node)
+              << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(first_node)
+              << std::setw(10 + width) << std::right << data_.FirstTWDueTime(first_node)
               << std::setw(9 + width) << std::right << data_.ServiceTime(first_node)
               << std::setw(10 + width) << waiting_time
               << std::setw(5 + width) << total_time;
@@ -207,12 +207,12 @@ namespace operations_research {
     total_time += data_.ServiceTime(first_node);
     VLOG(1) << std::setw(11 + width) << std::left << "serve"
             << std::setw(6 + width) << std::right << first_node.value()
-            << std::setw(9 + width) << std::right << data_.ReadyTime(first_node)
-            << std::setw(10 + width) << std::right << data_.DueTime(first_node)
+            << std::setw(9 + width) << std::right << data_.FirstTWReadyTime(first_node)
+            << std::setw(10 + width) << std::right << data_.FirstTWDueTime(first_node)
             << std::setw(9 + width) << std::right << data_.ServiceTime(first_node)
             << std::setw(10 + width) << data_.ServiceTime(first_node)
             << std::setw(5 + width) << total_time;
-    if (total_time > data_.DueTime(first_node)) {
+    if (total_time > data_.FirstTWDueTime(first_node)) {
       return false;
     }
 
