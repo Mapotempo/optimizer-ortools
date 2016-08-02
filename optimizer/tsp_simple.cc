@@ -39,37 +39,14 @@ DEFINE_int64(time_out_no_solution_improvement_limit, 5,"time whitout improvement
 
 namespace operations_research {
 
-void TSPTWSolver(const TSPTWDataDT &data) {
+void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 begin_index, int64 size) {
+  for (RoutingModel::NodeIndex i(begin_index); i < begin_index + size; ++i) {
 
-  const int size = data.Size();
-  const int size_matrix = data.SizeMatrix();
-  const int size_rest = data.SizeRest();
-  const long int fix_penalty = std::pow(2, 56);
-
-  std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
-  (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
-  RoutingModel routing(size, 1, *start_ends);
-
-  const int64 horizon = data.Horizon();
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
-  if (FLAGS_nearby) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
-    routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
-  }
-
-  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
-
-
-  Solver *solver = routing.solver();
-  //  Setting visit time windows
-  for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
     int64 const first_ready = data.FirstTWReadyTime(i);
     int64 const first_due = data.FirstTWDueTime(i);
     int64 const second_ready = data.SecondTWReadyTime(i);
     int64 const second_due = data.SecondTWDueTime(i);
 
-    IntVar* var;
     if (first_ready > -2147483648 || first_due < 2147483647) {
       int64 index = routing.NodeToIndex(i);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
@@ -95,45 +72,38 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     (*vect)[0] = i;
-    routing.AddDisjunction(*vect, fix_penalty);
+    routing.AddDisjunction(*vect, std::pow(2, 56));
   }
+}
+
+void TSPTWSolver(const TSPTWDataDT &data) {
+
+  const int size = data.Size();
+  const int size_matrix = data.SizeMatrix();
+  const int size_rest = data.SizeRest();
+
+  std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
+  (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
+  RoutingModel routing(size, 1, *start_ends);
+
+  const int64 horizon = data.Horizon();
+  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
+  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
+  if (FLAGS_nearby) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
+    routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
+  }
+
+  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
+
+
+  Solver *solver = routing.solver();
+
+  //  Setting visit time windows
+  TWBuilder(data, routing, solver, 1, size_matrix - 2);
 
   // Setting rest time windows
-  for (int n = 0; n < size_rest; ++n) {
-    RoutingModel::NodeIndex rest(size_matrix + n);
-
-    int64 const first_ready = data.FirstTWReadyTime(rest);
-    int64 const first_due = data.FirstTWDueTime(rest);
-    int64 const second_ready = data.SecondTWReadyTime(rest);
-    int64 const second_due = data.SecondTWDueTime(rest);
-
-    if (first_ready > -2147483648 || first_due < 2147483647) {
-      int64 index = routing.NodeToIndex(rest);
-      IntVar *const cumul_var = routing.CumulVar(index, "time");
-
-      if (first_ready > -2147483648) {
-        cumul_var->SetMin(first_ready);
-      }
-
-      if (second_ready > -2147483648) {
-        IntVar* const cost_var = solver->MakeSum(
-          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, FLAGS_soft_upper_bound), 0),
-          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, FLAGS_soft_upper_bound), 0)
-        )->Var();
-        routing.AddVariableMinimizedByFinalizer(cost_var);
-      } else if (first_due < 2147483647) {
-        if (FLAGS_soft_upper_bound > 0) {
-          routing.SetCumulVarSoftUpperBound(rest, "time", first_due, FLAGS_soft_upper_bound);
-        } else {
-          routing.SetCumulVarSoftUpperBound(rest, "time", first_due, 10000000);
-        }
-      }
-    }
-
-    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-    (*vect)[0] = rest;
-    routing.AddDisjunction(*vect, fix_penalty);
-  }
+  TWBuilder(data, routing, solver, size_matrix, size_rest);
 
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
