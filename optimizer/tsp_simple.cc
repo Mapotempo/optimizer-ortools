@@ -35,7 +35,8 @@ DEFINE_int64(time_limit_in_ms, -1, "Time limit in ms, 0 means no limit.");
 DEFINE_int64(soft_upper_bound, 3, "Soft upper bound multiplicator, 0 means hard limit.");
 DEFINE_bool(nearby, false, "short segment priority");
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
-DEFINE_int64(time_out_no_solution_improvement_limit, 5,"time whitout improvement");
+DEFINE_int64(initial_time_out_no_solution_improvement, 30, "Initial time whitout improvement");
+DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 
 namespace operations_research {
 
@@ -140,7 +141,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   if (data.Size() > 3) {
     if (FLAGS_no_solution_improvement_limit > 0) {
-      NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, FLAGS_time_out_no_solution_improvement_limit, true);
+      NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, FLAGS_initial_time_out_no_solution_improvement, FLAGS_time_out_multiplier, true);
       routing.AddSearchMonitor(no_improvement_limit);
     }
   } else {
