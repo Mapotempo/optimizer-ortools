@@ -60,24 +60,35 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
 
+
+  Solver *solver = routing.solver();
   //  Setting visit time windows
   for (RoutingModel::NodeIndex i(1); i < size_matrix - 1; ++i) {
-    int64 const ready = data.FirstTWReadyTime(i);
-    int64 const due = data.FirstTWDueTime(i);
+    int64 const first_ready = data.FirstTWReadyTime(i);
+    int64 const first_due = data.FirstTWDueTime(i);
+    int64 const second_ready = data.SecondTWReadyTime(i);
+    int64 const second_due = data.SecondTWDueTime(i);
 
-    if (ready > -2147483648 || due < 2147483647) {
+    IntVar* var;
+    if (first_ready > -2147483648 || first_due < 2147483647) {
       int64 index = routing.NodeToIndex(i);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
-      if (ready > -2147483648) {
-        cumul_var->SetMin(ready);
+      if (first_ready > -2147483648) {
+        cumul_var->SetMin(first_ready);
       }
 
-      if (due < 2147483647) {
+      if (second_ready > -2147483648) {
+        IntVar* const cost_var = solver->MakeSum(
+          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, FLAGS_soft_upper_bound), 0),
+          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, FLAGS_soft_upper_bound), 0)
+        )->Var();
+        routing.AddVariableMinimizedByFinalizer(cost_var);
+      } else if (first_due < 2147483647) {
         if (FLAGS_soft_upper_bound > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", due, FLAGS_soft_upper_bound);
+          routing.SetCumulVarSoftUpperBound(i, "time", first_due, FLAGS_soft_upper_bound);
         } else {
-          routing.SetCumulVarSoftUpperBound(i, "time", due, 10000000);
+          routing.SetCumulVarSoftUpperBound(i, "time", first_due, 10000000);
         }
       }
     }
@@ -91,22 +102,30 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   for (int n = 0; n < size_rest; ++n) {
     RoutingModel::NodeIndex rest(size_matrix + n);
 
-    int64 const ready = data.FirstTWReadyTime(rest);
-    int64 const due = data.FirstTWDueTime(rest);
+    int64 const first_ready = data.FirstTWReadyTime(rest);
+    int64 const first_due = data.FirstTWDueTime(rest);
+    int64 const second_ready = data.SecondTWReadyTime(rest);
+    int64 const second_due = data.SecondTWDueTime(rest);
 
-    if (ready > -2147483648 || due < 2147483647) {
+    if (first_ready > -2147483648 || first_due < 2147483647) {
       int64 index = routing.NodeToIndex(rest);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
-      if (ready > -2147483648) {
-        cumul_var->SetMin(ready);
+      if (first_ready > -2147483648) {
+        cumul_var->SetMin(first_ready);
       }
 
-      if (due < 2147483647) {
+      if (second_ready > -2147483648) {
+        IntVar* const cost_var = solver->MakeSum(
+          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, FLAGS_soft_upper_bound), 0),
+          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, FLAGS_soft_upper_bound), 0)
+        )->Var();
+        routing.AddVariableMinimizedByFinalizer(cost_var);
+      } else if (first_due < 2147483647) {
         if (FLAGS_soft_upper_bound > 0) {
-          routing.SetCumulVarSoftUpperBound(rest, "time", due, FLAGS_soft_upper_bound);
+          routing.SetCumulVarSoftUpperBound(rest, "time", first_due, FLAGS_soft_upper_bound);
         } else {
-          routing.SetCumulVarSoftUpperBound(rest, "time", due, 10000000);
+          routing.SetCumulVarSoftUpperBound(rest, "time", first_due, 10000000);
         }
       }
     }
@@ -145,8 +164,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   routing.CloseModelWithParameters(parameters);
-
-  Solver *solver = routing.solver();
 
   LoggerMonitor * const logger = MakeLoggerMonitor(routing.solver(), routing.CostVar(), true);
   routing.AddSearchMonitor(logger);

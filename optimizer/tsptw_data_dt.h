@@ -53,11 +53,11 @@ public:
     return tsptw_clients_[i.value()].first_due_time;
   }
 
-  int64 secondTWReadyTime(RoutingModel::NodeIndex i) const {
+  int64 SecondTWReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].second_ready_time;
   }
 
-  int64 secondTWDueTime(RoutingModel::NodeIndex i) const {
+  int64 SecondTWDueTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].second_due_time;
   }
 
@@ -139,7 +139,7 @@ private:
     name_ = "";
     comment_ = "";
   }
-  
+
   //  Helper function
   int64& SetMatrix(int i, int j) {
     return distances_.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
