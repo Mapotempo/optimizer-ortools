@@ -26,7 +26,7 @@ end
 post '/0.1/optimize_tsptw' do
   jdata = JSON.parse(params[:data])
   begin
-    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['rest_window'], jdata['optimize_time'], jdata['soft_upper_bound'])
+    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['rest_window'], jdata['iterations_without_improvement'], jdata['optimize_time'], jdata['soft_upper_bound'])
     if !optim
       puts "No optim result !"
       halt(500)
@@ -34,15 +34,17 @@ post '/0.1/optimize_tsptw' do
     {status: :ok, optim: optim}.to_json
   rescue Exception => e
     puts e
+    puts e.backtrace.join("\n")
     halt(500, e.to_s)
   end
 end
 
 
-def optimize(capacity, matrix, time_window, rest_window, optimize_time = nil, soft_upper_bound = nil)
+def optimize(capacity, matrix, time_window, rest_window, iterations_without_improvement = nil, optimize_time = nil, soft_upper_bound = nil)
   @exec = settings.optimizer_exec
   @tmp_dir = settings.optimizer_tmp_dir
-  @time = optimize_time || settings.optimizer_default_time
+  @iterations_without_improvement = iterations_without_improvement || settings.optimizer_default_iterations_without_improvement
+  @time = optimize_time
   @soft_upper_bound = soft_upper_bound || settings.optimizer_soft_upper_bound
 
   input = Tempfile.new('optimize-route-input', tmpdir=@tmp_dir)
@@ -57,14 +59,18 @@ def optimize(capacity, matrix, time_window, rest_window, optimize_time = nil, so
     input.write("\n")
     input.write(matrix.collect{ |a| a.collect{ |b| b.join(" ") }.join(" ") }.join("\n"))
     input.write("\n")
-    input.write((time_window + [[0, 2147483647, -2147483648, 2147483647, 0]]).collect{ |a| [a[0] ? a[0]:-2147483648, a[1]? a[1]:2147483647, a[2] ? a[2]:-2147483648, a[3]? a[3]:2147483647, a[4]].join(" ") }.join("\n"))
+    input.write((time_window + [[0, 2147483647, -2147483648, 2147483647, 0]]).collect{ |a|
+      [a[0] ? a[0]:-2147483648, a[1]? a[1]:2147483647, a[2] ? a[2]:-2147483648, a[3]? a[3]:2147483647, a[4]].join(" ")
+    }.join("\n"))
     input.write("\n")
-    input.write(rest_window.collect{ |a| [a[0] ? a[0]:-2147483648, a[1]? a[1]:2147483647, a[2] ? a[2]:-2147483648, a[3]? a[3]:2147483647, a[4]].join(" ") }.join("\n"))
+    input.write(rest_window.collect{ |a|
+      [a[0] ? a[0]:-2147483648, a[1]? a[1]:2147483647, a[2] ? a[2]:-2147483648, a[3]? a[3]:2147483647, a[4]].join(" ")
+    }.join("\n"))
     input.write("\n")
 
     input.close
 
-    cmd = "#{@exec} -time_limit_in_ms #{@time} -soft_upper_bound #{@soft_upper_bound} -nearby -instance_file '#{input.path}' > '#{output.path}'"
+    cmd = "#{@exec} -no_solution_improvement_limit #{@iterations_without_improvement} -time_out_multiplier 2" + (@time ? " -time_limit_in_ms #{@time}" : '') + " -soft_upper_bound #{@soft_upper_bound} -nearby -instance_file '#{input.path}' > '#{output.path}'"
     puts cmd
     system(cmd)
     puts $?.exitstatus
