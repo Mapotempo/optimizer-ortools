@@ -26,7 +26,7 @@ end
 post '/0.1/optimize_tsptw' do
   jdata = JSON.parse(params[:data])
   begin
-    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['rest_window'], jdata['iterations_without_improvement'], jdata['optimize_time'], jdata['soft_upper_bound'])
+    optim = optimize(jdata['capacity'], jdata['matrix'], jdata['time_window'], jdata['rest_window'], {iterations_without_improvement: jdata['iterations_without_improvement'], optimize_time: jdata['optimize_time'], soft_upper_bound: jdata['soft_upper_bound'], initial_time_out: jdata['initial_time_out'], time_out_multiplier: jdata['time_out_multiplier']})
     if !optim
       puts "No optim result !"
       halt(500)
@@ -40,12 +40,14 @@ post '/0.1/optimize_tsptw' do
 end
 
 
-def optimize(capacity, matrix, time_window, rest_window, iterations_without_improvement = nil, optimize_time = nil, soft_upper_bound = nil)
+def optimize(capacity, matrix, time_window, rest_window, options = {})
   @exec = settings.optimizer_exec
   @tmp_dir = settings.optimizer_tmp_dir
-  @iterations_without_improvement = iterations_without_improvement || settings.optimizer_default_iterations_without_improvement
-  @time = optimize_time
-  @soft_upper_bound = soft_upper_bound || settings.optimizer_soft_upper_bound
+  @iterations_without_improvement = options[:iterations_without_improvement] || settings.optimizer_default_iterations_without_improvement
+  @time = options[:optimize_time]
+  @soft_upper_bound = options[:soft_upper_bound] || settings.optimizer_soft_upper_bound
+  @initial_time_out = options[:initial_time_out]
+  @time_out_multiplier = options[:time_out_multiplier]
 
   input = Tempfile.new('optimize-route-input', tmpdir=@tmp_dir)
   output = Tempfile.new('optimize-route-output', tmpdir=@tmp_dir)
@@ -70,7 +72,7 @@ def optimize(capacity, matrix, time_window, rest_window, iterations_without_impr
 
     input.close
 
-    cmd = "#{@exec} -no_solution_improvement_limit #{@iterations_without_improvement} -time_out_multiplier 2" + (@time ? " -time_limit_in_ms #{@time}" : '') + " -soft_upper_bound #{@soft_upper_bound} -nearby -instance_file '#{input.path}' > '#{output.path}'"
+    cmd = "#{@exec} -no_solution_improvement_limit #{@iterations_without_improvement} -time_out_multiplier 2" + (@time ? " -time_limit_in_ms #{@time}" : '') + " -soft_upper_bound #{@soft_upper_bound} -nearby" + (@initial_time_out ? " -initial_time_out_no_solution_improvement #{@initial_time_out}" : '') + (@time_out_multiplier ? " -time_out_multiplier #{@time_out_multiplier}" : '') + " -instance_file '#{input.path}' > '#{output.path}'"
     puts cmd
     system(cmd)
     puts $?.exitstatus

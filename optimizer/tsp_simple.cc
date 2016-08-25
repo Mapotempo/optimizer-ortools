@@ -33,7 +33,7 @@
 
 DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
-DEFINE_int64(initial_time_out_no_solution_improvement, 30, "Initial time whitout improvement");
+DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whitout improvement in ms");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(soft_upper_bound, 0, "Soft upper bound multiplicator, no option means hard limit (late not authorized).");
 DEFINE_bool(nearby, false, "Short segment priority");
