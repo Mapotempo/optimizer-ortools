@@ -151,6 +151,7 @@ class LoggerMonitor : public SearchLimit {
     SearchLimit(solver),
       solver_(solver), prototype_(new Assignment(solver_)),
       iteration_counter_(0),
+      start_time_(base::GetCurrentTimeNanos()),
       pow_(0),
       minimize_(minimize) {
         if (minimize_) {
@@ -208,6 +209,7 @@ class LoggerMonitor : public SearchLimit {
 
     best_result_ = copy_limit->best_result_;
     iteration_counter_ = copy_limit->iteration_counter_;
+    start_time_ = copy_limit->start_time_;
     minimize_ = copy_limit->minimize_;
     limit_reached_ = copy_limit->limit_reached_;
   }
@@ -223,12 +225,13 @@ class LoggerMonitor : public SearchLimit {
   }
 
   void GetFinalLog() {
-      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << std::endl;
+      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   }
 
   private:
     Solver * const solver_;
     int64 best_result_;
+    double start_time_;
     bool minimize_;
     bool limit_reached_;
     int64 pow_;
