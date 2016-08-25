@@ -88,7 +88,7 @@ class NoImprovementLimit : public SearchLimit {
     if (first_solution_) {
       first_solution_ = false;
     } else {
-      time_out_ = time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_);
+      time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     }
 
     return true;
