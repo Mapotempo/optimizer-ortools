@@ -11,6 +11,7 @@
 #include "base/strtoint.h"
 
 
+#include "ortools_vrp.pb.h"
 #include "routing_data_dt.h"
 
 namespace operations_research {
@@ -188,22 +189,70 @@ private:
 // Note that the format is only partially checked:
 // bad inputs might cause undefined behavior.
 void TSPTWDataDT::LoadInstance(const std::string & filename) {
-  InitLoadInstance();
-  size_ = 0;
-  size_matrix_ = 0;
-  horizon_ = 0;
-  FileLineReader reader(filename.c_str());
-  reader.set_line_callback(NewPermanentCallback(
-                           this,
-                           &TSPTWDataDT::ProcessNewLine));
-  reader.Reload();
-  if (!reader.loaded_successfully()) {
-    LOG(ERROR) << "Could not open TSPTW file " << filename;
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  ortools_vrp::Problem problem;
+
+  {
+    std::fstream input(filename, std::ios::in | std::ios::binary);
+    if (!problem.ParseFromIstream(&input)) {
+      VLOG(0) << "Failed to parse pbf." << std::endl;
+    }
   }
+
+  InitLoadInstance();
+
   // Problem size
+  size_matrix_ = sqrt(problem.time_matrix().data_size());
+  size_rest_ = problem.rests().size();
   size_ = size_matrix_ + size_rest_;
 
+  CreateRoutingData(size_);
+  // Matrix default values
+  for (int64 i=0; i < size_; ++i) {
+    for (int64 j=0; j < size_; ++j) {
+      SetMatrix(i, j) = 0;
+      SetTimeMatrix(i, j) = 0;
+    }
+  }
+
+  for (int i = 0; i < size_matrix_; ++i) {
+    for (int j = 0; j < size_matrix_; ++j) {
+      SetTimeMatrix(i, j) = static_cast<int64>(problem.time_matrix().data(i + j * size_matrix_) * 100 + 0.5);
+    }
+  }
+
+  for (int i = 0; i < size_matrix_; ++i) {
+    for (int j = 0; j < size_matrix_; ++j) {
+      SetMatrix(i, j) = static_cast<int64>(problem.distance_matrix().data(i + j * size_matrix_));
+    }
+  }
+
+  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
+  }
+
+  int s = 0;
+  for (const ortools_vrp::Service& service: problem.services()) {
+    const ortools_vrp::TimeWindow& tw0 = service.time_windows().Get(0);
+    const ortools_vrp::TimeWindow& tw1 = service.time_windows().Get(1);
+
+    tsptw_clients_.push_back(TSPTWClient(s++,
+                                         tw0.start()*100,
+                                         tw0.end()*100,
+                                         tw1.start()*100,
+                                         tw1.end()*100,
+                                         service.duration()*100));
+  }
+
+  tsptw_clients_.push_back(TSPTWClient(s++,
+                                       -2147483648,
+                                       2147483647,
+                                       -2147483648,
+                                       2147483647,
+                                       0));
+
   // Compute horizon
+  horizon_ = 0;
   for (int32 i = 0; i < size_matrix_ + size_rest_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
@@ -217,56 +266,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   filename_ = filename;
   instantiated_ = true;
 }
-
-void TSPTWDataDT::ProcessNewLine(char* const line) {
-  ++line_number_;
-
-  static const char kWordDelimiters[] = " ";
-  std::vector<std::string> words = strings::Split(line, kWordDelimiters, strings::SkipEmpty());
-  
-  
-  static const int DSU_data_tokens = 7;
-  static const int DSU_last_customer = 999;
-
-  //  Empty lines
-  if (words.size() == 0) {
-    return;
-  }
-  else if (line_number_ == 1) {
-    size_matrix_ = atoi32(words[0]);
-  }
-  else if (line_number_ == 2) {
-    size_rest_ = atoi32(words[0]);
-    CreateRoutingData(size_matrix_ + size_rest_);
-    // Matrix default values
-    for (int64 i=0; i < size_matrix_ + size_rest_; ++i) {
-      for (int64 j=0; j < size_matrix_ + size_rest_; ++j) {
-        SetMatrix(i, j) = 0;
-        SetTimeMatrix(i, j) = 0;
-      }
-    }
-  }
-  else if (line_number_ > 2 && line_number_ <= 2 + SizeMatrix()) {
-    CHECK_EQ(words.size(), SizeMatrix() * 2) << "Distance matrix in TSPTW instance file is ill formed : " << line_number_;
-    for (int j = 0; j < SizeMatrix(); ++j) {
-      SetMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2].c_str()));
-      SetTimeMatrix(line_number_ - 3, j) = static_cast<int64>(atof(words[j*2+1].c_str())*100+0.5);
-    }
-  }
-  else if (line_number_ > 2 + SizeMatrix() && line_number_ <= 2 + SizeMatrix() + Size()) {
-    CHECK_EQ(words.size(), 5) << "Time window in TSPTW instance file is ill formed : " << line_number_;
-    tsptw_clients_.push_back(TSPTWClient(line_number_ - 3 - SizeMatrix(),
-                                         atof(words[0].c_str())*100,
-                                         atof(words[1].c_str())*100,
-                                         atof(words[2].c_str())*100,
-                                         atof(words[3].c_str())*100,
-                                         atof(words[4].c_str())*100
-    ));
-  }
-  else {
-    VLOG(0) << "Unexpected line :" << line_number_;
-  }
-}  //  void ProcessNewLine(char* const line)
 
 }  //  namespace operations_research
 

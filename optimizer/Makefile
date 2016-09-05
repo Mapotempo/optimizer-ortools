@@ -1,7 +1,7 @@
 OR_TOOLS_TOP=../../or-tools
 OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/src
 
-TUTORIAL=../../or-tools/documentation/tutorials/cplusplus
+TUTORIAL=$(OR_TOOLS_TOP)/documentation/tutorials/cplusplus
 
 
 include $(OR_TOOLS_TOP)/Makefile
@@ -10,7 +10,15 @@ include $(OR_TOOLS_TOP)/Makefile
 
 all: $(EXE)
 
-tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h \
+%.pb.cc: %.proto
+	$(OR_TOOLS_TOP)/dependencies/install/bin/protoc --cpp_out . $<
+
+%.o: %.cc %.h
+	$(CCC) $(CFLAGS) -c $< -o $@
+
+ortools_vrp.pb.h: ortools_vrp.pb.cc
+
+tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h ortools_vrp.pb.h \
 	$(TUTORIAL)/routing_common/routing_common.h \
 	$(TUTORIAL)/routing_common/routing_data.h \
 	tsptw_data_dt.h \
@@ -18,12 +26,13 @@ tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h \
 	$(TUTORIAL)/routing_common/tsplib.h tsptw_solution_dt.h
 	$(CCC) $(CFLAGS) -I $(TUTORIAL) -c tsp_simple.cc -o tsp_simple.o
 
-tsp_simple: $(ROUTING_DEPS) tsp_simple.o $(OR_TOOLS_TOP)/lib/libortools.so
-	$(CCC) $(CFLAGS) -g tsp_simple.o $(OR_TOOLS_LD_FLAGS) \
-	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lcvrptw_lib -ldimacs -lortools \
+tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
+	$(CCC) $(CFLAGS) -g tsp_simple.o ortools_vrp.pb.o $(OR_TOOLS_LD_FLAGS) \
+	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lcvrptw_lib -ldimacs -lortools -L $(OR_TOOLS_TOP)/dependencies/install/lib -lprotobuf \
 	-o tsp_simple
 
 local_clean:
+	rm -f *.pb.cc *.pb.h
 	rm *.o
 
 mrproper: local_clean

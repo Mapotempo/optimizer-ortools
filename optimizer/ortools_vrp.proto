@@ -1,0 +1,36 @@
+syntax = "proto3";
+package ortools_vrp;
+
+message Matrix {
+  repeated uint32 data = 2 [packed=true];
+}
+
+message TimeWindow {
+  int32 start = 1;
+  int32 end = 2;
+}
+
+message Service {
+  repeated TimeWindow time_windows = 1;
+  repeated uint32 quantities = 2;
+  uint32 duration = 3;
+  uint32 vehicle_index = 4;
+}
+
+message Rest {
+  repeated TimeWindow time_windows = 1;
+  uint32 duration = 2;
+}
+
+message Vehicle {
+  repeated uint32 capacities = 1;
+  TimeWindow time_window = 2;
+  repeated Rest rests = 5;
+}
+
+message Problem {
+  Matrix time_matrix = 1;
+  Matrix distance_matrix = 2;
+  repeated Vehicle vehicles = 3;
+  repeated Service services = 4;
+}
