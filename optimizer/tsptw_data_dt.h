@@ -204,7 +204,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   // Problem size
   size_matrix_ = sqrt(problem.time_matrix().data_size());
-  size_rest_ = problem.rests().size();
+  size_rest_ = problem.vehicles(0).rests().size();
   size_ = size_matrix_ + size_rest_;
 
   CreateRoutingData(size_);
@@ -228,19 +228,23 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
   }
 
-  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
-  }
-
   int s = 0;
+  tsptw_clients_.push_back(TSPTWClient(s++,
+                                       -2147483648,
+                                       2147483647,
+                                       -2147483648,
+                                       2147483647,
+                                       0));
+
   for (const ortools_vrp::Service& service: problem.services()) {
-    const ortools_vrp::TimeWindow& tw0 = service.time_windows().Get(0);
-    const ortools_vrp::TimeWindow& tw1 = service.time_windows().Get(1);
+    const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
+    const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
 
     tsptw_clients_.push_back(TSPTWClient(s++,
-                                         tw0.start()*100,
-                                         tw0.end()*100,
-                                         tw1.start()*100,
-                                         tw1.end()*100,
+                                         tw0 ? tw0->start()*100 : -2147483648,
+                                         tw0 ? tw0->end()*100 : 2147483647,
+                                         tw1 ? tw1->start()*100 : -2147483648,
+                                         tw1 ? tw1->end()*100 : 2147483647,
                                          service.duration()*100));
   }
 
@@ -251,9 +255,23 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                        2147483647,
                                        0));
 
+  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
+    for (const ortools_vrp::Rest& rest: vehicle.rests()) {
+      const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
+      const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
+
+      tsptw_clients_.push_back(TSPTWClient(s++,
+                                           tw0 ? tw0->start()*100 : -2147483648,
+                                           tw0 ? tw0->end()*100 : 2147483647,
+                                           tw1 ? tw1->start()*100: -2147483648,
+                                           tw1 ? tw1->end()*100 : 2147483647,
+                                           rest.duration()*100));
+    }
+  }
+
   // Compute horizon
   horizon_ = 0;
-  for (int32 i = 0; i < size_matrix_ + size_rest_; ++i) {
+  for (int32 i = 0; i < size_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
 
