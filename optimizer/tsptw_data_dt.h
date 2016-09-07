@@ -23,7 +23,7 @@ public:
     SetRoutingDataInstanciated();
   }
   void LoadInstance(const std::string & filename);
-  
+
   void SetStart(RoutingModel::NodeIndex s) {
     CHECK_LT(s, Size());
     start_ = s;
@@ -73,6 +73,7 @@ public:
   int64 Demand(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].demand;
   }
+
   int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
     CheckNodeIsValid(i);
     CheckNodeIsValid(j);
@@ -131,7 +132,7 @@ public:
   int32 SizeRest() const {
     return size_rest_;
   }
-  
+
 private:
   int32 size_matrix_;
   int32 size_rest_;
@@ -184,7 +185,7 @@ private:
   bool visualizable_;
   bool two_dimension_;
   bool symmetric_;
-    
+
   int line_number_;
   std::string comment_;
 };

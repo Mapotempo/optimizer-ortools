@@ -41,10 +41,9 @@ class NoImprovementLimit : public SearchLimit {
         } else {
           best_result_ = kint64min;
         }
-      
+
       CHECK_NOTNULL(objective_var);
       prototype_->AddObjective(objective_var);
-    
   }
 
   virtual void Init() {
@@ -127,7 +126,7 @@ class NoImprovementLimit : public SearchLimit {
   virtual std::string DebugString() const {
     return StringPrintf("NoImprovementLimit(crossed = %i)", limit_reached_);
   }
-  
+
   private:
     Solver * const solver_;
     int64 best_result_;

@@ -35,23 +35,23 @@ public:
     }
   }
 
- 
+
   virtual ~RoutingDataDT() {}
 
   int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
     CheckNodeIsValid(i);
     return times_.Cost(i,j);
   }
-  
+
   void PrintTimeMatrix(std::ostream& out, const int32 & width = FLAGS_width_size) const;
   void WriteTimeMatrix(const std::string & filename, const int32 & width = FLAGS_width_size) const;
 
-protected:  
+protected:
   virtual void CreateRoutingData(int32 size) {
     RoutingData::CreateRoutingData(size);
     times_.Create(size);
   }
-  
+
   virtual void SetRoutingDataInstanciated() {
     RoutingData::SetRoutingDataInstanciated();
     times_.SetIsInstanciated();

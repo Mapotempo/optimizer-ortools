@@ -134,7 +134,7 @@ namespace operations_research {
     int64 total_time = 0;
     int64 waiting_time = 0;
     const_iterator iter = begin();
-    
+
     RoutingModel::NodeIndex first_node = *iter;
     ++iter;
     RoutingModel::NodeIndex from_node = first_node;
@@ -219,7 +219,6 @@ namespace operations_research {
     return true;
   }
 
- 
   int64 TSPTWSolution::ComputeObjectiveValue() const {
     int64 obj = 0;
     RoutingModel::NodeIndex first_node, from_node, to_node;
