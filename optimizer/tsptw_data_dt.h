@@ -62,6 +62,10 @@ public:
     return tsptw_clients_[i.value()].second_due_time;
   }
 
+  int64 LateMultiplier(RoutingModel::NodeIndex i)  const {
+    return tsptw_clients_[i.value()].late_multiplier;
+  }
+
   int64 ServiceTime(RoutingModel::NodeIndex i)  const {
     return tsptw_clients_[i.value()].service_time;
   }
@@ -154,14 +158,14 @@ private:
   bool instantiated_;
   RoutingModel::NodeIndex start_, stop_;
   struct TSPTWClient {
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t):
-    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t){
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m):
+    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
     }
-    TSPTWClient(int cust_no, double d, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t) :
-    customer_number(cust_no), demand(d), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t) {
+    TSPTWClient(int cust_no, double d, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m) :
+    customer_number(cust_no), demand(d), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
     }
     TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
-    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0){
+    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
     }
     int customer_number;
     int64 demand;
@@ -170,6 +174,7 @@ private:
     int64 second_ready_time;
     int64 second_due_time;
     int64 service_time;
+    int64 late_multiplier;
   };
 
   std::vector<TSPTWClient> tsptw_clients_;
@@ -233,8 +238,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                        -2147483648,
                                        2147483647,
                                        -2147483648,
-                                       2147483647,
-                                       0));
+                                       2147483647));
 
   for (const ortools_vrp::Service& service: problem.services()) {
     const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
@@ -245,15 +249,15 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw0 ? tw0->end()*100 : 2147483647,
                                          tw1 ? tw1->start()*100 : -2147483648,
                                          tw1 ? tw1->end()*100 : 2147483647,
-                                         service.duration()*100));
+                                         service.duration()*100,
+                                         service.late_multiplier()));
   }
 
   tsptw_clients_.push_back(TSPTWClient(s++,
                                        -2147483648,
                                        2147483647,
                                        -2147483648,
-                                       2147483647,
-                                       0));
+                                       2147483647));
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
@@ -265,7 +269,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            tw0 ? tw0->end()*100 : 2147483647,
                                            tw1 ? tw1->start()*100: -2147483648,
                                            tw1 ? tw1->end()*100 : 2147483647,
-                                           rest.duration()*100));
+                                           rest.duration()*100,
+                                           rest.late_multiplier()));
     }
   }
 

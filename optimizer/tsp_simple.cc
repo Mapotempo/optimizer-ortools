@@ -35,7 +35,6 @@ DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.")
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
 DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whitout improvement in ms");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
-DEFINE_int64(soft_upper_bound, 0, "Soft upper bound multiplicator, no option means hard limit (late not authorized).");
 DEFINE_bool(nearby, false, "Short segment priority");
 
 namespace operations_research {
@@ -47,6 +46,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     int64 const first_due = data.FirstTWDueTime(i);
     int64 const second_ready = data.SecondTWReadyTime(i);
     int64 const second_due = data.SecondTWDueTime(i);
+    int64 const late_multiplier = data.LateMultiplier(i);
 
     if (first_ready > -2147483648 || first_due < 2147483647) {
       int64 index = routing.NodeToIndex(i);
@@ -58,13 +58,13 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
 
       if (second_ready > -2147483648) {
         IntVar* const cost_var = solver->MakeSum(
-          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, FLAGS_soft_upper_bound), 0),
-          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, FLAGS_soft_upper_bound), 0)
+          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
+          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
         )->Var();
         routing.AddVariableMinimizedByFinalizer(cost_var);
       } else if (first_due < 2147483647) {
-        if (FLAGS_soft_upper_bound > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", first_due, FLAGS_soft_upper_bound);
+        if (late_multiplier > 0) {
+          routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
         } else {
           routing.SetCumulVarSoftUpperBound(i, "time", first_due, 10000000);
         }

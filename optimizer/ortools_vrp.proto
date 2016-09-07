@@ -15,11 +15,13 @@ message Service {
   repeated uint32 quantities = 2;
   uint32 duration = 3;
   uint32 vehicle_index = 4;
+  uint32 late_multiplier = 5;
 }
 
 message Rest {
   repeated TimeWindow time_windows = 1;
   uint32 duration = 2;
+  uint32 late_multiplier = 5;
 }
 
 message Vehicle {
