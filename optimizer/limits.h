@@ -32,7 +32,7 @@ class NoImprovementLimit : public SearchLimit {
       nbr_solutions_with_no_better_obj_(0),
       minimize_(minimize),
       previous_time_(start_time_),
-      time_out_(time_out),
+      time_out_(10*time_out),
       time_out_coef_(time_out_coef),
       first_solution_(true),
       limit_reached_(false) {
@@ -73,6 +73,10 @@ class NoImprovementLimit : public SearchLimit {
     prototype_->Store();
 
     const IntVar* objective = prototype_->Objective();
+
+    if (first_solution_) {
+        time_out_ = time_out_ / 10;
+    }
 
     if (minimize_ && objective->Min() < best_result_) {
       best_result_ = objective->Min();
