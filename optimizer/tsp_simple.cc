@@ -90,13 +90,15 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const int64 horizon = data.Horizon();
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
+  for (int64 i = 0; i < data.Capacity().size(); ++i) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, data.Capacity().at(i), true, "quantity" + i);
+  }
   if (FLAGS_nearby) {
     routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
     routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
   }
 
   routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
-
 
   Solver *solver = routing.solver();
 

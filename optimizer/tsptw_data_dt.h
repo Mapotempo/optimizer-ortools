@@ -70,10 +70,6 @@ public:
     return tsptw_clients_[i.value()].service_time;
   }
 
-  int64 Demand(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].demand;
-  }
-
   int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
     CheckNodeIsValid(i);
     CheckNodeIsValid(j);
@@ -120,6 +116,17 @@ public:
     return Time(from, to);
   }
 
+  int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<_RoutingModel_NodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+    CheckNodeIsValid(from);
+    CheckNodeIsValid(to);
+    int64 index = nodeToIndex->Run(from);
+    if (i < tsptw_clients_.at(index).quantities.size()) {
+      return tsptw_clients_.at(index).quantities.at(i);
+    } else {
+      return 0;
+    }
+  }
+
   void PrintLIBInstance(std::ostream& out) const;
   void PrintDSUInstance(std::ostream& out) const;
   void WriteLIBInstance(const std::string & filename) const;
@@ -131,6 +138,10 @@ public:
 
   int32 SizeRest() const {
     return size_rest_;
+  }
+
+  std::vector<int64> Capacity() const {
+    return capacity_;
   }
 
 private:
@@ -145,6 +156,7 @@ private:
     name_ = "";
     comment_ = "";
   }
+  std::vector<int64> capacity_;
 
   //  Helper function
   int64& SetMatrix(int i, int j) {
@@ -159,23 +171,23 @@ private:
   bool instantiated_;
   RoutingModel::NodeIndex start_, stop_;
   struct TSPTWClient {
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m):
-    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
-    }
-    TSPTWClient(int cust_no, double d, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m) :
-    customer_number(cust_no), demand(d), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
-    }
     TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
-    customer_number(cust_no), demand(0.0), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
+    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
+    }
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m):
+    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
+    }
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& q):
+    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), quantities(q){
     }
     int customer_number;
-    int64 demand;
     int64 first_ready_time;
     int64 first_due_time;
     int64 second_ready_time;
     int64 second_due_time;
     int64 service_time;
     int64 late_multiplier;
+    std::vector<int64> quantities;
   };
 
   std::vector<TSPTWClient> tsptw_clients_;
@@ -245,13 +257,19 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
     const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
 
+    std::vector<int64> q(service.quantities_size());
+    for (const int64& quantity: service.quantities()) {
+      q.push_back(quantity);
+    }
+
     tsptw_clients_.push_back(TSPTWClient(s++,
                                          tw0 ? tw0->start()*100 : -2147483648,
                                          tw0 ? tw0->end()*100 : 2147483647,
                                          tw1 ? tw1->start()*100 : -2147483648,
                                          tw1 ? tw1->end()*100 : 2147483647,
                                          service.duration()*100,
-                                         service.late_multiplier()));
+                                         service.late_multiplier(),
+                                         q));
   }
 
   tsptw_clients_.push_back(TSPTWClient(s++,
@@ -261,6 +279,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                        2147483647));
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
+    std::vector<int64> q(vehicle.capacities_size());
+    for (const int64& capacity: vehicle.capacities()) {
+      q.push_back(capacity);
+    }
+    capacity_ = q;
+
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
       const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
