@@ -37,8 +37,8 @@ DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whit
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_bool(nearby, false, "Short segment priority");
 
-#define DISJUNCTION_COST std::pow(2, 56)
-#define NO_LATE_MULTIPLIER 10000000
+#define DISJUNCTION_COST std::pow(2, 32)
+#define NO_LATE_MULTIPLIER (DISJUNCTION_COST+1)
 
 namespace operations_research {
 
@@ -88,7 +88,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   RoutingModel routing(size, 1, *start_ends);
 
   const int64 horizon = data.Horizon();
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, true, "time");
+  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, false, "time");
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
   for (int64 i = 0; i < data.Capacity().size(); ++i) {
     routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, data.Capacity().at(i), true, "quantity" + i);
@@ -102,11 +102,22 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   Solver *solver = routing.solver();
 
-  //  Setting visit time windows
+  // Setting visit time windows
   TWBuilder(data, routing, solver, 1, size_matrix - 2);
 
   // Setting rest time windows
   TWBuilder(data, routing, solver, size_matrix, size_rest);
+
+  // Vehicle time windows
+  if (data.VehicleTimeStart() > -2147483648) {
+    int64 index = routing.NodeToIndex(data.Start());
+    IntVar *const cumul_var = routing.CumulVar(index, "time");
+    cumul_var->SetMin(data.VehicleTimeStart());
+  }
+  if (data.VehicleTimeEnd() < 2147483647) {
+    int64 coef = data.VehicleLateMultiplier() > 0 ? data.VehicleLateMultiplier() : (NO_LATE_MULTIPLIER);
+    routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(0, data.VehicleTimeEnd(), coef);
+  }
 
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 

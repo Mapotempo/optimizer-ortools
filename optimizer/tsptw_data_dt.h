@@ -283,10 +283,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
 
     tsptw_clients_.push_back(TSPTWClient(s++,
-                                         tw0 ? tw0->start()*100 : -2147483648,
-                                         tw0 ? tw0->end()*100 : 2147483647,
-                                         tw1 ? tw1->start()*100 : -2147483648,
-                                         tw1 ? tw1->end()*100 : 2147483647,
+                                         tw0 && tw0->start() > -2147483648/100 ? tw0->start()*100 : -2147483648,
+                                         tw0 && tw0->end() < 2147483647/100 ? tw0->end()*100 : 2147483647,
+                                         tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100 : -2147483648,
+                                         tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                          service.duration()*100,
                                          service.late_multiplier(),
                                          q));
@@ -309,8 +309,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     capacity_ = q;
     cost_overload_multiplier_ = cost_overload_multiplier;
 
-    vehicle_time_start_ = vehicle.time_window().start() * 100;
-    vehicle_time_end_ = vehicle.time_window().end() * 100;
+    vehicle_time_start_ = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
+    vehicle_time_end_ = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
     vehicle_late_multiplier_ = vehicle.time_window().late_multiplier();
 
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
@@ -318,10 +318,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
 
       tsptw_clients_.push_back(TSPTWClient(s++,
-                                           tw0 ? tw0->start()*100 : -2147483648,
-                                           tw0 ? tw0->end()*100 : 2147483647,
-                                           tw1 ? tw1->start()*100: -2147483648,
-                                           tw1 ? tw1->end()*100 : 2147483647,
+                                           tw0 && tw0->start() > -2147483648/100 ? tw0->start()*100 : -2147483648,
+                                           tw0 && tw0->end() < 2147483647/100 ? tw0->end()*100 : 2147483647,
+                                           tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100: -2147483648,
+                                           tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                            rest.duration()*100,
                                            rest.time_windows().Get(0).late_multiplier()));
     }
