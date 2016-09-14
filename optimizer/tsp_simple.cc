@@ -37,6 +37,9 @@ DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whit
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_bool(nearby, false, "Short segment priority");
 
+#define DISJUNCTION_COST std::pow(2, 56)
+#define NO_LATE_MULTIPLIER 10000000
+
 namespace operations_research {
 
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 begin_index, int64 size) {
@@ -56,24 +59,21 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         cumul_var->SetMin(first_ready);
       }
 
+      int64 coef = late_multiplier > 0 ? late_multiplier : NO_LATE_MULTIPLIER;
       if (second_ready > -2147483648) {
         IntVar* const cost_var = solver->MakeSum(
-          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
-          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
+          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, coef), 0),
+          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, coef), 0)
         )->Var();
         routing.AddVariableMinimizedByFinalizer(cost_var);
       } else if (first_due < 2147483647) {
-        if (late_multiplier > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
-        } else {
-          routing.SetCumulVarSoftUpperBound(i, "time", first_due, 10000000);
-        }
+        routing.SetCumulVarSoftUpperBound(i, "time", first_due, coef);
       }
     }
 
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     (*vect)[0] = i;
-    routing.AddDisjunction(*vect, std::pow(2, 56));
+    routing.AddDisjunction(*vect, DISJUNCTION_COST);
   }
 }
 
