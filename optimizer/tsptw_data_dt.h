@@ -144,6 +144,22 @@ public:
     return capacity_;
   }
 
+  std::vector<int64> CostOverloadMultiplier() const {
+    return cost_overload_multiplier_;
+  }
+
+  int64 VehicleTimeStart() const {
+    return vehicle_time_start_;
+  }
+
+  int64 VehicleTimeEnd() const {
+    return vehicle_time_end_;
+  }
+
+  int64 VehicleLateMultiplier() const {
+    return vehicle_late_multiplier_;
+  }
+
 private:
   int32 size_matrix_;
   int32 size_rest_;
@@ -157,6 +173,10 @@ private:
     comment_ = "";
   }
   std::vector<int64> capacity_;
+  std::vector<int64> cost_overload_multiplier_;
+  int64 vehicle_time_start_;
+  int64 vehicle_time_end_;
+  int64 vehicle_late_multiplier_;
 
   //  Helper function
   int64& SetMatrix(int i, int j) {
@@ -280,10 +300,18 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     std::vector<int64> q(vehicle.capacities_size());
-    for (const int64& capacity: vehicle.capacities()) {
-      q.push_back(capacity);
+    std::vector<int64> cost_overload_multiplier(vehicle.capacities_size());
+    for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
+      q.push_back(capacity.limit());
+      q.push_back(capacity.cost_overload_multiplier());
     }
+
     capacity_ = q;
+    cost_overload_multiplier_ = cost_overload_multiplier;
+
+    vehicle_time_start_ = vehicle.time_window().start() * 100;
+    vehicle_time_end_ = vehicle.time_window().end() * 100;
+    vehicle_late_multiplier_ = vehicle.time_window().late_multiplier();
 
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
@@ -295,7 +323,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            tw1 ? tw1->start()*100: -2147483648,
                                            tw1 ? tw1->end()*100 : 2147483647,
                                            rest.duration()*100,
-                                           rest.late_multiplier()));
+                                           rest.time_windows().Get(0).late_multiplier()));
     }
   }
 

@@ -8,6 +8,7 @@ message Matrix {
 message TimeWindow {
   int32 start = 1;
   int32 end = 2;
+  uint32 late_multiplier = 3;
 }
 
 message Service {
@@ -21,11 +22,15 @@ message Service {
 message Rest {
   repeated TimeWindow time_windows = 1;
   uint32 duration = 2;
-  uint32 late_multiplier = 5;
+}
+
+message Capacity {
+  uint32 limit = 1;
+  float cost_overload_multiplier = 2;
 }
 
 message Vehicle {
-  repeated uint32 capacities = 1;
+  repeated Capacity capacities = 1;
   TimeWindow time_window = 2;
   repeated Rest rests = 5;
 }
