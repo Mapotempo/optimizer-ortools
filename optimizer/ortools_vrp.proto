@@ -26,7 +26,7 @@ message Rest {
 
 message Capacity {
   uint32 limit = 1;
-  float cost_overload_multiplier = 2;
+  float overload_multiplier = 2;
 }
 
 message Vehicle {

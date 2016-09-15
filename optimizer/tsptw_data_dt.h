@@ -144,8 +144,8 @@ public:
     return capacity_;
   }
 
-  std::vector<int64> CostOverloadMultiplier() const {
-    return cost_overload_multiplier_;
+  std::vector<int64> OverloadMultiplier() const {
+    return overload_multiplier_;
   }
 
   int64 VehicleTimeStart() const {
@@ -173,7 +173,7 @@ private:
     comment_ = "";
   }
   std::vector<int64> capacity_;
-  std::vector<int64> cost_overload_multiplier_;
+  std::vector<int64> overload_multiplier_;
   int64 vehicle_time_start_;
   int64 vehicle_time_end_;
   int64 vehicle_late_multiplier_;
@@ -300,14 +300,14 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     std::vector<int64> q(vehicle.capacities_size());
-    std::vector<int64> cost_overload_multiplier(vehicle.capacities_size());
+    std::vector<int64> overload_multiplier(vehicle.capacities_size());
     for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
       q.push_back(capacity.limit());
-      q.push_back(capacity.cost_overload_multiplier());
+      q.push_back(capacity.overload_multiplier());
     }
 
     capacity_ = q;
-    cost_overload_multiplier_ = cost_overload_multiplier;
+    overload_multiplier_ = overload_multiplier;
 
     vehicle_time_start_ = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
     vehicle_time_end_ = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
