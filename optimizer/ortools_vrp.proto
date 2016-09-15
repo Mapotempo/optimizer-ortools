@@ -32,7 +32,9 @@ message Capacity {
 message Vehicle {
   repeated Capacity capacities = 1;
   TimeWindow time_window = 2;
-  repeated Rest rests = 5;
+  repeated Rest rests = 3;
+  uint32 start_index = 4;
+  uint32 stop_index = 5;
 }
 
 message Problem {

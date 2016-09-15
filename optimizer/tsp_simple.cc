@@ -39,6 +39,7 @@ DEFINE_bool(nearby, false, "Short segment priority");
 
 #define DISJUNCTION_COST std::pow(2, 32)
 #define NO_LATE_MULTIPLIER (DISJUNCTION_COST+1)
+#define NO_OVERLOAD_MULTIPLIER (DISJUNCTION_COST+1)
 
 namespace operations_research {
 
@@ -78,20 +79,22 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
 }
 
 void TSPTWSolver(const TSPTWDataDT &data) {
-
+  const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
 
-  std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(1);
-  (*start_ends)[0] = std::make_pair(data.Start(), data.Stop());
-  RoutingModel routing(size, 1, *start_ends);
+  std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
+  for(int v = 0; v < size_vehicles; ++v) {
+    (*start_ends)[v] = std::make_pair(data.VehicleGet(v).start, data.VehicleGet(v).stop);
+  }
+  RoutingModel routing(size, size_vehicles, *start_ends);
 
   const int64 horizon = data.Horizon();
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, false, "time");
   routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
-  for (int64 i = 0; i < data.Capacity().size(); ++i) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, data.Capacity().at(i), true, "quantity" + i);
+  for (int64 i = 0; i < data.VehicleGet(0).capacity.size(); ++i) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, LLONG_MAX, true, "quantity" + std::to_string(i));
   }
   if (FLAGS_nearby) {
     routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
@@ -103,20 +106,30 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   Solver *solver = routing.solver();
 
   // Setting visit time windows
-  TWBuilder(data, routing, solver, 1, size_matrix - 2);
+  TWBuilder(data, routing, solver, 0, size_matrix - 2 * size_vehicles);
 
   // Setting rest time windows
   TWBuilder(data, routing, solver, size_matrix, size_rest);
 
   // Vehicle time windows
-  if (data.VehicleTimeStart() > -2147483648) {
-    int64 index = routing.NodeToIndex(data.Start());
-    IntVar *const cumul_var = routing.CumulVar(index, "time");
-    cumul_var->SetMin(data.VehicleTimeStart());
-  }
-  if (data.VehicleTimeEnd() < 2147483647) {
-    int64 coef = data.VehicleLateMultiplier() > 0 ? data.VehicleLateMultiplier() : (NO_LATE_MULTIPLIER);
-    routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(0, data.VehicleTimeEnd(), coef);
+  int64 v = 0;
+  for(TSPTWDataDT::Vehicle vehicle: data.Vehicles()) {
+    if (vehicle.time_start > -2147483648) {
+      int64 index = routing.NodeToIndex(vehicle.start);
+      IntVar *const cumul_var = routing.CumulVar(index, "time");
+      cumul_var->SetMin(vehicle.time_start);
+    }
+    if (vehicle.time_end < 2147483647) {
+      int64 coef = vehicle.late_multiplier > 0 ? vehicle.late_multiplier : NO_LATE_MULTIPLIER;
+      routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle.time_end, coef);
+    }
+
+    for (int64 i = 0; i < vehicle.capacity.size(); ++i) {
+      int64 coef = vehicle.overload_multiplier[i] > 0 ? vehicle.overload_multiplier[i] : NO_OVERLOAD_MULTIPLIER;
+      routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle.capacity[i], coef);
+    }
+
+    ++v;
   }
 
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
@@ -171,10 +184,11 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        std::cout << nodeIndex << " ";
+        std::cout << nodeIndex << ",";
       }
-      std::cout << routing.IndexToNode(routing.End(route_nbr)) << std::endl;
+      std::cout << routing.IndexToNode(routing.End(route_nbr)) << ";";
     }
+    std::cout << std::endl;
   } else {
     std::cout << "No solution found..." << std::endl;
   }

@@ -24,24 +24,6 @@ public:
   }
   void LoadInstance(const std::string & filename);
 
-  void SetStart(RoutingModel::NodeIndex s) {
-    CHECK_LT(s, Size());
-    start_ = s;
-  }
-
-  void SetStop(RoutingModel::NodeIndex s) {
-    CHECK_LT(s, Size());
-    stop_ = s;
-  }
-
-  RoutingModel::NodeIndex Start() const {
-    return start_;
-  }
-
-  RoutingModel::NodeIndex Stop() const {
-    return stop_;
-  }
-
   int64 Horizon() const {
     return horizon_;
   }
@@ -140,24 +122,46 @@ public:
     return size_rest_;
   }
 
-  std::vector<int64> Capacity() const {
-    return capacity_;
+  struct Vehicle {
+    Vehicle(){
+    }
+    Vehicle(std::vector<int64> c, std::vector<int64> o_m, int64 t_s, int64 t_e, int64 l_m):
+    capacity(c), overload_multiplier(o_m), time_start(t_s), time_end(t_e), late_multiplier(l_m){
+    }
+
+    void SetStart(RoutingModel::NodeIndex s) {
+      // CHECK_LT(s, Size());
+      start = s;
+    }
+
+    void SetStop(RoutingModel::NodeIndex s) {
+      // CHECK_LT(s, Size());
+      stop = s;
+    }
+
+    RoutingModel::NodeIndex Start() const {
+      return start;
+    }
+
+    RoutingModel::NodeIndex Stop() const {
+      return stop;
+    }
+
+    RoutingModel::NodeIndex start;
+    RoutingModel::NodeIndex stop;
+    std::vector<int64> capacity;
+    std::vector<int64> overload_multiplier;
+    int64 time_start;
+    int64 time_end;
+    int64 late_multiplier;
+  };
+
+  std::vector<Vehicle> Vehicles() const {
+    return tsptw_vehicles_;
   }
 
-  std::vector<int64> OverloadMultiplier() const {
-    return overload_multiplier_;
-  }
-
-  int64 VehicleTimeStart() const {
-    return vehicle_time_start_;
-  }
-
-  int64 VehicleTimeEnd() const {
-    return vehicle_time_end_;
-  }
-
-  int64 VehicleLateMultiplier() const {
-    return vehicle_late_multiplier_;
+  Vehicle VehicleGet(int64 v) const {
+    return tsptw_vehicles_.at(v);
   }
 
 private:
@@ -172,11 +176,6 @@ private:
     name_ = "";
     comment_ = "";
   }
-  std::vector<int64> capacity_;
-  std::vector<int64> overload_multiplier_;
-  int64 vehicle_time_start_;
-  int64 vehicle_time_end_;
-  int64 vehicle_late_multiplier_;
 
   //  Helper function
   int64& SetMatrix(int i, int j) {
@@ -187,10 +186,11 @@ private:
     return times_.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
   }
 
-
   bool instantiated_;
-  RoutingModel::NodeIndex start_, stop_;
   struct TSPTWClient {
+    TSPTWClient(int cust_no):
+    customer_number(cust_no), first_ready_time(-2147483648), first_due_time(2147483647), second_ready_time(-2147483648), second_due_time(2147483647), service_time(0.0), late_multiplier(0){
+    }
     TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
     customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
     }
@@ -210,6 +210,7 @@ private:
     std::vector<int64> quantities;
   };
 
+  std::vector<Vehicle> tsptw_vehicles_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::string details_;
   std::string filename_;
@@ -267,17 +268,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   }
 
   int s = 0;
-  tsptw_clients_.push_back(TSPTWClient(s++,
-                                       -2147483648,
-                                       2147483647,
-                                       -2147483648,
-                                       2147483647));
-
   for (const ortools_vrp::Service& service: problem.services()) {
     const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
     const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
 
-    std::vector<int64> q(service.quantities_size());
+    std::vector<int64> q;
     for (const int64& quantity: service.quantities()) {
       q.push_back(quantity);
     }
@@ -292,27 +287,31 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          q));
   }
 
-  tsptw_clients_.push_back(TSPTWClient(s++,
-                                       -2147483648,
-                                       2147483647,
-                                       -2147483648,
-                                       2147483647));
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
-    std::vector<int64> q(vehicle.capacities_size());
-    std::vector<int64> overload_multiplier(vehicle.capacities_size());
+    Vehicle v;
+
+    // Setting start
+    v.start = RoutingModel::NodeIndex(s);
+    tsptw_clients_.push_back(TSPTWClient(s++));
+
+    // Setting stop
+    v.stop = RoutingModel::NodeIndex(s);
+    tsptw_clients_.push_back(TSPTWClient(s++));
+
     for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
-      q.push_back(capacity.limit());
-      q.push_back(capacity.overload_multiplier());
+      v.capacity.push_back(capacity.limit());
+      v.overload_multiplier.push_back(capacity.overload_multiplier());
     }
 
-    capacity_ = q;
-    overload_multiplier_ = overload_multiplier;
+    v.time_start = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
+    v.time_end = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
+    v.late_multiplier = vehicle.time_window().late_multiplier();
 
-    vehicle_time_start_ = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
-    vehicle_time_end_ = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
-    vehicle_late_multiplier_ = vehicle.time_window().late_multiplier();
+    tsptw_vehicles_.push_back(v);
+  }
 
+  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
       const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
@@ -332,12 +331,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (int32 i = 0; i < size_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
-
-  // Setting start: always first matrix node
-  start_ = RoutingModel::NodeIndex(tsptw_clients_[0].customer_number);
-
-  // Setting stop: always last matrix node
-  stop_ = RoutingModel::NodeIndex(tsptw_clients_[SizeMatrix() - 1].customer_number);
 
   filename_ = filename;
   instantiated_ = true;
