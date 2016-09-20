@@ -12,15 +12,15 @@
 
 
 #include "ortools_vrp.pb.h"
-#include "routing_data_dt.h"
+#include "routing_common/routing_common.h"
+
 
 namespace operations_research {
 
-class TSPTWDataDT : public RoutingDataDT {
+class TSPTWDataDT {
 public:
-  explicit TSPTWDataDT(std::string filename) : RoutingDataDT(0), instantiated_(false) {
+  explicit TSPTWDataDT(std::string filename) {
     LoadInstance(filename);
-    SetRoutingDataInstanciated();
   }
   void LoadInstance(const std::string & filename);
 
@@ -52,67 +52,9 @@ public:
     return tsptw_clients_[i.value()].service_time;
   }
 
-  int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
-    CheckNodeIsValid(i);
-    CheckNodeIsValid(j);
-    return 100*std::sqrt(times_.Cost(i, j)) ;
+  int32 Size() const {
+    return size_;
   }
-
-  // Override
-  int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      return times_.Cost(i, j);
-  }
-
-  // Override
-  int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      return distances_.Cost(i, j);
-  }
-
-  // Override
-  int64& InternalDistance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      return distances_.Cost(i,j);
-  }
-
-  //  Transit quantity at a node "from"
-  //  This is the quantity added after visiting node "from"
-  int64 DistancePlusServiceTime(RoutingModel::NodeIndex from,
-                  RoutingModel::NodeIndex to) const {
-    return Distance(from, to) + ServiceTime(from);
-  }
-
-  //  Transit quantity at a node "from"
-  //  This is the quantity added after visiting node "from"
-  int64 TimePlusServiceTime(RoutingModel::NodeIndex from,
-                  RoutingModel::NodeIndex to) const {
-    return Time(from, to) + ServiceTime(from);
-  }
-
-  int64 TimePlus(RoutingModel::NodeIndex from,
-                  RoutingModel::NodeIndex to) const {
-    return Time(from, to);
-  }
-
-  int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<_RoutingModel_NodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
-    CheckNodeIsValid(from);
-    CheckNodeIsValid(to);
-    int64 index = nodeToIndex->Run(from);
-    if (i < tsptw_clients_.at(index).quantities.size()) {
-      return tsptw_clients_.at(index).quantities.at(i);
-    } else {
-      return 0;
-    }
-  }
-
-  void PrintLIBInstance(std::ostream& out) const;
-  void PrintDSUInstance(std::ostream& out) const;
-  void WriteLIBInstance(const std::string & filename) const;
-  void WriteDSUInstance(const std::string & filename) const;
 
   int32 SizeMatrix() const {
     return size_matrix_;
@@ -122,21 +64,91 @@ public:
     return size_rest_;
   }
 
-  struct Vehicle {
-    Vehicle(){
+  int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<_RoutingModel_NodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+//    CheckNodeIsValid(from);
+//    CheckNodeIsValid(to);
+    int64 index = nodeToIndex->Run(from);
+    if (i < tsptw_clients_.at(index).quantities.size()) {
+      return tsptw_clients_.at(index).quantities.at(i);
+    } else {
+      return 0;
     }
-    Vehicle(std::vector<int64> c, std::vector<int64> o_m, int64 t_s, int64 t_e, int64 l_m):
-    capacity(c), overload_multiplier(o_m), time_start(t_s), time_end(t_e), late_multiplier(l_m){
+  }
+
+  struct Vehicle {
+    Vehicle(TSPTWDataDT* data_, int32 size_):
+    data(data_), size(size_), capacity(0), overload_multiplier(0), time_start(0), time_end(0), late_multiplier(0){
+      distances.Create(size);
+      times.Create(size);
+
+      // Matrix default values
+      for (int64 i=0; i < size; ++i) {
+        for (int64 j=0; j < size; ++j) {
+          SetMatrix(i, j) = 0;
+          SetTimeMatrix(i, j) = 0;
+        }
+      }
+    }
+
+    int32 SizeMatrix() const {
+      return size_matrix;
+    }
+
+    int32 SizeRest() const {
+      return size_rest;
+    }
+
+    //  Helper function
+    int64& SetMatrix(int i, int j) {
+      return distances.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
+    }
+
+    int64& SetTimeMatrix(int i, int j) {
+      return times.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
     }
 
     void SetStart(RoutingModel::NodeIndex s) {
-      // CHECK_LT(s, Size());
+      CHECK_LT(s, size);
       start = s;
     }
 
     void SetStop(RoutingModel::NodeIndex s) {
-      // CHECK_LT(s, Size());
+      CHECK_LT(s, size);
       stop = s;
+    }
+
+    int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return distances.Cost(i, j);
+    }
+
+    int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return times.Cost(i, j);
+    }
+
+    int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return 100*std::sqrt(times.Cost(i, j));
+    }
+
+    //  Transit quantity at a node "from"
+    //  This is the quantity added after visiting node "from"
+    int64 DistancePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+      return Distance(from, to) + data->ServiceTime(from);
+    }
+
+    //  Transit quantity at a node "from"
+    //  This is the quantity added after visiting node "from"
+    int64 TimePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+      return Time(from, to) + data->ServiceTime(from);
+    }
+
+    int64 TimePlus(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+      return Time(from, to);
     }
 
     RoutingModel::NodeIndex Start() const {
@@ -147,6 +159,17 @@ public:
       return stop;
     }
 
+    void CheckNodeIsValid(const RoutingModel::NodeIndex i) const {
+      CHECK_GE(i.value(), 0) << "Internal node " << i.value() << " should be greater than 0!";
+      CHECK_LT(i.value(), size) << "Internal node " << i.value() << " should be less than " << size;
+    }
+
+    TSPTWDataDT* data;
+    int32 size;
+    int32 size_matrix;
+    int32 size_rest;
+    CompleteGraphArcCost distances;
+    CompleteGraphArcCost times;
     RoutingModel::NodeIndex start;
     RoutingModel::NodeIndex stop;
     std::vector<int64> capacity;
@@ -156,37 +179,17 @@ public:
     int64 late_multiplier;
   };
 
-  std::vector<Vehicle> Vehicles() const {
+  std::vector<Vehicle*> Vehicles() const {
     return tsptw_vehicles_;
   }
-
+/*
   Vehicle VehicleGet(int64 v) const {
     return tsptw_vehicles_.at(v);
   }
-
+*/
 private:
-  int32 size_matrix_;
-  int32 size_rest_;
   void ProcessNewLine(char* const line);
-  void InitLoadInstance() {
-    line_number_ = 0;
-    visualizable_ = false;
-    two_dimension_ = false;
-    symmetric_ = false;
-    name_ = "";
-    comment_ = "";
-  }
 
-  //  Helper function
-  int64& SetMatrix(int i, int j) {
-    return distances_.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
-  }
-
-  int64& SetTimeMatrix(int i, int j) {
-    return times_.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
-  }
-
-  bool instantiated_;
   struct TSPTWClient {
     TSPTWClient(int cust_no):
     customer_number(cust_no), first_ready_time(-2147483648), first_due_time(2147483647), second_ready_time(-2147483648), second_due_time(2147483647), service_time(0.0), late_multiplier(0){
@@ -210,23 +213,15 @@ private:
     std::vector<int64> quantities;
   };
 
-  std::vector<Vehicle> tsptw_vehicles_;
+    int32 size_;
+    int32 size_matrix_;
+    int32 size_rest_;
+  std::vector<Vehicle*> tsptw_vehicles_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::string details_;
-  std::string filename_;
   int64 horizon_;
-  bool visualizable_;
-  bool two_dimension_;
-  bool symmetric_;
-
-  int line_number_;
-  std::string comment_;
 };
 
-// Parses a file in López-Ibáñez-Blum or
-// da Silva-Urrutia formats and loads the coordinates.
-// Note that the format is only partially checked:
-// bad inputs might cause undefined behavior.
 void TSPTWDataDT::LoadInstance(const std::string & filename) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -236,34 +231,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     std::fstream input(filename, std::ios::in | std::ios::binary);
     if (!problem.ParseFromIstream(&input)) {
       VLOG(0) << "Failed to parse pbf." << std::endl;
-    }
-  }
-
-  InitLoadInstance();
-
-  // Problem size
-  size_matrix_ = sqrt(problem.time_matrix().data_size());
-  size_rest_ = problem.vehicles(0).rests().size();
-  size_ = size_matrix_ + size_rest_;
-
-  CreateRoutingData(size_);
-  // Matrix default values
-  for (int64 i=0; i < size_; ++i) {
-    for (int64 j=0; j < size_; ++j) {
-      SetMatrix(i, j) = 0;
-      SetTimeMatrix(i, j) = 0;
-    }
-  }
-
-  for (int i = 0; i < size_matrix_; ++i) {
-    for (int j = 0; j < size_matrix_; ++j) {
-      SetTimeMatrix(i, j) = static_cast<int64>(problem.time_matrix().data(i + j * size_matrix_) * 100 + 0.5);
-    }
-  }
-
-  for (int i = 0; i < size_matrix_; ++i) {
-    for (int j = 0; j < size_matrix_; ++j) {
-      SetMatrix(i, j) = static_cast<int64>(problem.distance_matrix().data(i + j * size_matrix_));
     }
   }
 
@@ -287,29 +254,51 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          q));
   }
 
+  size_rest_ = 0;
+  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
+    size_matrix_ = sqrt(vehicle.time_matrix().data_size());
+    size_rest_ += vehicle.rests().size();
+  }
+  size_ = size_matrix_ + size_rest_;
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
-    Vehicle v;
+    Vehicle* v = new Vehicle(this, size_);
 
-    // Setting start
-    v.start = RoutingModel::NodeIndex(s);
-    tsptw_clients_.push_back(TSPTWClient(s++));
-
-    // Setting stop
-    v.stop = RoutingModel::NodeIndex(s);
-    tsptw_clients_.push_back(TSPTWClient(s++));
-
-    for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
-      v.capacity.push_back(capacity.limit());
-      v.overload_multiplier.push_back(capacity.overload_multiplier());
+    for (int i = 0; i < size_matrix_; ++i) {
+      for (int j = 0; j < size_matrix_; ++j) {
+        v->SetTimeMatrix(i, j) = static_cast<int64>(vehicle.time_matrix().data(i + j * size_matrix_) * 100 + 0.5);
+      }
     }
 
-    v.time_start = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
-    v.time_end = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
-    v.late_multiplier = vehicle.time_window().late_multiplier();
+    for (int i = 0; i < size_matrix_; ++i) {
+      for (int j = 0; j < size_matrix_; ++j) {
+        v->SetMatrix(i, j) = static_cast<int64>(vehicle.distance_matrix().data(i + j * size_matrix_));
+      }
+    }
+
+    for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
+      v->capacity.push_back(capacity.limit());
+      v->overload_multiplier.push_back(capacity.overload_multiplier());
+    }
+
+    v->time_start = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
+    v->time_end = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
+    v->late_multiplier = vehicle.time_window().late_multiplier();
 
     tsptw_vehicles_.push_back(v);
   }
+
+  // Setting start
+  for (Vehicle* v: tsptw_vehicles_) {
+    v->start = RoutingModel::NodeIndex(s);
+  }
+  tsptw_clients_.push_back(TSPTWClient(s++));
+
+  // Setting stop
+  for (Vehicle* v: tsptw_vehicles_) {
+    v->stop = RoutingModel::NodeIndex(s);
+  }
+  tsptw_clients_.push_back(TSPTWClient(s++));
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
@@ -331,9 +320,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (int32 i = 0; i < size_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
-
-  filename_ = filename;
-  instantiated_ = true;
 }
 
 }  //  namespace operations_research

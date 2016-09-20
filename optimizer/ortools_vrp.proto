@@ -30,16 +30,16 @@ message Capacity {
 }
 
 message Vehicle {
-  repeated Capacity capacities = 1;
-  TimeWindow time_window = 2;
-  repeated Rest rests = 3;
-  uint32 start_index = 4;
-  uint32 stop_index = 5;
+  Matrix time_matrix = 1;
+  Matrix distance_matrix = 2;
+  repeated Capacity capacities = 3;
+  TimeWindow time_window = 4;
+  repeated Rest rests = 5;
+  uint32 start_index = 6;
+  uint32 stop_index = 7;
 }
 
 message Problem {
-  Matrix time_matrix = 1;
-  Matrix distance_matrix = 2;
   repeated Vehicle vehicles = 3;
   repeated Service services = 4;
 }

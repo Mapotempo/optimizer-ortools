@@ -24,9 +24,7 @@
 #include <base/callback.h>
 
 #include "tsptw_data_dt.h"
-#include "tsptw_solution_dt.h"
 #include "limits.h"
-#include "routing_common/routing_common_flags.h"
 
 #include "constraint_solver/routing.h"
 #include "constraint_solver/routing_flags.h"
@@ -86,47 +84,70 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
   for(int v = 0; v < size_vehicles; ++v) {
-    (*start_ends)[v] = std::make_pair(data.VehicleGet(v).start, data.VehicleGet(v).stop);
+    (*start_ends)[v] = std::make_pair(data.Vehicles().at(v)->start, data.Vehicles().at(v)->stop);
   }
   RoutingModel routing(size, size_vehicles, *start_ends);
 
+  // Dimensions
   const int64 horizon = data.Horizon();
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimePlusServiceTime), horizon, horizon, false, "time");
-  routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Distance), 0, LLONG_MAX, true, "distance");
-  for (int64 i = 0; i < data.VehicleGet(0).capacity.size(); ++i) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, LLONG_MAX, true, "quantity" + std::to_string(i));
+  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> time_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> distance_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> order_evaluators;
+  for (TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
+    time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimePlusServiceTime));
+    distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::Distance));
+    if (FLAGS_nearby) {
+      order_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimeOrder));
+    }
   }
+  routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
+  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
+  routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
   if (FLAGS_nearby) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::TimeOrder), horizon, horizon, true, "order");
+    routing.AddDimensionWithVehicleTransits(order_evaluators, horizon, horizon, true, "order");
     routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
   }
 
-  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
+  for (int64 i = 0; i < data.Vehicles().at(0)->capacity.size(); ++i) {
+    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, LLONG_MAX, true, "quantity" + std::to_string(i));
+  }
 
   Solver *solver = routing.solver();
 
   // Setting visit time windows
-  TWBuilder(data, routing, solver, 0, size_matrix - 2 * size_vehicles);
+  TWBuilder(data, routing, solver, 0, size_matrix - 2);
 
   // Setting rest time windows
   TWBuilder(data, routing, solver, size_matrix, size_rest);
 
   // Vehicle time windows
   int64 v = 0;
-  for(TSPTWDataDT::Vehicle vehicle: data.Vehicles()) {
-    if (vehicle.time_start > -2147483648) {
-      int64 index = routing.NodeToIndex(vehicle.start);
+  for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
+    if (vehicle->time_start > -2147483648) {
+      int64 index = routing.Start(v);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
-      cumul_var->SetMin(vehicle.time_start);
+      cumul_var->SetMin(vehicle->time_start);
     }
-    if (vehicle.time_end < 2147483647) {
-      int64 coef = vehicle.late_multiplier > 0 ? vehicle.late_multiplier : NO_LATE_MULTIPLIER;
-      routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle.time_end, coef);
+    if (vehicle->time_end < 2147483647) {
+      int64 coef = vehicle->late_multiplier;
+      if(coef > 0) {
+        routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
+      } else {
+        int64 index = routing.End(v);
+        IntVar *const cumul_var = routing.CumulVar(index, "time");
+        cumul_var->SetMax(vehicle->time_end);
+      }
     }
 
-    for (int64 i = 0; i < vehicle.capacity.size(); ++i) {
-      int64 coef = vehicle.overload_multiplier[i] > 0 ? vehicle.overload_multiplier[i] : NO_OVERLOAD_MULTIPLIER;
-      routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle.capacity[i], coef);
+    for (int64 i = 0; i < vehicle->capacity.size(); ++i) {
+      int64 coef = vehicle->overload_multiplier[i];
+      if(coef > 0) {
+        routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle->capacity[i], coef);
+      } else {
+        int64 index = routing.End(v);
+        IntVar *const cumul_var = routing.CumulVar(index, "quantity" + std::to_string(i));
+        cumul_var->SetMax(vehicle->capacity[i]);
+      }
     }
 
     ++v;
@@ -180,7 +201,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (solution != NULL) {
     float cost = solution->ObjectiveValue() / 500.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
     logger->GetFinalLog();
-    TSPTWSolution sol(data, &routing, solution);
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
