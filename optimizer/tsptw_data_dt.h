@@ -262,7 +262,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100 : -2147483648,
                                          tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                          service.duration()*100,
-                                         service.late_multiplier(),
+                                         tw0 ? tw0->late_multiplier() : 0,
                                          v_i,
                                          q));
   }
@@ -327,7 +327,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100: -2147483648,
                                            tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                            rest.duration()*100,
-                                           rest.time_windows().Get(0).late_multiplier(),
+                                           tw0 ? tw0->late_multiplier() : 0,
                                            v_i));
     }
     ++v;

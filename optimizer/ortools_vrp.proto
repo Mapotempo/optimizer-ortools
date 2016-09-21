@@ -16,7 +16,6 @@ message Service {
   repeated uint32 quantities = 2;
   uint32 duration = 3;
   repeated uint32 vehicle_indices = 4;
-  uint32 late_multiplier = 5;
 }
 
 message Rest {

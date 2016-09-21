@@ -59,15 +59,26 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         cumul_var->SetMin(first_ready);
       }
 
-      int64 coef = late_multiplier > 0 ? late_multiplier : NO_LATE_MULTIPLIER;
-      if (second_ready > -2147483648) {
-        IntVar* const cost_var = solver->MakeSum(
-          solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, coef), 0),
-          solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, coef), 0)
-        )->Var();
-        routing.AddVariableMinimizedByFinalizer(cost_var);
-      } else if (first_due < 2147483647) {
-        routing.SetCumulVarSoftUpperBound(i, "time", first_due, coef);
+      if (late_multiplier > 0) {
+        if (second_ready > -2147483648) {
+          IntVar* const cost_var = solver->MakeSum(
+            solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
+            solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
+          )->Var();
+          routing.AddVariableMinimizedByFinalizer(cost_var);
+        } else if (first_due < 2147483647) {
+          routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
+        }
+      } else {
+        if (second_ready > -2147483648) {
+          cumul_var->SetMax(second_due);
+          //Simplify at next ORtools release 09/16
+          std::vector<int64> forbid_starts(1, first_due);
+          std::vector<int64> forbid_ends(1, second_ready);
+          solver->AddConstraint(solver->MakeNotMemberCt(cumul_var, forbid_starts, forbid_ends));
+        } else if(first_due < 2147483647) {
+          cumul_var->SetMax(first_due);
+        }
       }
     }
     if(sticky_vehicle.size() > 0) {
