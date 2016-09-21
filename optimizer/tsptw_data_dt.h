@@ -52,6 +52,10 @@ public:
     return tsptw_clients_[i.value()].service_time;
   }
 
+  std::vector<int64> VehicleIndices(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].vehicle_indices;
+  }
+
   int32 Size() const {
     return size_;
   }
@@ -200,8 +204,11 @@ private:
     TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m):
     customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
     }
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& q):
-    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), quantities(q){
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& v_i):
+    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i){
+    }
+    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
+    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
     }
     int customer_number;
     int64 first_ready_time;
@@ -210,6 +217,7 @@ private:
     int64 second_due_time;
     int64 service_time;
     int64 late_multiplier;
+    std::vector<int64> vehicle_indices;
     std::vector<int64> quantities;
   };
 
@@ -243,6 +251,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const int64& quantity: service.quantities()) {
       q.push_back(quantity);
     }
+    std::vector<int64> v_i;
+    for (const int64& index: service.vehicle_indices()) {
+      v_i.push_back(index);
+    }
 
     tsptw_clients_.push_back(TSPTWClient(s++,
                                          tw0 && tw0->start() > -2147483648/100 ? tw0->start()*100 : -2147483648,
@@ -251,6 +263,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                          service.duration()*100,
                                          service.late_multiplier(),
+                                         v_i,
                                          q));
   }
 
@@ -300,8 +313,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   }
   tsptw_clients_.push_back(TSPTWClient(s++));
 
+  int v = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
+      std::vector<int64> v_i;
+      v_i.push_back(v);
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
       const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
 
@@ -311,8 +327,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100: -2147483648,
                                            tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
                                            rest.duration()*100,
-                                           rest.time_windows().Get(0).late_multiplier()));
+                                           rest.time_windows().Get(0).late_multiplier(),
+                                           v_i));
     }
+    ++v;
   }
 
   // Compute horizon
