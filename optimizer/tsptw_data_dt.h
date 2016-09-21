@@ -221,9 +221,9 @@ private:
     std::vector<int64> quantities;
   };
 
-    int32 size_;
-    int32 size_matrix_;
-    int32 size_rest_;
+  int32 size_;
+  int32 size_matrix_;
+  int32 size_rest_;
   std::vector<Vehicle*> tsptw_vehicles_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::string details_;
@@ -280,11 +280,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (int i = 0; i < size_matrix_; ++i) {
       for (int j = 0; j < size_matrix_; ++j) {
         v->SetTimeMatrix(i, j) = static_cast<int64>(vehicle.time_matrix().data(i + j * size_matrix_) * 100 + 0.5);
-      }
-    }
-
-    for (int i = 0; i < size_matrix_; ++i) {
-      for (int j = 0; j < size_matrix_; ++j) {
         v->SetMatrix(i, j) = static_cast<int64>(vehicle.distance_matrix().data(i + j * size_matrix_));
       }
     }
