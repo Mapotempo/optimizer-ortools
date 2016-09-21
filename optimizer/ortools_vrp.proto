@@ -24,7 +24,7 @@ message Rest {
 }
 
 message Capacity {
-  uint32 limit = 1;
+  int32 limit = 1;
   float overload_multiplier = 2;
 }
 

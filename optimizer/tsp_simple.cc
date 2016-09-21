@@ -163,12 +163,14 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
     for (int64 i = 0; i < vehicle->capacity.size(); ++i) {
       int64 coef = vehicle->overload_multiplier[i];
-      if(coef > 0) {
-        routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle->capacity[i], coef);
-      } else {
-        int64 index = routing.End(v);
-        IntVar *const cumul_var = routing.CumulVar(index, "quantity" + std::to_string(i));
-        cumul_var->SetMax(vehicle->capacity[i]);
+      if(vehicle->capacity[i] >= 0) {
+        if(coef > 0) {
+          routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle->capacity[i], coef);
+        } else {
+          int64 index = routing.End(v);
+          IntVar *const cumul_var = routing.CumulVar(index, "quantity" + std::to_string(i));
+          cumul_var->SetMax(vehicle->capacity[i]);
+        }
       }
     }
 
