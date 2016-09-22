@@ -40,8 +40,9 @@ DEFINE_bool(nearby, false, "Short segment priority");
 namespace operations_research {
 
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 begin_index, int64 size) {
-  for (RoutingModel::NodeIndex i(begin_index); i < begin_index + size; ++i) {
+  const int size_vehicles = data.Vehicles().size();
 
+  for (RoutingModel::NodeIndex i(begin_index); i < begin_index + size; ++i) {
     int64 const first_ready = data.FirstTWReadyTime(i);
     int64 const first_due = data.FirstTWDueTime(i);
     int64 const second_ready = data.SecondTWReadyTime(i);
@@ -79,14 +80,12 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         }
       }
     }
-    if(sticky_vehicle.size() > 0) {
-      int v = 0;
-      for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
-        IntVar *const vehicle_var = routing.VehicleVar(v);
-        if(std::find(sticky_vehicle.begin(), sticky_vehicle.end(), v) != sticky_vehicle.end()) {
-          vehicle_var->RemoveValue(index);
+    if (sticky_vehicle.size() > 0) {
+      for (int v = 0; v < size_vehicles; ++v) {
+        for (int64 sticky : sticky_vehicle) {
+          if (v != sticky)
+            routing.VehicleVar(index)->RemoveValue(v);
         }
-        ++v;
       }
     }
 
