@@ -72,31 +72,27 @@ class NoImprovementLimit : public SearchLimit {
     prototype_->Store();
 
     const IntVar* objective = prototype_->Objective();
-
-    if (first_solution_) {
-        time_out_ = time_out_ / 10;
-    }
-
     if (minimize_ && objective->Min() * 1.00001 < best_result_) {
+      if (first_solution_) {
+        time_out_ = time_out_ / 10;
+        first_solution_ = false;
+      }
       best_result_ = objective->Min();
       previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      if(!first_solution_) {
-        time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
-      }
+      time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     } else if (!minimize_ && objective->Max() * 0.99999 > best_result_) {
+      if (first_solution_) {
+          time_out_ = time_out_ / 10;
+        first_solution_ = false;
+      }
       best_result_ = objective->Max();
       previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      if(!first_solution_) {
-        time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
-      }
+      time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     }
 
     ++nbr_solutions_with_no_better_obj_;
-    if (first_solution_) {
-      first_solution_ = false;
-    }
 
     return true;
   }
