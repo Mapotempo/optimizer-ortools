@@ -14,6 +14,7 @@
 #include "ortools_vrp.pb.h"
 #include "routing_common/routing_common.h"
 
+#define MAX_INT std::pow(2,56)
 
 namespace operations_research {
 
@@ -196,7 +197,7 @@ private:
 
   struct TSPTWClient {
     TSPTWClient(int cust_no):
-    customer_number(cust_no), first_ready_time(-2147483648), first_due_time(2147483647), second_ready_time(-2147483648), second_due_time(2147483647), service_time(0.0), late_multiplier(0){
+    customer_number(cust_no), first_ready_time(-MAX_INT), first_due_time(MAX_INT), second_ready_time(-MAX_INT), second_due_time(MAX_INT), service_time(0.0), late_multiplier(0){
     }
     TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
     customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
@@ -255,12 +256,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const int64& index: service.vehicle_indices()) {
       v_i.push_back(index);
     }
-
     tsptw_clients_.push_back(TSPTWClient(s++,
-                                         tw0 && tw0->start() > -2147483648/100 ? tw0->start()*100 : -2147483648,
-                                         tw0 && tw0->end() < 2147483647/100 ? tw0->end()*100 : 2147483647,
-                                         tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100 : -2147483648,
-                                         tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
+                                         tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
+                                         tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
+                                         tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100 : -MAX_INT,
+                                         tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
                                          service.duration()*100,
                                          tw0 ? tw0->late_multiplier() : 0,
                                          v_i,
@@ -289,8 +289,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v->overload_multiplier.push_back(capacity.overload_multiplier());
     }
 
-    v->time_start = vehicle.time_window().start() > -2147483648/100 ? vehicle.time_window().start() * 100 : -2147483648;
-    v->time_end = vehicle.time_window().end() < 2147483647/100 ? vehicle.time_window().end() * 100 : 2147483647;
+    v->time_start = vehicle.time_window().start() > -MAX_INT/100 ? vehicle.time_window().start() * 100 : -MAX_INT;
+    v->time_end = vehicle.time_window().end() < MAX_INT/100 ? vehicle.time_window().end() * 100 : MAX_INT;
     v->late_multiplier = vehicle.time_window().late_multiplier();
 
     tsptw_vehicles_.push_back(v);
@@ -317,10 +317,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
 
       tsptw_clients_.push_back(TSPTWClient(s++,
-                                           tw0 && tw0->start() > -2147483648/100 ? tw0->start()*100 : -2147483648,
-                                           tw0 && tw0->end() < 2147483647/100 ? tw0->end()*100 : 2147483647,
-                                           tw1 && tw1->start() > -2147483648/100 ? tw1->start()*100: -2147483648,
-                                           tw1 && tw1->end() < 2147483647/100 ? tw1->end()*100 : 2147483647,
+                                           tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
+                                           tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
+                                           tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100: -MAX_INT,
+                                           tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
                                            rest.duration()*100,
                                            tw0 ? tw0->late_multiplier() : 0,
                                            v_i));

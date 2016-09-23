@@ -36,6 +36,7 @@ DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_bool(nearby, false, "Short segment priority");
 
 #define DISJUNCTION_COST std::pow(2, 56)
+#define MAX_INT std::pow(2,56)
 
 namespace operations_research {
 
@@ -51,31 +52,30 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
     int64 index = routing.NodeToIndex(i);
 
-    if (first_ready > -2147483648 || first_due < 2147483647) {
+    if (first_ready > -MAX_INT || first_due < MAX_INT) {
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
-      if (first_ready > -2147483648) {
+      if (first_ready > -MAX_INT) {
         cumul_var->SetMin(first_ready);
       }
-
       if (late_multiplier > 0) {
-        if (second_ready > -2147483648) {
+        if (second_ready > -MAX_INT) {
           IntVar* const cost_var = solver->MakeSum(
             solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
             solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
           )->Var();
           routing.AddVariableMinimizedByFinalizer(cost_var);
-        } else if (first_due < 2147483647) {
+        } else if (first_due < MAX_INT) {
           routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
         }
       } else {
-        if (second_ready > -2147483648) {
+        if (second_ready > -MAX_INT) {
           cumul_var->SetMax(second_due);
           //Simplify at next ORtools release 09/16
           std::vector<int64> forbid_starts(1, first_due);
           std::vector<int64> forbid_ends(1, second_ready);
           solver->AddConstraint(solver->MakeNotMemberCt(cumul_var, forbid_starts, forbid_ends));
-        } else if(first_due < 2147483647) {
+        } else if(first_due < MAX_INT) {
           cumul_var->SetMax(first_due);
         }
       }
@@ -142,12 +142,12 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // Vehicle time windows
   int64 v = 0;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
-    if (vehicle->time_start > -2147483648) {
+    if (vehicle->time_start > -MAX_INT) {
       int64 index = routing.Start(v);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
       cumul_var->SetMin(vehicle->time_start);
     }
-    if (vehicle->time_end < 2147483647) {
+    if (vehicle->time_end < MAX_INT) {
       int64 coef = vehicle->late_multiplier;
       if(coef > 0) {
         routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
