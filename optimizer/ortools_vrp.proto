@@ -6,8 +6,8 @@ message Matrix {
 }
 
 message TimeWindow {
-  int32 start = 1;
-  int32 end = 2;
+  int64 start = 1;
+  int64 end = 2;
   uint32 late_multiplier = 3;
 }
 
@@ -20,7 +20,7 @@ message Service {
 
 message Rest {
   repeated TimeWindow time_windows = 1;
-  uint32 duration = 2;
+  uint64 duration = 2;
 }
 
 message Capacity {
