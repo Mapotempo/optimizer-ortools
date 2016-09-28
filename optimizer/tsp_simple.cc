@@ -40,10 +40,10 @@ DEFINE_bool(nearby, false, "Short segment priority");
 
 namespace operations_research {
 
-void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 begin_index, int64 size) {
+void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
   const int size_vehicles = data.Vehicles().size();
 
-  for (RoutingModel::NodeIndex i(begin_index); i < begin_index + size; ++i) {
+  for (RoutingModel::NodeIndex i(0); i < size; ++i) {
     int64 const first_ready = data.FirstTWReadyTime(i);
     int64 const first_due = data.FirstTWDueTime(i);
     int64 const second_ready = data.SecondTWReadyTime(i);
@@ -95,6 +95,61 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   }
 }
 
+vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 size_vehicles) {
+  std::vector<IntVar*> breaks;
+  RoutingModel::NodeIndex rest(size);
+  for (int vehicle_index = 0; vehicle_index < size_vehicles; ++vehicle_index) {
+    IntVar* break_position = solver->MakeIntVar(-1, MAX_INT, "break position");
+    breaks.push_back(break_position);
+    std::vector<int64> values;
+    if (data.Vehicles()[vehicle_index]->break_size > 0) {
+      for (RoutingModel::NodeIndex i(0); i < size ; ++i) {
+        int64 index;
+        if ( i == size - 2) {
+          index = routing.Start(vehicle_index);
+        } else if ( i == size - 1){
+          index = routing.End(vehicle_index);
+        } else {
+          index = routing.NodeToIndex(i);
+        }
+        values.push_back(index);
+
+        IntVar *cumul_var = routing.CumulVar(index, "time");
+        IntVar *transit_var = routing.TransitVar(index, "time");
+        IntVar *slack_var = routing.SlackVar(index, "time");
+        IntVar *const vehicle_var = routing.VehicleVar(index);
+        if (i == size - 2) {
+          solver->AddConstraint(solver->MakeGreaterOrEqual(cumul_var, data.Vehicles()[vehicle_index]->time_start));
+        } else if (i == size -1) {
+          transit_var = solver->MakeIntVar(0, MAX_INT, "end transit");
+          slack_var = solver->MakeIntVar(0, MAX_INT, "end slack");
+        }
+        // Verify if node is affected to the right vehicle
+        IntVar *const remove_index = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(vehicle_var, vehicle_index),
+          solver->MakeIntConst(index), -1)->Var();
+        solver->AddConstraint(solver->MakeNonEquality(break_position, remove_index));
+        // Define break_duration if the break position is equal to the current node
+        IntVar *const break_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
+          solver->MakeIntConst(data.ServiceTime(rest)), 0)->Var();
+        // Add a waiting_time before the break if its timeWindow in not already open
+        IntVar *const break_wait_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
+        solver->MakeMax(solver->MakeDifference(data.FirstTWReadyTime(rest), solver->MakeSum(cumul_var, transit_var)), 0), 0)->Var();
+        IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
+          solver->MakeIntConst(data.FirstTWDueTime(rest)), MAX_INT)->Var();
+        // Associate the break position accordingly to is TW
+        solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
+        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, transit_var), upper_rest_bound));
+      }
+      rest++;
+    } else {
+      values.push_back(-1);
+    }
+    break_position->SetValues(values);
+    routing.AddToAssignment(break_position);
+  }
+  return breaks;
+}
+
 void TSPTWSolver(const TSPTWDataDT &data) {
   const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
@@ -134,10 +189,19 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   Solver *solver = routing.solver();
 
   // Setting visit time windows
-  TWBuilder(data, routing, solver, 0, size_matrix - 2);
-
+  TWBuilder(data, routing, solver, size_matrix - 2);
+  std::vector<IntVar*> breaks;
   // Setting rest time windows
-  TWBuilder(data, routing, solver, size_matrix, size_rest);
+  if (size_rest > 0) {
+    breaks = RestBuilder(data, routing, solver, size_matrix , size_vehicles);
+  }
+
+  for (RoutingModel::NodeIndex i(size_matrix); i < size ; ++i) {
+    int64 index = routing.NodeToIndex(i);
+    IntVar *const vehicle_var = routing.VehicleVar(index);
+    vehicle_var->SetValue(-1);
+  }
+
 
   // Vehicle time windows
   int64 v = 0;
@@ -222,10 +286,19 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (solution != NULL) {
     float cost = solution->ObjectiveValue() / 500.0; // Back to original cost value after GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5)
     logger->GetFinalLog();
+    int current_break = 0;
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
         std::cout << nodeIndex << ",";
+        if (breaks.size() > 0 && solution->Value(breaks[route_nbr]) != -1 && routing.IndexToNode(solution->Value(breaks[route_nbr])) == nodeIndex) {
+          std::cout << size_matrix + current_break << ",";
+          current_break++;
+        }
+      }
+      if (breaks.size() > 0 && solution->Value(breaks[route_nbr]) != -1 && routing.IndexToNode(solution->Value(breaks[route_nbr])) == routing.IndexToNode(routing.End(route_nbr))) {
+          std::cout << size_matrix + current_break << ",";
+          current_break++;
       }
       std::cout << routing.IndexToNode(routing.End(route_nbr)) << ";";
     }

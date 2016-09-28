@@ -82,7 +82,7 @@ public:
 
   struct Vehicle {
     Vehicle(TSPTWDataDT* data_, int32 size_):
-    data(data_), size(size_), capacity(0), overload_multiplier(0), time_start(0), time_end(0), late_multiplier(0){
+    data(data_), size(size_), capacity(0), overload_multiplier(0), break_size(0), time_start(0), time_end(0), late_multiplier(0){
       distances.Create(size);
       times.Create(size);
 
@@ -179,6 +179,7 @@ public:
     RoutingModel::NodeIndex stop;
     std::vector<int64> capacity;
     std::vector<int64> overload_multiplier;
+    int32 break_size;
     int64 time_start;
     int64 time_end;
     int64 late_multiplier;
@@ -289,6 +290,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v->overload_multiplier.push_back(capacity.overload_multiplier());
     }
 
+    v->break_size = vehicle.rests().size();
     v->time_start = vehicle.time_window().start() > -MAX_INT/100 ? vehicle.time_window().start() * 100 : -MAX_INT;
     v->time_end = vehicle.time_window().end() < MAX_INT/100 ? vehicle.time_window().end() * 100 : MAX_INT;
     v->late_multiplier = vehicle.time_window().late_multiplier();
