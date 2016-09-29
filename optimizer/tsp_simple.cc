@@ -51,7 +51,6 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     int64 const late_multiplier = data.LateMultiplier(i);
     std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
     int64 index = routing.NodeToIndex(i);
-
     if (first_ready > -MAX_INT || first_due < MAX_INT) {
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
@@ -82,10 +81,13 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     }
     if (sticky_vehicle.size() > 0) {
       for (int v = 0; v < size_vehicles; ++v) {
+        bool sticked = false;
         for (int64 sticky : sticky_vehicle) {
-          if (v != sticky)
-            routing.VehicleVar(index)->RemoveValue(v);
+          if (v == sticky)
+            sticked = true;
         }
+        if (!sticked)
+            routing.VehicleVar(index)->RemoveValue(v);
       }
     }
 
@@ -234,7 +236,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         }
       }
     }
-
     ++v;
   }
 
