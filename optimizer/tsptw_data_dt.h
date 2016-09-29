@@ -335,6 +335,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (int32 i = 0; i < size_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
+  v = 0;
+  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
+    horizon_ = std::max(horizon_, (int64)vehicle.time_window().end());
+    ++v;
+  }
 }
 
 }  //  namespace operations_research
