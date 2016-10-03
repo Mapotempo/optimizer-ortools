@@ -297,8 +297,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
     for (int i = 0; i < size_matrix_; ++i) {
       for (int j = 0; j < size_matrix_; ++j) {
-        v->SetTimeMatrix(i, j) = static_cast<int64>(vehicle.time_matrix().data(i + j * size_matrix_) * 100 + 0.5);
-        v->SetMatrix(i, j) = static_cast<int64>(vehicle.distance_matrix().data(i + j * size_matrix_));
+        v->SetTimeMatrix(i, j) = static_cast<int64>(vehicle.time_matrix().data(i * size_matrix_ + j) * 100 + 0.5);
+        v->SetMatrix(i, j) = static_cast<int64>(vehicle.distance_matrix().data(i * size_matrix_ + j));
       }
     }
 
