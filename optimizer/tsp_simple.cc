@@ -97,10 +97,10 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   }
 }
 
-vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 size_vehicles) {
+vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
   std::vector<IntVar*> breaks;
-  RoutingModel::NodeIndex rest(size);
-  for (int vehicle_index = 0; vehicle_index < size_vehicles; ++vehicle_index) {
+  for (TSPTWDataDT::Rest* rest: data.Rests()) {
+    int vehicle_index = rest->vehicle;
     IntVar* break_position = solver->MakeIntVar(-1, MAX_INT, "break position");
     breaks.push_back(break_position);
     std::vector<int64> values;
@@ -132,12 +132,12 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
         solver->AddConstraint(solver->MakeNonEquality(break_position, remove_index));
         // Define break_duration if the break position is equal to the current node
         IntVar *const break_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-          solver->MakeIntConst(data.ServiceTime(rest)), 0)->Var();
+          solver->MakeIntConst(rest->rest_duration), 0)->Var();
         // Add a waiting_time before the break if its timeWindow in not already open
         IntVar *const break_wait_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-        solver->MakeMax(solver->MakeDifference(data.FirstTWReadyTime(rest), solver->MakeSum(cumul_var, transit_var)), 0), 0)->Var();
+        solver->MakeMax(solver->MakeDifference(rest->rest_start, solver->MakeSum(cumul_var, transit_var)), 0), 0)->Var();
         IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-          solver->MakeIntConst(data.FirstTWDueTime(rest)), MAX_INT)->Var();
+          solver->MakeIntConst(rest->rest_end), MAX_INT)->Var();
         // Associate the break position accordingly to is TW
         solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
         solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, transit_var), upper_rest_bound));
@@ -162,7 +162,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   for(int v = 0; v < size_vehicles; ++v) {
     (*start_ends)[v] = std::make_pair(data.Vehicles().at(v)->start, data.Vehicles().at(v)->stop);
   }
-  RoutingModel routing(size, size_vehicles, *start_ends);
+  RoutingModel routing(size_matrix, size_vehicles, *start_ends);
 
   // Dimensions
   const int64 horizon = data.Horizon();
@@ -195,13 +195,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   std::vector<IntVar*> breaks;
   // Setting rest time windows
   if (size_rest > 0) {
-    breaks = RestBuilder(data, routing, solver, size_matrix , size_vehicles);
-  }
-
-  for (RoutingModel::NodeIndex i(size_matrix); i < size ; ++i) {
-    int64 index = routing.NodeToIndex(i);
-    IntVar *const vehicle_var = routing.VehicleVar(index);
-    vehicle_var->SetValue(-1);
+    breaks = RestBuilder(data, routing, solver, size_matrix);
   }
 
 

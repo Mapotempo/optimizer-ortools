@@ -188,6 +188,22 @@ public:
   std::vector<Vehicle*> Vehicles() const {
     return tsptw_vehicles_;
   }
+
+  struct Rest {
+    Rest(int rest_no):
+        rest_number(rest_no), rest_start(0), rest_end(0), rest_duration(0), vehicle(0){}
+    Rest(int rest_no, double r_s, double r_e, double r_d, int v_i):
+        rest_number(rest_no), rest_start(r_s), rest_end(r_e), rest_duration(r_d), vehicle(v_i){}
+        int rest_number;
+        int64 rest_start;
+        int64 rest_end;
+        int64 rest_duration;
+        int vehicle;
+  };
+
+    std::vector<Rest*> Rests() const {
+    return tsptw_rests_;
+  }
 /*
   Vehicle VehicleGet(int64 v) const {
     return tsptw_vehicles_.at(v);
@@ -227,6 +243,7 @@ private:
   int32 size_matrix_;
   int32 size_rest_;
   std::vector<Vehicle*> tsptw_vehicles_;
+  std::vector<Rest*> tsptw_rests_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::string details_;
   int64 horizon_;
@@ -310,24 +327,24 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   }
   tsptw_clients_.push_back(TSPTWClient(s++));
 
-  int v = 0;
+  int v_index = 0;
+  int r_index = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
-      std::vector<int64> v_i;
-      v_i.push_back(v);
-      const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
-      const ortools_vrp::TimeWindow* tw1 = rest.time_windows_size() >= 2 ? &rest.time_windows().Get(1) : NULL;
+      Rest* r = new Rest(r_index);
 
-      tsptw_clients_.push_back(TSPTWClient(s++,
-                                           tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
-                                           tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
-                                           tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100: -MAX_INT,
-                                           tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
-                                           rest.duration()*100,
-                                           tw0 ? tw0->late_multiplier() : 0,
-                                           v_i));
+      const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
+
+      r->rest_start = tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT;
+      r->rest_end = tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT;
+
+      r->rest_duration = rest.duration()*100;
+      r->vehicle = v_index;
+
+      tsptw_rests_.push_back(r);
+      ++r_index;
     }
-    ++v;
+    ++v_index;
   }
 
   // Compute horizon
@@ -335,7 +352,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (int32 i = 0; i < size_; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
   }
-  v = 0;
+  int v = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     horizon_ = std::max(horizon_, (int64)vehicle.time_window().end());
     ++v;
