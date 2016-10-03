@@ -147,6 +147,7 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
       values.push_back(-1);
     }
     break_position->SetValues(values);
+    routing.AddVariableMinimizedByFinalizer(break_position);
     routing.AddToAssignment(break_position);
   }
   return breaks;
