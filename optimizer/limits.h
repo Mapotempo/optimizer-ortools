@@ -32,6 +32,7 @@ class NoImprovementLimit : public SearchLimit {
       nbr_solutions_with_no_better_obj_(0),
       minimize_(minimize),
       previous_time_(start_time_),
+      initial_time_out_(time_out),
       time_out_(10*time_out),
       time_out_coef_(time_out_coef),
       first_solution_(true),
@@ -74,22 +75,20 @@ class NoImprovementLimit : public SearchLimit {
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && objective->Min() * 1.00001 < best_result_) {
       if (first_solution_) {
-        time_out_ = time_out_ / 10;
         first_solution_ = false;
       }
       best_result_ = objective->Min();
       previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     } else if (!minimize_ && objective->Max() * 0.99999 > best_result_) {
       if (first_solution_) {
-          time_out_ = time_out_ / 10;
         first_solution_ = false;
       }
       best_result_ = objective->Max();
       previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      time_out_ = std::max(time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     }
 
     ++nbr_solutions_with_no_better_obj_;
@@ -104,6 +103,7 @@ class NoImprovementLimit : public SearchLimit {
     best_result_ = copy_limit->best_result_;
     solution_nbr_tolerance_ = copy_limit->solution_nbr_tolerance_;
     minimize_ = copy_limit->minimize_;
+    initial_time_out_= copy_limit->initial_time_out_;
     time_out_ = copy_limit->time_out_;
     previous_time_ = copy_limit->previous_time_;
     limit_reached_ = copy_limit->limit_reached_;
@@ -131,6 +131,7 @@ class NoImprovementLimit : public SearchLimit {
     bool minimize_;
     bool limit_reached_;
     bool first_solution_;
+    double initial_time_out_;
     double time_out_;
     double previous_time_;
     int64 time_out_coef_;
