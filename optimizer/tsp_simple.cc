@@ -178,11 +178,9 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     }
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
-  routing.GetMutableDimension("time")->SetSpanCostCoefficientForAllVehicles(5);
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
   if (FLAGS_nearby) {
     routing.AddDimensionWithVehicleTransits(order_evaluators, horizon, horizon, true, "order");
-    routing.GetMutableDimension("order")->SetSpanCostCoefficientForAllVehicles(1);
   }
 
   for (int64 i = 0; i < data.Vehicles().at(0)->capacity.size(); ++i) {
@@ -200,9 +198,18 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
 
-  // Vehicle time windows
   int64 v = 0;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
+    // Vehicle costs
+
+    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier, v);
+    routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
+    routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
+    if (FLAGS_nearby) {
+      routing.GetMutableDimension("order")->SetSpanCostCoefficientForVehicle((vehicle->cost_time_multiplier + vehicle->cost_distance_multiplier)/5, v);
+    }
+
+    // Vehicle time windows
     if (vehicle->time_start > -MAX_INT) {
       int64 index = routing.Start(v);
       IntVar *const cumul_var = routing.CumulVar(index, "time");

@@ -183,6 +183,9 @@ public:
     int64 time_start;
     int64 time_end;
     int64 late_multiplier;
+    int32 cost_fixed;
+    int32 cost_distance_multiplier;
+    int32 cost_time_multiplier;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -280,7 +283,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100 : -MAX_INT,
                                          tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
                                          service.duration()*100,
-                                         tw0 ? tw0->late_multiplier() : 0,
+                                         tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
                                          q));
   }
@@ -310,7 +313,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->break_size = vehicle.rests().size();
     v->time_start = vehicle.time_window().start() > -MAX_INT/100 ? vehicle.time_window().start() * 100 : -MAX_INT;
     v->time_end = vehicle.time_window().end() < MAX_INT/100 ? vehicle.time_window().end() * 100 : MAX_INT;
-    v->late_multiplier = vehicle.time_window().late_multiplier();
+    v->late_multiplier = vehicle.time_window().late_multiplier() * 1000;
+
+    v->cost_fixed = vehicle.cost_fixed() * 1000;
+    v->cost_distance_multiplier = vehicle.cost_distance_multiplier() * 1000;
+    v->cost_time_multiplier = vehicle.cost_time_multiplier() * 1000;
 
     tsptw_vehicles_.push_back(v);
   }

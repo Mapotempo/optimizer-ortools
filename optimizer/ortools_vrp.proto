@@ -34,6 +34,9 @@ message Vehicle {
   repeated Capacity capacities = 3;
   TimeWindow time_window = 4;
   repeated Rest rests = 5;
+  float cost_fixed = 6;
+  float cost_distance_multiplier = 7;
+  float cost_time_multiplier = 8;
 }
 
 message Problem {
