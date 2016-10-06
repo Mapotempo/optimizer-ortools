@@ -294,12 +294,12 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
         std::cout << nodeIndex << ",";
-        if (breaks.size() > 0 && solution->Value(breaks[route_nbr]) != -1 && routing.IndexToNode(solution->Value(breaks[route_nbr])) == nodeIndex) {
+        if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && routing.IndexToNode(solution->Value(breaks[current_break])) == nodeIndex) {
           std::cout << size_matrix + current_break << ",";
           current_break++;
         }
       }
-      if (breaks.size() > 0 && solution->Value(breaks[route_nbr]) != -1 && routing.IndexToNode(solution->Value(breaks[route_nbr])) == routing.IndexToNode(routing.End(route_nbr))) {
+      if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && routing.IndexToNode(solution->Value(breaks[current_break])) == routing.IndexToNode(routing.End(route_nbr))) {
           std::cout << size_matrix + current_break << ",";
           current_break++;
       }
