@@ -35,7 +35,7 @@ DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whit
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_bool(nearby, false, "Short segment priority");
 
-#define DISJUNCTION_COST std::pow(2, 56)
+#define DISJUNCTION_COST std::pow(2, 52)
 #define MAX_INT std::pow(2,56)
 
 namespace operations_research {
