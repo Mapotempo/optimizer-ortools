@@ -135,12 +135,13 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
           solver->MakeIntConst(rest->rest_duration), 0)->Var();
         // Add a waiting_time before the break if its timeWindow in not already open
         IntVar *const break_wait_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-        solver->MakeMax(solver->MakeDifference(rest->rest_start, solver->MakeSum(cumul_var, transit_var)), 0), 0)->Var();
+        solver->MakeMax(solver->MakeDifference(rest->rest_start, solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i)))), 0), 0)->Var();
+        routing.AddVariableMinimizedByFinalizer(break_wait_duration);
         IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
           solver->MakeIntConst(rest->rest_end), MAX_INT)->Var();
         // Associate the break position accordingly to is TW
         solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
-        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, transit_var), upper_rest_bound));
+        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i))), upper_rest_bound));
       }
       rest++;
     } else {
