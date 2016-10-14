@@ -122,13 +122,11 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
         values.push_back(index);
 
         IntVar *cumul_var = routing.CumulVar(index, "time");
-        IntVar *transit_var = routing.TransitVar(index, "time");
         IntVar *slack_var = routing.SlackVar(index, "time");
         IntVar *const vehicle_var = routing.VehicleVar(index);
         if (i == size - 2) {
           solver->AddConstraint(solver->MakeGreaterOrEqual(cumul_var, data.Vehicles()[vehicle_index]->time_start));
         } else if (i == size -1) {
-          transit_var = solver->MakeIntVar(0, MAX_INT, "end transit");
           slack_var = solver->MakeIntVar(0, MAX_INT, "end slack");
         }
         // Verify if node is affected to the right vehicle
@@ -142,9 +140,9 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
         IntVar *const break_wait_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
         solver->MakeMax(solver->MakeDifference(rest->rest_start, solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i)))), 0), 0)->Var();
         routing.AddVariableMinimizedByFinalizer(break_wait_duration);
+        // Associate the break position accordingly to its TW
         IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
           solver->MakeIntConst(rest->rest_end), MAX_INT)->Var();
-        // Associate the break position accordingly to is TW
         solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
         solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i))), upper_rest_bound));
       }
@@ -254,6 +252,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
+  // parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ALL_UNPERFORMED);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::BEST_INSERTION);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
@@ -263,13 +262,11 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
 
-  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_GREEDY_DESCENT);
+  // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GREEDY_DESCENT);
   parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   // parameters.set_guided_local_search_lambda_coefficient(0.5);
-  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_SIMULATED_ANNEALING);
-  // parameters.set_metaheuristic(LocalSearchMetaheuristic::ROUTING_TABU_SEARCH);
-
-  // routing.SetCommandLineOption("routing_no_lns", "true");
+  // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::SIMULATED_ANNEALING);
+  // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::TABU_SEARCH);
 
   if (FLAGS_time_limit_in_ms > 0) {
     parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);

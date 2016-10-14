@@ -171,7 +171,7 @@ class LoggerMonitor : public SearchLimit {
       CHECK_NOTNULL(routing->CostVar());
       prototype_->AddObjective(routing->CostVar());
 
-  }
+    }
 
   virtual void Init() {
     iteration_counter_ = 0;
@@ -224,7 +224,7 @@ class LoggerMonitor : public SearchLimit {
 
     ++iteration_counter_;
     if(iteration_counter_ >= std::pow(2,pow_)) {
-      std::cout << "Iteration : " << iteration_counter_ << std ::endl;
+      std::cout << "Iteration : " << iteration_counter_ << std::endl;
       ++pow_;
     }
     return true;
