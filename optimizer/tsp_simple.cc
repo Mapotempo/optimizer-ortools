@@ -34,13 +34,15 @@ DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement")
 DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whitout improvement in ms");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_bool(nearby, false, "Short segment priority");
+DEFINE_bool(debug, false, "debug display");
+
 
 #define DISJUNCTION_COST std::pow(2, 52)
 #define MAX_INT std::pow(2,56)
 
 namespace operations_research {
 
-void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
+void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
 
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
@@ -52,6 +54,9 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
     int64 index = routing.NodeToIndex(i);
     if (first_ready > -MAX_INT || first_due < MAX_INT) {
+      if (FLAGS_debug) {
+        std::cout << "Node " << i << " index " << index << " [" << (first_ready - min_start)/100 << " : " << (first_due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
+      }
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
       if (first_ready > -MAX_INT) {
@@ -190,16 +195,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   Solver *solver = routing.solver();
 
-  // Setting visit time windows
-  TWBuilder(data, routing, solver, size_matrix - 2);
-  std::vector<IntVar*> breaks;
-  // Setting rest time windows
-  if (size_rest > 0) {
-    breaks = RestBuilder(data, routing, solver, size_matrix);
-  }
-
-
   int64 v = 0;
+  int64 min_start = MAX_INT;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
 
@@ -209,17 +206,17 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     if (FLAGS_nearby) {
       routing.GetMutableDimension("order")->SetSpanCostCoefficientForVehicle((vehicle->cost_time_multiplier + vehicle->cost_distance_multiplier)/5, v);
     }
-
     // Vehicle time windows
     if (vehicle->time_start > -MAX_INT) {
       int64 index = routing.Start(v);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
+      min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
     }
     if (vehicle->time_end < MAX_INT) {
       int64 coef = vehicle->late_multiplier;
       if(coef > 0) {
-        routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
+        routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end + 2160000, coef);
       } else {
         int64 index = routing.End(v);
         IntVar *const cumul_var = routing.CumulVar(index, "time");
@@ -240,6 +237,14 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       }
     }
     ++v;
+  }
+
+  // Setting visit time windows
+  TWBuilder(data, routing, solver, size_matrix - 2, min_start);
+  std::vector<IntVar*> breaks;
+  // Setting rest time windows
+  if (size_rest > 0) {
+    breaks = RestBuilder(data, routing, solver, size_matrix);
   }
 
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
@@ -272,7 +277,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   routing.CloseModelWithParameters(parameters);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(routing.solver(), routing.CostVar(), true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, FLAGS_debug, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {

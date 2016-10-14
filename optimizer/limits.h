@@ -151,21 +151,25 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class LoggerMonitor : public SearchLimit {
   public:
-    LoggerMonitor(Solver * const solver, IntVar * const objective_var, const bool minimize = true) :
-    SearchLimit(solver),
-      solver_(solver), prototype_(new Assignment(solver_)),
-      iteration_counter_(0),
-      start_time_(base::GetCurrentTimeNanos()),
-      pow_(0),
-      minimize_(minimize) {
+    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, bool debug, const bool minimize = true) :
+    data_(data),
+    routing_(routing),
+    SearchLimit(routing->solver()),
+    solver_(routing->solver()), prototype_(new Assignment(solver_)),
+    iteration_counter_(0),
+    start_time_(base::GetCurrentTimeNanos()),
+    pow_(0),
+    min_start_(min_start),
+    debug_(debug),
+    minimize_(minimize) {
         if (minimize_) {
           best_result_ = kint64max;
         } else {
           best_result_ = kint64min;
         }
 
-      CHECK_NOTNULL(objective_var);
-      prototype_->AddObjective(objective_var);
+      CHECK_NOTNULL(routing->CostVar());
+      prototype_->AddObjective(routing->CostVar());
 
   }
 
@@ -189,14 +193,33 @@ class LoggerMonitor : public SearchLimit {
   virtual bool AtSolution() {
 
     prototype_->Store();
+    bool new_best = false;
 
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && objective->Min() * 1.00001 < best_result_) {
       best_result_ = objective->Min();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99999 > best_result_) {
       best_result_ = objective->Max();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      new_best = true;
+    }
+
+    if (debug_ && new_best) {
+      std::cout << "min start : " << min_start_/100 << std::endl;
+      for (RoutingModel::NodeIndex i(0); i < data_.SizeMatrix() - 1; ++i) {
+          int64 index = routing_->NodeToIndex(i);
+          IntVar *cumul_var = routing_->CumulVar(index, "time");
+          IntVar *transit_var = routing_->TransitVar(index, "time");
+          IntVar *slack_var = routing_->SlackVar(index, "time");
+          IntVar *const vehicle_var = routing_->VehicleVar(index);
+          if (vehicle_var->Bound() && cumul_var->Bound() && transit_var->Bound() && slack_var->Bound()) {
+            std::cout << "Node " << i << " index " << index << " ["<< vehicle_var->Value() << "] |";
+            std::cout << (cumul_var->Value() - min_start_)/100 << " + " << transit_var->Value()/100 << " -> " << slack_var->Value()/100 << std::endl;
+          }
+      }
+      std::cout << "-----------" << std::endl;
     }
 
     ++iteration_counter_;
@@ -221,7 +244,7 @@ class LoggerMonitor : public SearchLimit {
   // Allocates a clone of the limit
   virtual SearchLimit* MakeClone() const {
     // we don't to copy the variables
-    return solver_->RevAlloc(new LoggerMonitor(solver_, prototype_->Objective(), minimize_));
+    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, debug_, minimize_));
   }
 
   virtual std::string DebugString() const {
@@ -233,11 +256,15 @@ class LoggerMonitor : public SearchLimit {
   }
 
   private:
+    const TSPTWDataDT &data_;
+    RoutingModel * routing_;
     Solver * const solver_;
     int64 best_result_;
     double start_time_;
+    int64 min_start_;
     bool minimize_;
     bool limit_reached_;
+    bool debug_;
     int64 pow_;
     int64 iteration_counter_;
     std::unique_ptr<Assignment> prototype_;
@@ -245,8 +272,8 @@ class LoggerMonitor : public SearchLimit {
 
 } // namespace
 
-LoggerMonitor * MakeLoggerMonitor(Solver * const solver, IntVar * const objective_var, const bool minimize = true) {
-  return solver->RevAlloc(new LoggerMonitor(solver, objective_var, minimize));
+LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, bool debug, const bool minimize = true) {
+  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, debug, minimize));
 }
 }  //  namespace operations_research
 
