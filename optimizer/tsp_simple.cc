@@ -68,9 +68,17 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
             solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
             solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
           )->Var();
+
+          if ((int64) first_due + 360000 < second_ready) {
+            std::vector<int64> forbid_starts(1, (int64) first_due + 360000);
+            std::vector<int64> forbid_ends(1, second_ready);
+            solver->AddConstraint(solver->MakeNotMemberCt(cumul_var, forbid_starts, forbid_ends));
+          }
           routing.AddVariableMinimizedByFinalizer(cost_var);
+          cumul_var->SetMax((int64) second_due + 360000);
         } else if (first_due < MAX_INT) {
           routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
+          cumul_var->SetMax((int64) first_due + 360000);
         }
       } else {
         if (second_ready > -MAX_INT) {
