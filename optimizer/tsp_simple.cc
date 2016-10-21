@@ -222,7 +222,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     if (vehicle->time_end < MAX_INT) {
       int64 coef = vehicle->late_multiplier;
       if(coef > 0) {
-        routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end + 2160000, coef);
+        routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
       } else {
         int64 index = routing.End(v);
         IntVar *const cumul_var = routing.CumulVar(index, "time");
