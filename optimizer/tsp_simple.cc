@@ -38,7 +38,6 @@ DEFINE_bool(debug, false, "debug display");
 
 
 #define DISJUNCTION_COST std::pow(2, 52)
-#define MAX_INT std::pow(2,56)
 
 namespace operations_research {
 

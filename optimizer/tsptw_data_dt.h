@@ -14,7 +14,7 @@
 #include "ortools_vrp.pb.h"
 #include "routing_common/routing_common.h"
 
-#define MAX_INT std::pow(2,56)
+#define MAX_INT std::pow(2,62)
 
 namespace operations_research {
 
@@ -183,9 +183,9 @@ public:
     int64 time_start;
     int64 time_end;
     int64 late_multiplier;
-    int32 cost_fixed;
-    int32 cost_distance_multiplier;
-    int32 cost_time_multiplier;
+    int64 cost_fixed;
+    int64 cost_distance_multiplier;
+    int64 cost_time_multiplier;
   };
 
   std::vector<Vehicle*> Vehicles() const {
