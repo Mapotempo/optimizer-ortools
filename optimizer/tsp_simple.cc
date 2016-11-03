@@ -252,7 +252,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
-  // parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
+  if (size_rest == 0)
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ALL_UNPERFORMED);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::BEST_INSERTION);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
