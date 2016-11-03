@@ -37,12 +37,11 @@ DEFINE_bool(nearby, false, "Short segment priority");
 DEFINE_bool(debug, false, "debug display");
 
 
-#define DISJUNCTION_COST std::pow(2, 52)
-
 namespace operations_research {
 
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
+  int64 disjunction_cost = std::min((int64)std::pow(2, 52), (data.MaxTime() * data.MaxTimeCost() + data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * (data.SizeRest() > 0 ? 50000: 1));
 
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
     int64 const first_ready = data.FirstTWReadyTime(i);
@@ -98,7 +97,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
 
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     (*vect)[0] = i;
-    routing.AddDisjunction(*vect, DISJUNCTION_COST);
+    routing.AddDisjunction(*vect, disjunction_cost);
   }
 }
 
