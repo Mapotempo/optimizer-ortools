@@ -41,6 +41,10 @@ public:
     return max_distance_;
   }
 
+  int64 MaxServiceTime() const {
+    return max_service_;
+  }
+
   int64 MaxTimeCost() const {
     return max_time_cost_;
   }
