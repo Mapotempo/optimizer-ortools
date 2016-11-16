@@ -41,7 +41,7 @@ namespace operations_research {
 
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
-  int64 disjunction_cost = std::min((int64)std::pow(2, 52), (data.MaxTime() * data.MaxTimeCost() + data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * (data.SizeRest() > 0 ? 50000: 1));
+  int64 disjunction_cost = std::min((int64)std::pow(2, 52), (2 * data.MaxTime() * data.MaxTimeCost() + 2 * data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * (data.SizeRest() > 0 ? 50000: 1));
 
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
     int64 const first_ready = data.ReadyTime(i);
