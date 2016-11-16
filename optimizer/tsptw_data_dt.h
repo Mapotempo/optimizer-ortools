@@ -29,6 +29,10 @@ public:
     return horizon_;
   }
 
+  int64 MatrixIndex(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].matrix_index;
+  }
+
   int64 MaxTime() const {
     return max_time_;
   }
@@ -49,20 +53,12 @@ public:
     return tws_counter_;
   }
 
-  int64 FirstTWReadyTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].first_ready_time;
+  int64 ReadyTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].ready_time;
   }
 
-  int64 FirstTWDueTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].first_due_time;
-  }
-
-  int64 SecondTWReadyTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].second_ready_time;
-  }
-
-  int64 SecondTWDueTime(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].second_due_time;
+  int64 DueTime(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].due_time;
   }
 
   int64 LateMultiplier(RoutingModel::NodeIndex i)  const {
@@ -145,19 +141,22 @@ public:
     int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      return distances.Cost(i, j);
+      return distances.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+        RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index));
     }
 
     int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      return times.Cost(i, j);
+      return times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+        RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index));
     }
 
     int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      return 100*std::sqrt(times.Cost(i, j));
+      return 100*std::sqrt(times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+        RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index)));
     }
 
     //  Transit quantity at a node "from"
@@ -236,26 +235,25 @@ private:
   void ProcessNewLine(char* const line);
 
   struct TSPTWClient {
-    TSPTWClient(int cust_no):
-    customer_number(cust_no), first_ready_time(-MAX_INT), first_due_time(MAX_INT), second_ready_time(-MAX_INT), second_due_time(MAX_INT), service_time(0.0), late_multiplier(0){
+    TSPTWClient(int cust_no, int32 m_i):
+    customer_number(cust_no), matrix_index(m_i), ready_time(-MAX_INT), due_time(MAX_INT), service_time(0.0), late_multiplier(0){
     }
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t):
-    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(0.0), late_multiplier(0){
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), late_multiplier(0){
     }
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m):
-    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m){
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m){
     }
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& v_i):
-    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i){
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i){
     }
-    TSPTWClient(int cust_no, double f_r_t, double f_d_t, double s_r_t, double s_d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_number(cust_no), first_ready_time(f_r_t), first_due_time(f_d_t), second_ready_time(s_r_t), second_due_time(s_d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
     }
     int customer_number;
-    int64 first_ready_time;
-    int64 first_due_time;
-    int64 second_ready_time;
-    int64 second_due_time;
+    int32 matrix_index;
+    int64 ready_time;
+    int64 due_time;
     int64 service_time;
     int64 late_multiplier;
     std::vector<int64> vehicle_indices;
@@ -293,6 +291,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   int s = 0;
   tws_counter_ = 0;
+  int32 matrix_index = 0;
   for (const ortools_vrp::Service& service: problem.services()) {
     const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
     const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
@@ -306,14 +305,25 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v_i.push_back(index);
     }
     tsptw_clients_.push_back(TSPTWClient(s++,
+                                         matrix_index,
                                          tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
                                          tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
+                                         service.duration()*100,
+                                         tw0 ? tw0->late_multiplier() * 1000 : 0,
+                                         v_i,
+                                         q));
+    if (tw1) {
+      tsptw_clients_.push_back(TSPTWClient(s++,
+                                         matrix_index,
                                          tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100 : -MAX_INT,
                                          tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
                                          service.duration()*100,
                                          tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
                                          q));
+    }
+
+    ++matrix_index;
     if (tw0 && tw0->start() > -MAX_INT/100 || tw0 && tw0->end() < MAX_INT/100) {
       ++tws_counter_;
       if (tw1 && tw1->start() > -MAX_INT/100 || tw1 && tw1->end() < MAX_INT/100)
@@ -326,7 +336,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     size_matrix_ = sqrt(vehicle.time_matrix().data_size());
     size_rest_ += vehicle.rests().size();
   }
-  size_ = size_matrix_ + size_rest_;
+  size_ = s + 2;
 
   max_time_ = 0;
   max_distance_ = 0;
@@ -369,13 +379,13 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (Vehicle* v: tsptw_vehicles_) {
     v->start = RoutingModel::NodeIndex(s);
   }
-  tsptw_clients_.push_back(TSPTWClient(s++));
+  tsptw_clients_.push_back(TSPTWClient(s++, matrix_index));
 
   // Setting stop
   for (Vehicle* v: tsptw_vehicles_) {
     v->stop = RoutingModel::NodeIndex(s);
   }
-  tsptw_clients_.push_back(TSPTWClient(s++));
+  tsptw_clients_.push_back(TSPTWClient(s++, ++matrix_index));
 
   int v_index = 0;
   int r_index = 0;
@@ -401,7 +411,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   horizon_ = 0;
   max_service_ = 0;
   for (int32 i = 0; i < size_; ++i) {
-    horizon_ = std::max(horizon_, tsptw_clients_[i].first_due_time);
+    horizon_ = std::max(horizon_, tsptw_clients_[i].due_time);
     max_service_ = std::max(max_service_, tsptw_clients_[i].service_time);
   }
   int v = 0;

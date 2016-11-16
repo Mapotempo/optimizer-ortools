@@ -44,13 +44,13 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   int64 disjunction_cost = std::min((int64)std::pow(2, 52), (data.MaxTime() * data.MaxTimeCost() + data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * (data.SizeRest() > 0 ? 50000: 1));
 
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
-    int64 const first_ready = data.FirstTWReadyTime(i);
-    int64 const first_due = data.FirstTWDueTime(i);
-    int64 const second_ready = data.SecondTWReadyTime(i);
-    int64 const second_due = data.SecondTWDueTime(i);
+    int64 const first_ready = data.ReadyTime(i);
+    int64 const first_due = data.DueTime(i);
     int64 const late_multiplier = data.LateMultiplier(i);
     std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
     int64 index = routing.NodeToIndex(i);
+    RoutingModel::NodeIndex j = i + 1;
+
     if (first_ready > -MAX_INT || first_due < MAX_INT) {
       if (FLAGS_debug) {
         std::cout << "Node " << i << " index " << index << " [" << (first_ready - min_start)/100 << " : " << (first_due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
@@ -60,25 +60,10 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
       if (first_ready > -MAX_INT) {
         cumul_var->SetMin(first_ready);
       }
-      if (late_multiplier > 0) {
-        if (second_ready > -MAX_INT) {
-          IntVar* const cost_var = solver->MakeSum(
-            solver->MakeConditionalExpression(solver->MakeIsLessOrEqualCstVar(cumul_var, second_ready), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -first_due), 0, late_multiplier), 0),
-            solver->MakeConditionalExpression(solver->MakeIsGreaterOrEqualCstVar(cumul_var, second_due), solver->MakeSemiContinuousExpr(solver->MakeSum(cumul_var, -second_due), 0, late_multiplier), 0)
-          )->Var();
-
-          routing.AddVariableMinimizedByFinalizer(cost_var);
-        } else if (first_due < MAX_INT) {
+      if (first_due < MAX_INT) {
+        if (late_multiplier > 0) {
           routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
-        }
-      } else {
-        if (second_ready > -MAX_INT) {
-          cumul_var->SetMax(second_due);
-          //Simplify at next ORtools release 09/16
-          std::vector<int64> forbid_starts(1, first_due);
-          std::vector<int64> forbid_ends(1, second_ready);
-          solver->AddConstraint(solver->MakeNotMemberCt(cumul_var, forbid_starts, forbid_ends));
-        } else if(first_due < MAX_INT) {
+        } else {
           cumul_var->SetMax(first_due);
         }
       }
@@ -90,13 +75,36 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
           if (v == sticky)
             sticked = true;
         }
-        if (!sticked)
-            routing.VehicleVar(index)->RemoveValue(v);
+        if (!sticked) {
+          routing.VehicleVar(index)->RemoveValue(v);
+          if (data.MatrixIndex(i) == data.MatrixIndex(j)) {
+            routing.VehicleVar(routing.NodeToIndex(j))->RemoveValue(v);
+          }
+        }
       }
     }
 
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     (*vect)[0] = i;
+    if (data.MatrixIndex(i) == data.MatrixIndex(j)) {
+      int64 second_index = routing.NodeToIndex(j);
+      int64 const second_ready = data.ReadyTime(j);
+      int64 const second_due = data.DueTime(j);
+      IntVar *const second_cumul_var = routing.CumulVar(second_index, "time");
+
+      if (second_ready > -MAX_INT) {
+        second_cumul_var->SetMin(second_ready);
+        if (second_due < MAX_INT) {
+          if (late_multiplier > 0) {
+            routing.SetCumulVarSoftUpperBound(j, "time", second_due, late_multiplier);
+          } else {
+            second_cumul_var->SetMax(second_due);
+          }
+        }
+        vect->push_back(j);
+      }
+      ++i;
+    }
     routing.AddDisjunction(*vect, disjunction_cost);
   }
 }
@@ -166,7 +174,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   for(int v = 0; v < size_vehicles; ++v) {
     (*start_ends)[v] = std::make_pair(data.Vehicles().at(v)->start, data.Vehicles().at(v)->stop);
   }
-  RoutingModel routing(size_matrix, size_vehicles, *start_ends);
+  RoutingModel routing(size, size_vehicles, *start_ends);
 
   // Dimensions
   const int64 horizon = data.Horizon();
@@ -196,7 +204,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   int64 min_start = MAX_INT;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
-
     routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier, v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
@@ -237,11 +244,11 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   // Setting visit time windows
-  TWBuilder(data, routing, solver, size_matrix - 2, min_start);
+  TWBuilder(data, routing, solver, size - 2, min_start);
   std::vector<IntVar*> breaks;
   // Setting rest time windows
   if (size_rest > 0) {
-    breaks = RestBuilder(data, routing, solver, size_matrix);
+    breaks = RestBuilder(data, routing, solver, size);
   }
 
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
@@ -296,7 +303,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        std::cout << nodeIndex << ",";
+        std::cout << data.MatrixIndex(nodeIndex) << ",";
         if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
           std::cout << size_matrix + current_break << ",";
           current_break++;
@@ -306,7 +313,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
           std::cout << size_matrix + current_break << ",";
           current_break++;
       }
-      std::cout << routing.IndexToNode(routing.End(route_nbr)) << ";";
+      std::cout << data.MatrixIndex(routing.IndexToNode(routing.End(route_nbr))) << ";";
     }
     std::cout << std::endl;
   } else {
