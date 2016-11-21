@@ -1,4 +1,4 @@
-OR_TOOLS_TOP=../../or-tools
+OR_TOOLS_TOP=../or-tools
 OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/src
 
 TUTORIAL=$(OR_TOOLS_TOP)/documentation/tutorials/cplusplus
