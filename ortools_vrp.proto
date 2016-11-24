@@ -2,7 +2,7 @@ syntax = "proto3";
 package ortools_vrp;
 
 message Matrix {
-  repeated uint32 data = 2 [packed=true];
+  repeated float data = 2 [packed=true];
 }
 
 message TimeWindow {
