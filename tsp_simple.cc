@@ -39,7 +39,7 @@ DEFINE_bool(debug, false, "debug display");
 
 namespace operations_research {
 
-void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start) {
+void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start, bool loop_route, bool unique_configuration) {
   const int size_vehicles = data.Vehicles().size();
   int64 disjunction_cost = std::min((int64)std::pow(2, 52), ((2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost() + 2 * data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * (data.SizeRest() > 0 ? 50000: 1));
   disjunction_cost = std::pow(2, 52);
@@ -243,8 +243,38 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     ++v;
   }
 
+  // Setting solve parameters indicators
+  int route_nbr = 0;
+  int64 previous_distance_depot_start;
+  int64 previous_distance_depot_end;
+  bool loop_route = true;
+  bool unique_configuration = true;
+  RoutingModel::NodeIndex compareNodeIndex = routing.IndexToNode(rand() % (data.SizeMatrix() - 2));
+  TSPTWDataDT::Vehicle* previous_vehicle = NULL;
+  for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+    TSPTWDataDT::Vehicle* vehicle = data.Vehicles().at(route_nbr);
+    RoutingModel::NodeIndex nodeIndexStart = routing.IndexToNode(routing.Start(route_nbr));
+    RoutingModel::NodeIndex nodeIndexEnd = routing.IndexToNode(routing.End(route_nbr));
+
+    int64 distance_depot_start = std::max(vehicle->Time(nodeIndexStart, compareNodeIndex), vehicle->Distance(nodeIndexStart, compareNodeIndex));
+    int64 distance_depot_end = std::max(vehicle->Time(compareNodeIndex, nodeIndexEnd), vehicle->Distance(nodeIndexStart, compareNodeIndex));
+    int64 distance_start_end = std::max(vehicle->Time(nodeIndexStart, nodeIndexEnd), vehicle->Distance(nodeIndexStart, nodeIndexEnd));
+
+    if (previous_vehicle != NULL) {
+      if (previous_distance_depot_start != distance_depot_start || previous_distance_depot_end != distance_depot_end) {
+        unique_configuration = false;
+      }
+      if (distance_start_end != 0 || distance_depot_start == 0 && distance_depot_end == 0) {
+        loop_route = false;
+      }
+    }
+    previous_distance_depot_start = distance_depot_start;
+    previous_distance_depot_end = distance_depot_end;
+    previous_vehicle = vehicle;
+  }
+
   // Setting visit time windows
-  TWBuilder(data, routing, solver, size - 2, min_start);
+  TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
   std::vector<IntVar*> breaks;
   // Setting rest time windows
   if (size_rest > 0) {
@@ -258,8 +288,16 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
-  if (size_rest == 0)
+  if (FLAGS_debug) std::cout << "First solution strategy : ";
+  if (size_rest == 0 && loop_route && unique_configuration) {
+    if (FLAGS_debug) std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
+  } else if (unique_configuration || loop_route) {
+    if (FLAGS_debug) std::cout << "Best Insertion" << std::endl;
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
+  } else {
+    if (FLAGS_debug) std::cout << "Default" << std::endl;
+  }
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ALL_UNPERFORMED);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::BEST_INSERTION);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
