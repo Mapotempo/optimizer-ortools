@@ -132,6 +132,34 @@ public:
       return times.Cost(RoutingModel::NodeIndex(i), RoutingModel::NodeIndex(j));
     }
 
+    int64 BuildTimeMatrix(std::vector<int64> matrix_indices, ortools_vrp::Matrix matrix) {
+      int64 max_time_ = 0;
+      int32 size_matrix_ = sqrt(matrix.time_size());
+      for (int64 i = 0; i < matrix_indices.size(); ++i) {
+        for (int64 j = 0; j < matrix_indices.size(); ++j) {
+          if (matrix_indices.at(i) != -1 && matrix_indices.at(j) != -1) {
+            max_time_ = std::max(max_time_, static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) * 100 + 0.5));
+            SetTimeMatrix(i, j) = static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) * 100 + 0.5);
+          }
+        }
+      }
+      return max_time_;
+    }
+
+    int64 BuildDistanceMatrix(std::vector<int64> matrix_indices, ortools_vrp::Matrix matrix) {
+      int64 max_distance_ = 0;
+      int32 size_matrix_ = sqrt(matrix.distance_size());
+      for (int64 i = 0; i < matrix_indices.size(); ++i) {
+        for (int64 j = 0; j < matrix_indices.size(); ++j) {
+          if (matrix_indices.at(i) != -1 && matrix_indices.at(j) != -1) {
+            max_distance_ = std::max(max_distance_, static_cast<int64>(matrix.distance(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j))));
+            SetMatrix(i, j) = static_cast<int64>(matrix.distance(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)));
+          }
+        }
+      }
+      return max_distance_;
+    }
+
     void SetStart(RoutingModel::NodeIndex s) {
       CHECK_LT(s, size);
       start = s;
@@ -295,11 +323,14 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   int s = 0;
   tws_counter_ = 0;
-  int32 matrix_index = 0;
+  int32 problem_index = 0;
+  std::vector<int64> matrix_indices;
+
   for (const ortools_vrp::Service& service: problem.services()) {
     const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
     const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
 
+    matrix_indices.push_back(service.matrix_index());
     std::vector<int64> q;
     for (const int64& quantity: service.quantities()) {
       q.push_back(quantity);
@@ -309,7 +340,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v_i.push_back(index);
     }
     tsptw_clients_.push_back(TSPTWClient(s++,
-                                         matrix_index,
+                                         problem_index,
                                          tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
                                          tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
                                          service.duration()*100,
@@ -318,7 +349,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          q));
     if (tw1) {
       tsptw_clients_.push_back(TSPTWClient(s++,
-                                         matrix_index,
+                                         problem_index,
                                          tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100 : -MAX_INT,
                                          tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
                                          service.duration()*100,
@@ -327,7 +358,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          q));
     }
 
-    ++matrix_index;
+    ++problem_index;
     if (tw0 && tw0->start() > -MAX_INT/100 || tw0 && tw0->end() < MAX_INT/100) {
       ++tws_counter_;
       if (tw1 && tw1->start() > -MAX_INT/100 || tw1 && tw1->end() < MAX_INT/100)
@@ -336,8 +367,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   }
 
   size_rest_ = 0;
+  size_matrix_ = problem_index + 2;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
-    size_matrix_ = sqrt(vehicle.time_matrix().data_size());
     size_rest_ += vehicle.rests().size();
   }
   size_ = s + 2;
@@ -349,14 +380,16 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     Vehicle* v = new Vehicle(this, size_);
+    std::vector<int64> vehicle_indices(matrix_indices);
+    vehicle_indices.push_back(vehicle.start_index());
+    vehicle_indices.push_back(vehicle.end_index());
 
-    for (int i = 0; i < size_matrix_; ++i) {
-      for (int j = 0; j < size_matrix_; ++j) {
-        v->SetTimeMatrix(i, j) = static_cast<int64>(vehicle.time_matrix().data(i * size_matrix_ + j) * 100 + 0.5);
-        max_time_ = std::max(max_time_, static_cast<int64>(vehicle.time_matrix().data(i * size_matrix_ + j) * 100 + 0.5));
-        v->SetMatrix(i, j) = static_cast<int64>(vehicle.distance_matrix().data(i * size_matrix_ + j));
-        max_distance_ = std::max(max_distance_, static_cast<int64>(vehicle.distance_matrix().data(i * size_matrix_ + j)));
-      }
+    if (problem.matrices(vehicle.matrix_index()).time_size() > 0) {
+      max_time_ = std::max(max_time_, v->BuildTimeMatrix(vehicle_indices, problem.matrices(vehicle.matrix_index())));
+    }
+
+    if (problem.matrices(vehicle.matrix_index()).distance_size() > 0) {
+      max_distance_ = std::max(max_distance_, v->BuildDistanceMatrix(vehicle_indices, problem.matrices(vehicle.matrix_index())));
     }
 
     for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
@@ -368,7 +401,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->time_start = vehicle.time_window().start() > -MAX_INT/100 ? vehicle.time_window().start() * 100 : -MAX_INT;
     v->time_end = vehicle.time_window().end() < MAX_INT/100 ? vehicle.time_window().end() * 100 : MAX_INT;
     v->late_multiplier = vehicle.time_window().late_multiplier() * 1000;
-
     v->cost_fixed = vehicle.cost_fixed() * 1000;
     v->cost_distance_multiplier = vehicle.cost_distance_multiplier() * 1000;
     v->cost_time_multiplier = vehicle.cost_time_multiplier() * 1000;
@@ -383,13 +415,13 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   for (Vehicle* v: tsptw_vehicles_) {
     v->start = RoutingModel::NodeIndex(s);
   }
-  tsptw_clients_.push_back(TSPTWClient(s++, matrix_index));
+  tsptw_clients_.push_back(TSPTWClient(s++, problem_index));
 
   // Setting stop
   for (Vehicle* v: tsptw_vehicles_) {
     v->stop = RoutingModel::NodeIndex(s);
   }
-  tsptw_clients_.push_back(TSPTWClient(s++, ++matrix_index));
+  tsptw_clients_.push_back(TSPTWClient(s++, ++problem_index));
 
   int v_index = 0;
   int r_index = 0;

@@ -2,7 +2,8 @@ syntax = "proto3";
 package ortools_vrp;
 
 message Matrix {
-  repeated float data = 2 [packed=true];
+  repeated float time = 2 [packed=true];
+  repeated float distance = 3 [packed=true];
 }
 
 message TimeWindow {
@@ -16,6 +17,7 @@ message Service {
   repeated uint32 quantities = 2;
   uint32 duration = 3;
   repeated uint32 vehicle_indices = 4;
+  uint32 matrix_index = 5;
 }
 
 message Rest {
@@ -29,17 +31,19 @@ message Capacity {
 }
 
 message Vehicle {
-  Matrix time_matrix = 1;
-  Matrix distance_matrix = 2;
   repeated Capacity capacities = 3;
   TimeWindow time_window = 4;
   repeated Rest rests = 5;
   float cost_fixed = 6;
   float cost_distance_multiplier = 7;
   float cost_time_multiplier = 8;
+  uint32 matrix_index = 9;
+  int32 start_index = 10;
+  int32 end_index = 11;
 }
 
 message Problem {
   repeated Vehicle vehicles = 3;
   repeated Service services = 4;
+  repeated Matrix matrices = 5;
 }
