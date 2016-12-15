@@ -39,9 +39,24 @@ DEFINE_bool(debug, false, "debug display");
 
 namespace operations_research {
 
+bool CheckOverflow(int64 a, int64 b) {
+  if ( a > std::pow(2, 52) / b)
+    return true;
+  return false;
+}
+
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start, bool loop_route, bool unique_configuration) {
   const int size_vehicles = data.Vehicles().size();
-  int64 disjunction_cost = std::min((int64)std::pow(2, 52), ((2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost() + 2 * data.MaxDistance() * data.MaxDistanceCost()) * (data.SizeMatrix() * data.SizeMatrix() + data.TWsCounter() * data.TWsCounter()) * size_vehicles * size * (data.SizeRest() > 0 && !loop_route && !unique_configuration? size : 1));
+  int64 max_time = (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
+  int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
+
+  bool overflow_danger = CheckOverflow(max_time + max_distance, size_vehicles * size_vehicles);
+  int64 data_verif = (max_time + max_distance)  * size_vehicles * size_vehicles;
+
+  overflow_danger = overflow_danger || CheckOverflow(data_verif, size * size);
+  data_verif = data_verif * size * size;
+
+  int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
     int64 const first_ready = data.ReadyTime(i);
     int64 const first_due = data.DueTime(i);
