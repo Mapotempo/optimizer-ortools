@@ -119,7 +119,11 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
       }
       ++i;
     }
-    routing.AddDisjunction(*vect, disjunction_cost);
+    // Otherwise this single service is never assigned
+    if (size == 1)
+      routing.AddDisjunction(*vect);
+    else
+      routing.AddDisjunction(*vect, disjunction_cost);
   }
 }
 
