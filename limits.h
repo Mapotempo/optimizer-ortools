@@ -73,7 +73,7 @@ class NoImprovementLimit : public SearchLimit {
     prototype_->Store();
 
     const IntVar* objective = prototype_->Objective();
-    if (minimize_ && objective->Min() * 1.0001 < best_result_) {
+    if (minimize_ && objective->Min() * 1.01 < best_result_) {
       if (first_solution_) {
         first_solution_ = false;
       }
@@ -81,7 +81,7 @@ class NoImprovementLimit : public SearchLimit {
       previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
       time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
-    } else if (!minimize_ && objective->Max() * 0.9999 > best_result_) {
+    } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       if (first_solution_) {
         first_solution_ = false;
       }
@@ -196,13 +196,13 @@ class LoggerMonitor : public SearchLimit {
     bool new_best = false;
 
     const IntVar* objective = prototype_->Objective();
-    if (minimize_ && objective->Min() * 1.0001 < best_result_) {
+    if (minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       new_best = true;
-    } else if (!minimize_ && objective->Max() * 0.9999 > best_result_) {
+    } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       new_best = true;
     }
 
@@ -252,7 +252,7 @@ class LoggerMonitor : public SearchLimit {
   }
 
   void GetFinalLog() {
-      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 500.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   }
 
   private:

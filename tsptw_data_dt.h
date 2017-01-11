@@ -187,7 +187,14 @@ public:
     int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      return 100*std::sqrt(times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+      return 100 * std::sqrt(times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+        RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index)));
+    }
+
+    int64 DistanceOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      return 100 * std::sqrt(distances.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
         RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index)));
     }
 
