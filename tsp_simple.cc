@@ -279,7 +279,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     RoutingModel::NodeIndex nodeIndexEnd = routing.IndexToNode(routing.End(route_nbr));
 
     int64 distance_depot_start = std::max(vehicle->Time(nodeIndexStart, compareNodeIndex), vehicle->Distance(nodeIndexStart, compareNodeIndex));
-    int64 distance_depot_end = std::max(vehicle->Time(compareNodeIndex, nodeIndexEnd), vehicle->Distance(nodeIndexStart, compareNodeIndex));
+    int64 distance_depot_end = std::max(vehicle->Time(compareNodeIndex, nodeIndexEnd), vehicle->Distance(compareNodeIndex, nodeIndexEnd));
     int64 distance_start_end = std::max(vehicle->Time(nodeIndexStart, nodeIndexEnd), vehicle->Distance(nodeIndexStart, nodeIndexEnd));
 
     if (previous_vehicle != NULL) {
