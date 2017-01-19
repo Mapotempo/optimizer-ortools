@@ -65,16 +65,16 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     int64 index = routing.NodeToIndex(i);
     RoutingModel::NodeIndex j = i + 1;
 
-    if (first_ready > -MAX_INT || first_due < MAX_INT) {
+    if (first_ready > -CUSTOM_MAX_INT || first_due < CUSTOM_MAX_INT) {
       if (FLAGS_debug) {
         std::cout << "Node " << i << " index " << index << " [" << (first_ready - min_start)/100 << " : " << (first_due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
       }
       IntVar *const cumul_var = routing.CumulVar(index, "time");
 
-      if (first_ready > -MAX_INT) {
+      if (first_ready > -CUSTOM_MAX_INT) {
         cumul_var->SetMin(first_ready);
       }
-      if (first_due < MAX_INT) {
+      if (first_due < CUSTOM_MAX_INT) {
         if (late_multiplier > 0) {
           routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
         } else {
@@ -106,9 +106,9 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
       int64 const second_due = data.DueTime(j);
       IntVar *const second_cumul_var = routing.CumulVar(second_index, "time");
 
-      if (second_ready > -MAX_INT) {
+      if (second_ready > -CUSTOM_MAX_INT) {
         second_cumul_var->SetMin(second_ready);
-        if (second_due < MAX_INT) {
+        if (second_due < CUSTOM_MAX_INT) {
           if (late_multiplier > 0) {
             routing.SetCumulVarSoftUpperBound(j, "time", second_due, late_multiplier);
           } else {
@@ -131,7 +131,7 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
   std::vector<IntVar*> breaks;
   for (TSPTWDataDT::Rest* rest: data.Rests()) {
     int vehicle_index = rest->vehicle;
-    IntVar* break_position = solver->MakeIntVar(-1, MAX_INT, "break position");
+    IntVar* break_position = solver->MakeIntVar(-1, CUSTOM_MAX_INT, "break position");
     breaks.push_back(break_position);
     std::vector<int64> values;
     if (data.Vehicles()[vehicle_index]->break_size > 0) {
@@ -152,7 +152,7 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
         if (i == size - 2) {
           solver->AddConstraint(solver->MakeGreaterOrEqual(cumul_var, data.Vehicles()[vehicle_index]->time_start));
         } else if (i == size -1) {
-          slack_var = solver->MakeIntVar(0, MAX_INT, "end slack");
+          slack_var = solver->MakeIntVar(0, CUSTOM_MAX_INT, "end slack");
         }
         // Verify if node is affected to the right vehicle
         IntVar *const remove_index = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(vehicle_var, vehicle_index),
@@ -167,7 +167,7 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
         routing.AddVariableMinimizedByFinalizer(break_wait_duration);
         // Associate the break position accordingly to its TW
         IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-          solver->MakeIntConst(rest->rest_end), MAX_INT)->Var();
+          solver->MakeIntConst(rest->rest_end), CUSTOM_MAX_INT)->Var();
         solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
         solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i))), upper_rest_bound));
       }
@@ -222,7 +222,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   Solver *solver = routing.solver();
 
   int64 v = 0;
-  int64 min_start = MAX_INT;
+  int64 min_start = CUSTOM_MAX_INT;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
     routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier, v);
@@ -233,13 +233,13 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       routing.GetMutableDimension("distance_order")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier / 5, v);
     }
     // Vehicle time windows
-    if (vehicle->time_start > -MAX_INT) {
+    if (vehicle->time_start > -CUSTOM_MAX_INT) {
       int64 index = routing.Start(v);
       IntVar *const cumul_var = routing.CumulVar(index, "time");
       min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
     }
-    if (vehicle->time_end < MAX_INT) {
+    if (vehicle->time_end < CUSTOM_MAX_INT) {
       int64 coef = vehicle->late_multiplier;
       if(coef > 0) {
         routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);

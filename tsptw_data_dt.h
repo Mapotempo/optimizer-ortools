@@ -14,7 +14,7 @@
 #include "ortools_vrp.pb.h"
 #include "routing_common/routing_common.h"
 
-#define MAX_INT std::pow(2,62)
+#define CUSTOM_MAX_INT std::pow(2,62)
 
 namespace operations_research {
 
@@ -275,7 +275,7 @@ private:
 
   struct TSPTWClient {
     TSPTWClient(int cust_no, int32 m_i):
-    customer_number(cust_no), matrix_index(m_i), ready_time(-MAX_INT), due_time(MAX_INT), service_time(0.0), late_multiplier(0){
+    customer_number(cust_no), matrix_index(m_i), ready_time(-CUSTOM_MAX_INT), due_time(CUSTOM_MAX_INT), service_time(0.0), late_multiplier(0){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t):
     customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), late_multiplier(0){
@@ -348,8 +348,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
     tsptw_clients_.push_back(TSPTWClient(s++,
                                          problem_index,
-                                         tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT,
-                                         tw0 && tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT,
+                                         tw0 && tw0->start() > -CUSTOM_MAX_INT/100 ? tw0->start()*100 : -CUSTOM_MAX_INT,
+                                         tw0 && tw0->end() < CUSTOM_MAX_INT/100 ? tw0->end()*100 : CUSTOM_MAX_INT,
                                          service.duration()*100,
                                          tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
@@ -357,8 +357,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     if (tw1) {
       tsptw_clients_.push_back(TSPTWClient(s++,
                                          problem_index,
-                                         tw1 && tw1->start() > -MAX_INT/100 ? tw1->start()*100 : -MAX_INT,
-                                         tw1 && tw1->end() < MAX_INT/100 ? tw1->end()*100 : MAX_INT,
+                                         tw1 && tw1->start() > -CUSTOM_MAX_INT/100 ? tw1->start()*100 : -CUSTOM_MAX_INT,
+                                         tw1 && tw1->end() < CUSTOM_MAX_INT/100 ? tw1->end()*100 : CUSTOM_MAX_INT,
                                          service.duration()*100,
                                          tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
@@ -366,9 +366,9 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
 
     ++problem_index;
-    if (tw0 && tw0->start() > -MAX_INT/100 || tw0 && tw0->end() < MAX_INT/100) {
+    if (tw0 && tw0->start() > -CUSTOM_MAX_INT/100 || tw0 && tw0->end() < CUSTOM_MAX_INT/100) {
       ++tws_counter_;
-      if (tw1 && tw1->start() > -MAX_INT/100 || tw1 && tw1->end() < MAX_INT/100)
+      if (tw1 && tw1->start() > -CUSTOM_MAX_INT/100 || tw1 && tw1->end() < CUSTOM_MAX_INT/100)
         ++tws_counter_;
     }
   }
@@ -405,8 +405,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
 
     v->break_size = vehicle.rests().size();
-    v->time_start = vehicle.time_window().start() > -MAX_INT/100 ? vehicle.time_window().start() * 100 : -MAX_INT;
-    v->time_end = vehicle.time_window().end() < MAX_INT/100 ? vehicle.time_window().end() * 100 : MAX_INT;
+    v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT/100 ? vehicle.time_window().start() * 100 : -CUSTOM_MAX_INT;
+    v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT/100 ? vehicle.time_window().end() * 100 : CUSTOM_MAX_INT;
     v->late_multiplier = vehicle.time_window().late_multiplier() * 1000;
     v->cost_fixed = vehicle.cost_fixed() * 1000;
     v->cost_distance_multiplier = vehicle.cost_distance_multiplier() * 1000;
@@ -438,8 +438,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
 
-      r->rest_start = tw0 && tw0->start() > -MAX_INT/100 ? tw0->start()*100 : -MAX_INT;
-      r->rest_end = tw0->end() < MAX_INT/100 ? tw0->end()*100 : MAX_INT;
+      r->rest_start = tw0 && tw0->start() > -CUSTOM_MAX_INT/100 ? tw0->start()*100 : -CUSTOM_MAX_INT;
+      r->rest_end = tw0->end() < CUSTOM_MAX_INT/100 ? tw0->end()*100 : CUSTOM_MAX_INT;
 
       r->rest_duration = rest.duration()*100;
       r->vehicle = v_index;
