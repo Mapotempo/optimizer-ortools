@@ -453,18 +453,16 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   // Compute horizon
   horizon_ = 0;
   max_service_ = 0;
-  for (int32 i = 0; i < size_; ++i) {
+  for (int32 i = 0; i < size_ - 2; ++i) {
     horizon_ = std::max(horizon_, tsptw_clients_[i].due_time);
     max_service_ = std::max(max_service_, tsptw_clients_[i].service_time);
   }
-  int v = 0;
-  for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
-    horizon_ = std::max(horizon_, (int64)vehicle.time_window().end());
-    ++v;
+  for(int v = 0; v < tsptw_vehicles_.size(); ++v) {
+    horizon_ = std::max(horizon_, tsptw_vehicles_.at(v)->time_end);
   }
   max_rest_ = 0;
   for (int32 i = 0; i < size_rest_; ++i) {
-    max_rest_ = std::max(max_rest_, (int64)tsptw_rests_[i]->rest_duration);
+    max_rest_ = std::max(max_rest_, tsptw_rests_[i]->rest_duration);
   }
 }
 

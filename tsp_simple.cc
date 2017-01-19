@@ -187,15 +187,17 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
+  bool has_lateness = false;
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
   for(int v = 0; v < size_vehicles; ++v) {
     (*start_ends)[v] = std::make_pair(data.Vehicles().at(v)->start, data.Vehicles().at(v)->stop);
+    has_lateness |= data.Vehicles().at(v)->late_multiplier > 0;
   }
   RoutingModel routing(size, size_vehicles, *start_ends);
 
   // Dimensions
-  const int64 horizon = data.Horizon();
+  const int64 horizon = data.Horizon() * (has_lateness && horizon > CUSTOM_MAX_INT/100 ? 2 : 1);
   std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> time_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> distance_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> time_order_evaluators;
