@@ -211,8 +211,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
   if (FLAGS_nearby) {
-    routing.AddDimensionWithVehicleTransits(time_order_evaluators, horizon, horizon, true, "time_order");
-    routing.AddDimensionWithVehicleTransits(distance_order_evaluators, horizon, horizon, true, "distance_order");
+    routing.AddDimensionWithVehicleTransits(time_order_evaluators, 0, LLONG_MAX, true, "time_order");
+    routing.AddDimensionWithVehicleTransits(distance_order_evaluators, 0, LLONG_MAX, true, "distance_order");
   }
 
   for (int64 i = 0; i < data.Vehicles().at(0)->capacity.size(); ++i) {
