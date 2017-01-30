@@ -58,6 +58,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
 
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
   for (RoutingModel::NodeIndex i(0); i < size; ++i) {
+    int64 const priority = data.Priority(i);
     int64 const first_ready = data.ReadyTime(i);
     int64 const first_due = data.DueTime(i);
     int64 const late_multiplier = data.LateMultiplier(i);
@@ -123,7 +124,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     if (size == 1)
       routing.AddDisjunction(*vect);
     else
-      routing.AddDisjunction(*vect, disjunction_cost);
+      routing.AddDisjunction(*vect, disjunction_cost * std::pow(2, 4 - priority));
   }
 }
 

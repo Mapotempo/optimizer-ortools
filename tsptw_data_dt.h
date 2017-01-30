@@ -73,6 +73,10 @@ public:
     return tsptw_clients_[i.value()].service_time;
   }
 
+  int64 Priority(RoutingModel::NodeIndex i) const {
+    return (int64)tsptw_clients_[i.value()].priority;
+  }
+
   std::vector<int64> VehicleIndices(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].vehicle_indices;
   }
@@ -275,25 +279,29 @@ private:
 
   struct TSPTWClient {
     TSPTWClient(int cust_no, int32 m_i):
-    customer_number(cust_no), matrix_index(m_i), ready_time(-CUSTOM_MAX_INT), due_time(CUSTOM_MAX_INT), service_time(0.0), late_multiplier(0){
+    customer_number(cust_no), matrix_index(m_i), ready_time(-CUSTOM_MAX_INT), due_time(CUSTOM_MAX_INT), service_time(0.0), priority(4), late_multiplier(0){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), late_multiplier(0){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), priority(4), late_multiplier(0){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), priority(4), late_multiplier(l_m){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), priority(4), late_multiplier(l_m), vehicle_indices(v_i){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    }
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
     }
     int customer_number;
     int32 matrix_index;
     int64 ready_time;
     int64 due_time;
     int64 service_time;
+    int64 priority;
     int64 late_multiplier;
     std::vector<int64> vehicle_indices;
     std::vector<int64> quantities;
@@ -351,6 +359,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw0 && tw0->start() > -CUSTOM_MAX_INT/100 ? tw0->start()*100 : -CUSTOM_MAX_INT,
                                          tw0 && tw0->end() < CUSTOM_MAX_INT/100 ? tw0->end()*100 : CUSTOM_MAX_INT,
                                          service.duration()*100,
+                                         service.priority(),
                                          tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
                                          q));
@@ -360,6 +369,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          tw1 && tw1->start() > -CUSTOM_MAX_INT/100 ? tw1->start()*100 : -CUSTOM_MAX_INT,
                                          tw1 && tw1->end() < CUSTOM_MAX_INT/100 ? tw1->end()*100 : CUSTOM_MAX_INT,
                                          service.duration()*100,
+                                         service.priority(),
                                          tw0 ? tw0->late_multiplier() * 1000 : 0,
                                          v_i,
                                          q));

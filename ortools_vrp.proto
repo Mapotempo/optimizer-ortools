@@ -16,8 +16,9 @@ message Service {
   repeated TimeWindow time_windows = 1;
   repeated uint32 quantities = 2;
   uint32 duration = 3;
-  repeated uint32 vehicle_indices = 4;
-  uint32 matrix_index = 5;
+  uint32 priority = 4;
+  repeated uint32 vehicle_indices = 5;
+  uint32 matrix_index = 6;
 }
 
 message Rest {
