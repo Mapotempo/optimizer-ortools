@@ -344,7 +344,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   routing.CloseModelWithParameters(parameters);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, FLAGS_debug, true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {

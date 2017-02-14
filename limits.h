@@ -151,7 +151,7 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class LoggerMonitor : public SearchLimit {
   public:
-    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, bool debug, const bool minimize = true) :
+    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, const bool minimize = true) :
     data_(data),
     routing_(routing),
     SearchLimit(routing->solver()),
@@ -160,6 +160,8 @@ class LoggerMonitor : public SearchLimit {
     start_time_(base::GetCurrentTimeNanos()),
     pow_(0),
     min_start_(min_start),
+    size_matrix_(size_matrix),
+    breaks_(breaks),
     debug_(debug),
     minimize_(minimize) {
         if (minimize_) {
@@ -199,10 +201,45 @@ class LoggerMonitor : public SearchLimit {
     if (minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      int current_break = 0;
+      for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+        for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
+          RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
+          std::cout << data_.MatrixIndex(nodeIndex) << ",";
+          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
+            std::cout << size_matrix_ + current_break << ",";
+            current_break++;
+          }
+        }
+        if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
+            std::cout << size_matrix_ + current_break << ",";
+            current_break++;
+        }
+        std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
+      }
+      std::cout << std::endl;
+
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      int current_break = 0;
+      for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+        for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
+          RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
+          std::cout << data_.MatrixIndex(nodeIndex) << ",";
+          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
+            std::cout << size_matrix_ + current_break << ",";
+            current_break++;
+          }
+        }
+        if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
+            std::cout << size_matrix_ + current_break << ",";
+            current_break++;
+        }
+        std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
+      }
+      std::cout << std::endl;
       new_best = true;
     }
 
@@ -237,6 +274,8 @@ class LoggerMonitor : public SearchLimit {
     best_result_ = copy_limit->best_result_;
     iteration_counter_ = copy_limit->iteration_counter_;
     start_time_ = copy_limit->start_time_;
+    size_matrix_ = copy_limit->size_matrix_;
+    breaks_ = copy_limit->breaks_;
     minimize_ = copy_limit->minimize_;
     limit_reached_ = copy_limit->limit_reached_;
   }
@@ -244,7 +283,7 @@ class LoggerMonitor : public SearchLimit {
   // Allocates a clone of the limit
   virtual SearchLimit* MakeClone() const {
     // we don't to copy the variables
-    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, debug_, minimize_));
+    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, size_matrix_, breaks_, debug_, minimize_));
   }
 
   virtual std::string DebugString() const {
@@ -262,6 +301,8 @@ class LoggerMonitor : public SearchLimit {
     int64 best_result_;
     double start_time_;
     int64 min_start_;
+    int64 size_matrix_;
+    vector<IntVar*> breaks_;
     bool minimize_;
     bool limit_reached_;
     bool debug_;
@@ -272,8 +313,8 @@ class LoggerMonitor : public SearchLimit {
 
 } // namespace
 
-LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, bool debug, const bool minimize = true) {
-  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, debug, minimize));
+LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, const bool minimize = true) {
+  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, minimize));
 }
 }  //  namespace operations_research
 
