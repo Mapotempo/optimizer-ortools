@@ -57,6 +57,10 @@ public:
     return tws_counter_;
   }
 
+  int64 TwiceTWsCounter() const {
+    return multiple_tws_counter_;
+  }
+
   int64 ReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -322,6 +326,7 @@ private:
   int64 max_service_;
   int64 max_rest_;
   int64 tws_counter_;
+  int64 multiple_tws_counter_;
 };
 
 void TSPTWDataDT::LoadInstance(const std::string & filename) {
@@ -338,6 +343,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   int s = 0;
   tws_counter_ = 0;
+  multiple_tws_counter_ = 0;
   int32 problem_index = 0;
   std::vector<int64> matrix_indices;
 
@@ -378,8 +384,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     ++problem_index;
     if (tw0 && tw0->start() > -CUSTOM_MAX_INT/100 || tw0 && tw0->end() < CUSTOM_MAX_INT/100) {
       ++tws_counter_;
-      if (tw1 && tw1->start() > -CUSTOM_MAX_INT/100 || tw1 && tw1->end() < CUSTOM_MAX_INT/100)
+      if (tw1 && tw1->start() > -CUSTOM_MAX_INT/100 || tw1 && tw1->end() < CUSTOM_MAX_INT/100) {
         ++tws_counter_;
+        ++multiple_tws_counter_;
+      }
     }
   }
 

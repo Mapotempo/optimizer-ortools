@@ -188,6 +188,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
+  const int size_mtws = data.TwiceTWsCounter();
   bool has_lateness = false;
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
@@ -314,11 +315,14 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (size_rest == 0 && loop_route && unique_configuration) {
+  if (size_mtws > 0 && (float)size_mtws/size < 0.5) {
+    if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
+  } else if (size_rest == 0 && loop_route && unique_configuration) {
     if (FLAGS_debug) std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
   } else if (unique_configuration || loop_route) {
-    if (FLAGS_debug) std::cout << "Best Insertion" << std::endl;
+    if (FLAGS_debug) std::cout << "Paralell Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
   } else {
     if (FLAGS_debug) std::cout << "Default" << std::endl;
