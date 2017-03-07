@@ -93,6 +93,10 @@ public:
     return tws_size_.at(i);
   }
 
+  bool isPickUp(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].type != "delivery";
+  }
+
   int32 Size() const {
     return size_;
   }
@@ -110,7 +114,12 @@ public:
 //    CheckNodeIsValid(to);
     int64 index = nodeToIndex->Run(from);
     if (i < tsptw_clients_.at(index).quantities.size()) {
-      return tsptw_clients_.at(index).quantities.at(i);
+      if (tsptw_clients_[from.value()].type != "delivery") {
+        return tsptw_clients_.at(index).quantities.at(i);
+      }
+      else {
+        return -tsptw_clients_.at(index).quantities.at(i);
+      }
     } else {
       return 0;
     }
@@ -295,22 +304,22 @@ private:
     customer_number(cust_no), matrix_index(m_i), ready_time(-CUSTOM_MAX_INT), due_time(CUSTOM_MAX_INT), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0), type(""){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), type(""){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), type(""){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""){
     }
     TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""){
     }
-    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
+    TSPTWClient(int cust_no, int32 m_i, double r_t, double d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::string t):
+    customer_number(cust_no), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(t){
     }
     int customer_number;
     int32 matrix_index;
@@ -322,6 +331,7 @@ private:
     int64 late_multiplier;
     std::vector<int64> vehicle_indices;
     std::vector<int64> quantities;
+    std::string type;
   };
 
   int32 size_;
@@ -381,6 +391,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
     int timewindow_index = 0;
     do {
+      std::string t = service.type();
       tsptw_clients_.push_back(TSPTWClient(s++,
                                          problem_index,
                                          timewindows.size() > 0 && timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT/100 ? timewindows[timewindow_index]->start()*100 : -CUSTOM_MAX_INT,
@@ -390,7 +401,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          service.priority(),
                                          timewindows.size() > 0 ? (int64)(timewindows[timewindow_index]->late_multiplier() * 1000) : 0,
                                          v_i,
-                                         q));
+                                         q,
+                                         t));
       ++timewindow_index;
       if (timewindows.size() > 0) ++tws_counter_;
       if (timewindow_index > 0) ++multiple_tws_counter_;

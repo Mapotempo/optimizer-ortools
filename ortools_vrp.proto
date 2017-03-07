@@ -20,6 +20,7 @@ message Service {
   repeated uint32 vehicle_indices = 5;
   uint32 matrix_index = 6;
   uint32 setup_duration = 7;
+  string type = 8;
 }
 
 message Rest {
