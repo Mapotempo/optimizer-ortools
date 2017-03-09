@@ -114,7 +114,7 @@ public:
 //    CheckNodeIsValid(to);
     int64 index = nodeToIndex->Run(from);
     if (i < tsptw_clients_.at(index).quantities.size()) {
-      if (tsptw_clients_[from.value()].type != "delivery") {
+      if (tsptw_clients_[index].type != "delivery") {
         return tsptw_clients_.at(index).quantities.at(i);
       }
       else {
@@ -123,6 +123,14 @@ public:
     } else {
       return 0;
     }
+  }
+
+  bool IsDelivery(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].type == "delivery";
+  }
+
+  std::vector<int64> Quantities(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].quantities;
   }
 
   struct Vehicle {

@@ -100,6 +100,12 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
           }
         }
       }
+
+      for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
+        IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
+        slack_var->SetValue(0);
+      }
+
       if (timewindow_index == 0)
         (*vect)[0] = i;
       else
@@ -208,7 +214,16 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   for (int64 i = 0; i < data.Vehicles().at(0)->capacity.size(); ++i) {
-    routing.AddDimension(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), 0, LLONG_MAX, true, "quantity" + std::to_string(i));
+    std::vector<int64> capacities;
+    for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
+      int64 coef = vehicle->overload_multiplier[i];
+      if(coef == 0 && vehicle->capacity.at(i) >= 0) {
+        capacities.push_back(vehicle->capacity.at(i));
+      } else {
+        capacities.push_back(LLONG_MAX);
+      }
+    }
+    routing.AddDimensionWithVehicleCapacity(NewPermanentCallback(&data, &TSPTWDataDT::Quantity, NewPermanentCallback(&routing, &RoutingModel::NodeToIndex), i), LLONG_MAX, capacities, false, "quantity" + std::to_string(i));
   }
 
   Solver *solver = routing.solver();
@@ -335,7 +350,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (FLAGS_time_limit_in_ms > 0) {
     parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);
   }
-
   routing.CloseModelWithParameters(parameters);
 
   LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, true);
