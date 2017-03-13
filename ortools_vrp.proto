@@ -19,6 +19,7 @@ message Service {
   uint32 priority = 4;
   repeated uint32 vehicle_indices = 5;
   uint32 matrix_index = 6;
+  uint32 setup_duration = 7;
 }
 
 message Rest {
