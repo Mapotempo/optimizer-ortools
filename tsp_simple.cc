@@ -213,6 +213,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     }
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
+  routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time_without_wait");
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
   if (FLAGS_nearby) {
     routing.AddDimensionWithVehicleTransits(time_order_evaluators, 0, LLONG_MAX, true, "time_order");
@@ -229,7 +230,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   int64 min_start = CUSTOM_MAX_INT;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
-    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier, v);
+    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier - (vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier), v);
+    routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle(std::max(vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier, (int64)0), v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
     if (FLAGS_nearby) {

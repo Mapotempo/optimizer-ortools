@@ -39,9 +39,10 @@ message Vehicle {
   float cost_fixed = 6;
   float cost_distance_multiplier = 7;
   float cost_time_multiplier = 8;
-  uint32 matrix_index = 9;
-  int32 start_index = 10;
-  int32 end_index = 11;
+  float cost_waiting_time_multiplier = 9;
+  uint32 matrix_index = 10;
+  int32 start_index = 11;
+  int32 end_index = 12;
 }
 
 message Problem {

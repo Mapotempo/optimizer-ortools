@@ -256,6 +256,7 @@ public:
     int64 cost_fixed;
     int64 cost_distance_multiplier;
     int64 cost_time_multiplier;
+    int64 cost_waiting_time_multiplier;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -439,6 +440,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_fixed = vehicle.cost_fixed() * 1000;
     v->cost_distance_multiplier = vehicle.cost_distance_multiplier() * 1000;
     v->cost_time_multiplier = vehicle.cost_time_multiplier() * 1000;
+    v->cost_waiting_time_multiplier = vehicle.cost_waiting_time_multiplier() * 1000;
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
     max_time_cost_ = std::max(max_time_cost_, v->cost_time_multiplier);
