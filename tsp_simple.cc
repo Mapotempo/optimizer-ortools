@@ -230,8 +230,9 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   int64 min_start = CUSTOM_MAX_INT;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
-    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier - (vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier), v);
-    routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle(std::max(vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier, (int64)0), v);
+    int64 without_wait_cost = vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier;
+    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier - without_wait_cost, v);
+    routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle(without_wait_cost, v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
     if (FLAGS_nearby) {

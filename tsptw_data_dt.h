@@ -376,7 +376,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          service.duration()*100,
                                          service.setup_duration()*100,
                                          service.priority(),
-                                         tw0 ? tw0->late_multiplier() * 1000 : 0,
+                                         tw0 ? (int64)(tw0->late_multiplier() * 1000) : 0,
                                          v_i,
                                          q));
     if (tw1) {
@@ -387,7 +387,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          service.duration()*100,
                                          service.setup_duration()*100,
                                          service.priority(),
-                                         tw0 ? tw0->late_multiplier() * 1000 : 0,
+                                         tw0 ? (int64)(tw0->late_multiplier() * 1000) : 0,
                                          v_i,
                                          q));
     }
@@ -436,11 +436,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->break_size = vehicle.rests().size();
     v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT/100 ? vehicle.time_window().start() * 100 : -CUSTOM_MAX_INT;
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT/100 ? vehicle.time_window().end() * 100 : CUSTOM_MAX_INT;
-    v->late_multiplier = vehicle.time_window().late_multiplier() * 1000;
-    v->cost_fixed = vehicle.cost_fixed() * 1000;
-    v->cost_distance_multiplier = vehicle.cost_distance_multiplier() * 1000;
-    v->cost_time_multiplier = vehicle.cost_time_multiplier() * 1000;
-    v->cost_waiting_time_multiplier = vehicle.cost_waiting_time_multiplier() * 1000;
+    v->late_multiplier = (int64)(vehicle.time_window().late_multiplier() * 1000);
+    v->cost_fixed = (int64)(vehicle.cost_fixed() * 1000);
+    v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000);
+    v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
+    v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
     max_time_cost_ = std::max(max_time_cost_, v->cost_time_multiplier);
