@@ -367,7 +367,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const Assignment *solution = routing.SolveWithParameters(parameters);
 
   if (solution != NULL) {
-    float cost = solution->ObjectiveValue() / 1000.0; // Back to original cost
+    int64 cost = (int64)(solution->ObjectiveValue() / 1000.0); // Back to original cost
     logger->GetFinalLog();
     int current_break = 0;
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {

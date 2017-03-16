@@ -200,7 +200,7 @@ class LoggerMonitor : public SearchLimit {
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       int current_break = 0;
       for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
         int previous_index = -1;
@@ -227,7 +227,7 @@ class LoggerMonitor : public SearchLimit {
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       int current_break = 0;
       for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
         for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
@@ -296,7 +296,7 @@ class LoggerMonitor : public SearchLimit {
   }
 
   void GetFinalLog() {
-      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+      std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   }
 
   private:
