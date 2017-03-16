@@ -203,13 +203,18 @@ class LoggerMonitor : public SearchLimit {
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       int current_break = 0;
       for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+        int previous_index = -1;
         for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-          std::cout << data_.MatrixIndex(nodeIndex) << ",";
+          std::cout << data_.MatrixIndex(nodeIndex);
+          if (previous_index != -1)
+            std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min()/100 << "]";
+          std::cout << ",";
           if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
             std::cout << size_matrix_ + current_break << ",";
             current_break++;
           }
+          previous_index = index;
         }
         if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
             std::cout << size_matrix_ + current_break << ",";

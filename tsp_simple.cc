@@ -371,13 +371,18 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     logger->GetFinalLog();
     int current_break = 0;
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+      int previous_index = -1;
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        std::cout << data.MatrixIndex(nodeIndex) << ",";
+        std::cout << data.MatrixIndex(nodeIndex);
+        if (previous_index != -1)
+          std::cout << "[" << solution->Min(routing.GetMutableDimension("time")->CumulVar(index))/100 << "]";
+        std::cout << ",";
         if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
           std::cout << size_matrix + current_break << ",";
           current_break++;
         }
+        previous_index = index;
       }
       if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == routing.End(route_nbr)) {
           std::cout << size_matrix + current_break << ",";
