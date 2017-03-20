@@ -89,6 +89,10 @@ public:
     return tsptw_clients_[i.value()].vehicle_indices;
   }
 
+  int32 TimeWindowsSize(int i) const {
+    return tws_size_.at(i);
+  }
+
   int32 Size() const {
     return size_;
   }
@@ -323,6 +327,7 @@ private:
   int32 size_;
   int32 size_matrix_;
   int32 size_rest_;
+  std::vector<int32> tws_size_;
   std::vector<Vehicle*> tsptw_vehicles_;
   std::vector<Rest*> tsptw_rests_;
   std::vector<TSPTWClient> tsptw_clients_;
@@ -357,8 +362,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   std::vector<int64> matrix_indices;
 
   for (const ortools_vrp::Service& service: problem.services()) {
-    const ortools_vrp::TimeWindow* tw0 = service.time_windows_size() >= 1 ? &service.time_windows().Get(0) : NULL;
-    const ortools_vrp::TimeWindow* tw1 = service.time_windows_size() >= 2 ? &service.time_windows().Get(1) : NULL;
+    const int32 tws_size = service.time_windows_size();
+    tws_size_.push_back(tws_size);
+    std::vector<const ortools_vrp::TimeWindow*> timewindows;
+    for (int32 tw = 0; tw < tws_size; ++tw) {
+      timewindows.push_back(&service.time_windows().Get(tw));
+    }
 
     matrix_indices.push_back(service.matrix_index());
     std::vector<int64> q;
@@ -369,37 +378,24 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const int64& index: service.vehicle_indices()) {
       v_i.push_back(index);
     }
-    tsptw_clients_.push_back(TSPTWClient(s++,
-                                         problem_index,
-                                         tw0 && tw0->start() > -CUSTOM_MAX_INT/100 ? tw0->start()*100 : -CUSTOM_MAX_INT,
-                                         tw0 && tw0->end() < CUSTOM_MAX_INT/100 ? tw0->end()*100 : CUSTOM_MAX_INT,
-                                         service.duration()*100,
-                                         service.setup_duration()*100,
-                                         service.priority(),
-                                         tw0 ? (int64)(tw0->late_multiplier() * 1000) : 0,
-                                         v_i,
-                                         q));
-    if (tw1) {
+
+    int timewindow_index = 0;
+    do {
       tsptw_clients_.push_back(TSPTWClient(s++,
                                          problem_index,
-                                         tw1 && tw1->start() > -CUSTOM_MAX_INT/100 ? tw1->start()*100 : -CUSTOM_MAX_INT,
-                                         tw1 && tw1->end() < CUSTOM_MAX_INT/100 ? tw1->end()*100 : CUSTOM_MAX_INT,
+                                         timewindows.size() > 0 && timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT/100 ? timewindows[timewindow_index]->start()*100 : -CUSTOM_MAX_INT,
+                                         timewindows.size() > 0 && timewindows[timewindow_index]->end() < CUSTOM_MAX_INT/100 ? timewindows[timewindow_index]->end()*100 : CUSTOM_MAX_INT,
                                          service.duration()*100,
                                          service.setup_duration()*100,
                                          service.priority(),
-                                         tw0 ? (int64)(tw0->late_multiplier() * 1000) : 0,
+                                         timewindows.size() > 0 ? (int64)(timewindows[timewindow_index]->late_multiplier() * 1000) : 0,
                                          v_i,
                                          q));
-    }
-
+      ++timewindow_index;
+      if (timewindows.size() > 0) ++tws_counter_;
+      if (timewindow_index > 0) ++multiple_tws_counter_;
+    } while (timewindow_index < service.time_windows_size());
     ++problem_index;
-    if (tw0 && tw0->start() > -CUSTOM_MAX_INT/100 || tw0 && tw0->end() < CUSTOM_MAX_INT/100) {
-      ++tws_counter_;
-      if (tw1 && tw1->start() > -CUSTOM_MAX_INT/100 || tw1 && tw1->end() < CUSTOM_MAX_INT/100) {
-        ++tws_counter_;
-        ++multiple_tws_counter_;
-      }
-    }
   }
 
   size_rest_ = 0;

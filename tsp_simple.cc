@@ -55,71 +55,58 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
 
   overflow_danger = overflow_danger || CheckOverflow(data_verif, size * size);
   data_verif = data_verif * size * size;
+  RoutingModel::NodeIndex i(0);
 
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
-  for (RoutingModel::NodeIndex i(0); i < size; ++i) {
-    int64 const priority = data.Priority(i);
-    int64 const first_ready = data.ReadyTime(i);
-    int64 const first_due = data.DueTime(i);
-    int64 const late_multiplier = data.LateMultiplier(i);
-    std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
-    int64 index = routing.NodeToIndex(i);
-    RoutingModel::NodeIndex j = i + 1;
-
-    if (first_ready > -CUSTOM_MAX_INT || first_due < CUSTOM_MAX_INT) {
-      if (FLAGS_debug) {
-        std::cout << "Node " << i << " index " << index << " [" << (first_ready - min_start)/100 << " : " << (first_due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
-      }
-      IntVar *const cumul_var = routing.CumulVar(index, "time");
-
-      if (first_ready > -CUSTOM_MAX_INT) {
-        cumul_var->SetMin(first_ready);
-      }
-      if (first_due < CUSTOM_MAX_INT) {
-        if (late_multiplier > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", first_due, late_multiplier);
-        } else {
-          cumul_var->SetMax(first_due);
-        }
-      }
-    }
-    if (sticky_vehicle.size() > 0) {
-      for (int v = 0; v < size_vehicles; ++v) {
-        bool sticked = false;
-        for (int64 sticky : sticky_vehicle) {
-          if (v == sticky)
-            sticked = true;
-        }
-        if (!sticked) {
-          routing.VehicleVar(index)->RemoveValue(v);
-          if (data.MatrixIndex(i) == data.MatrixIndex(j)) {
-            routing.VehicleVar(routing.NodeToIndex(j))->RemoveValue(v);
-          }
-        }
-      }
-    }
-
+  for (int activity = 0; activity < data.SizeMatrix() - 2; ++activity) {
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-    (*vect)[0] = i;
-    if (data.MatrixIndex(i) == data.MatrixIndex(j)) {
-      int64 second_index = routing.NodeToIndex(j);
-      int64 const second_ready = data.ReadyTime(j);
-      int64 const second_due = data.DueTime(j);
-      IntVar *const second_cumul_var = routing.CumulVar(second_index, "time");
+    int timewindow_index = 0;
+    int64 priority = 4;
 
-      if (second_ready > -CUSTOM_MAX_INT) {
-        second_cumul_var->SetMin(second_ready);
-        if (second_due < CUSTOM_MAX_INT) {
+    do {
+      priority = data.Priority(i);
+      int64 const ready = data.ReadyTime(i);
+      int64 const due = data.DueTime(i);
+      int64 const late_multiplier = data.LateMultiplier(i);
+      std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
+      int64 index = routing.NodeToIndex(i);
+
+      if (ready > -CUSTOM_MAX_INT || due < CUSTOM_MAX_INT) {
+        if (FLAGS_debug) {
+          std::cout << "Node " << i << " index " << index << " [" << (ready - min_start)/100 << " : " << (due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
+        }
+        IntVar *const cumul_var = routing.CumulVar(index, "time");
+
+        if (ready > -CUSTOM_MAX_INT) {
+          cumul_var->SetMin(ready);
+        }
+        if (due < CUSTOM_MAX_INT) {
           if (late_multiplier > 0) {
-            routing.SetCumulVarSoftUpperBound(j, "time", second_due, late_multiplier);
+            routing.SetCumulVarSoftUpperBound(i, "time", due, late_multiplier);
           } else {
-            second_cumul_var->SetMax(second_due);
+            cumul_var->SetMax(due);
           }
         }
-        vect->push_back(j);
       }
+      if (sticky_vehicle.size() > 0) {
+        for (int v = 0; v < size_vehicles; ++v) {
+          bool sticked = false;
+          for (int64 sticky : sticky_vehicle) {
+            if (v == sticky)
+              sticked = true;
+          }
+          if (!sticked) {
+            routing.VehicleVar(index)->RemoveValue(v);
+          }
+        }
+      }
+      if (timewindow_index == 0)
+        (*vect)[0] = i;
+      else
+        vect->push_back(i);
       ++i;
-    }
+      ++timewindow_index;
+    } while (timewindow_index < data.TimeWindowsSize(activity));
     // Otherwise this single service is never assigned
     if (size == 1)
       routing.AddDisjunction(*vect);
