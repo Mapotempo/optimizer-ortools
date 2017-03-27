@@ -61,6 +61,10 @@ public:
     return multiple_tws_counter_;
   }
 
+  int64 DeliveriesCounter() const {
+    return deliveries_counter_;
+  }
+
   int64 ReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -358,6 +362,7 @@ private:
   int64 max_service_;
   int64 max_rest_;
   int64 tws_counter_;
+  int64 deliveries_counter_;
   int64 multiple_tws_counter_;
 };
 
@@ -376,6 +381,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   int s = 0;
   tws_counter_ = 0;
   multiple_tws_counter_ = 0;
+  deliveries_counter_ = 0;
   int32 problem_index = 0;
   std::vector<int64> matrix_indices;
 
@@ -400,6 +406,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     int timewindow_index = 0;
     do {
       std::string t = service.type();
+      if (t == "delivery") ++deliveries_counter_;
       tsptw_clients_.push_back(TSPTWClient(s++,
                                          problem_index,
                                          timewindows.size() > 0 && timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT/100 ? timewindows[timewindow_index]->start()*100 : -CUSTOM_MAX_INT,

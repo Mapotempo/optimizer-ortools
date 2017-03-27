@@ -320,7 +320,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (size_mtws > 0 && (float)size_mtws/size < 0.5) {
+  if (data.DeliveriesCounter() > 0 || size_mtws > 0 && (float)size_mtws/size < 0.5) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
   } else if (size_rest == 0 && loop_route && unique_configuration) {
