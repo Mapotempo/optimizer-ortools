@@ -44,6 +44,7 @@ message Vehicle {
   uint32 matrix_index = 10;
   int32 start_index = 11;
   int32 end_index = 12;
+  int64 duration = 13;
 }
 
 message Problem {

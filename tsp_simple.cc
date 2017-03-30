@@ -258,6 +258,9 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         cumul_var->SetMax(vehicle->time_end);
       }
     }
+    if (vehicle->duration >= 0) {
+      solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeSum(routing.CumulVar(routing.Start(v), "time"), vehicle->duration), routing.CumulVar(routing.End(v), "time")));
+    }
 
     for (int64 i = 0; i < vehicle->capacity.size(); ++i) {
       int64 coef = vehicle->overload_multiplier[i];
@@ -280,6 +283,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   int64 previous_distance_depot_end;
   bool loop_route = true;
   bool unique_configuration = true;
+  bool has_route_duration = false;
   RoutingModel::NodeIndex compareNodeIndex = routing.IndexToNode(rand() % (data.SizeMatrix() - 2));
   TSPTWDataDT::Vehicle* previous_vehicle = NULL;
   for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
@@ -291,6 +295,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     int64 distance_depot_end = std::max(vehicle->Time(compareNodeIndex, nodeIndexEnd), vehicle->Distance(compareNodeIndex, nodeIndexEnd));
     int64 distance_start_end = std::max(vehicle->Time(nodeIndexStart, nodeIndexEnd), vehicle->Distance(nodeIndexStart, nodeIndexEnd));
 
+    if (vehicle->duration >= 0) has_route_duration = true;
     if (previous_vehicle != NULL) {
       if (previous_distance_depot_start != distance_depot_start || previous_distance_depot_end != distance_depot_end) {
         unique_configuration = false;
@@ -320,7 +325,9 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (data.DeliveriesCounter() > 0 || size_mtws > 0 && (float)size_mtws/size < 0.5) {
+  if (has_route_duration) {
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
+  } else if (data.DeliveriesCounter() > 0 || size_mtws > 0 && (float)size_mtws/size < 0.5) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
   } else if (size_rest == 0 && loop_route && unique_configuration) {
