@@ -45,6 +45,7 @@ message Vehicle {
   int32 start_index = 11;
   int32 end_index = 12;
   int64 duration = 13;
+  bool force_start = 14;
 }
 
 message Problem {

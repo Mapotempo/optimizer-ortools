@@ -247,6 +247,9 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       IntVar *const cumul_var = routing.CumulVar(index, "time");
       min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
+      if (vehicle->force_start) {
+        cumul_var->SetMax(vehicle->time_start);
+      }
     }
     if (vehicle->time_end < CUSTOM_MAX_INT) {
       int64 coef = vehicle->late_multiplier;

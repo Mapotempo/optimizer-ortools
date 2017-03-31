@@ -283,6 +283,7 @@ public:
     int64 cost_time_multiplier;
     int64 cost_waiting_time_multiplier;
     int64 duration;
+    bool force_start;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -466,6 +467,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
     v->duration = (int64)(vehicle.duration() * 100);
+    v->force_start = vehicle.force_start();
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
     max_time_cost_ = std::max(max_time_cost_, v->cost_time_multiplier);
