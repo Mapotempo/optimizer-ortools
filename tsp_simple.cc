@@ -33,6 +33,7 @@ DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.")
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
 DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whitout improvement in ms");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
+DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_bool(nearby, false, "Short segment priority");
 DEFINE_bool(debug, false, "debug display");
 
@@ -230,6 +231,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   int64 v = 0;
   int64 min_start = CUSTOM_MAX_INT;
+  std::vector<IntVar*> used_vehicles;
   for(TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     // Vehicle costs
     int64 without_wait_cost = vehicle->cost_time_multiplier - vehicle->cost_waiting_time_multiplier;
@@ -241,10 +243,16 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       routing.GetMutableDimension("time_order")->SetSpanCostCoefficientForVehicle(vehicle->cost_time_multiplier / 5, v);
       routing.GetMutableDimension("distance_order")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier / 5, v);
     }
+
+    int64 start_index = routing.Start(v);
+    int64 end_index = routing.End(v);
+
+    IntVar *const is_vehicle_used = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(routing.NextVar(start_index), end_index),
+      solver->MakeIntConst(1), 0)->Var();
+    used_vehicles.push_back(is_vehicle_used);
     // Vehicle time windows
     if (vehicle->time_start > -CUSTOM_MAX_INT) {
-      int64 index = routing.Start(v);
-      IntVar *const cumul_var = routing.CumulVar(index, "time");
+      IntVar *const cumul_var = routing.CumulVar(start_index, "time");
       min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
       if (vehicle->force_start) {
@@ -256,8 +264,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
       if(coef > 0) {
         routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
       } else {
-        int64 index = routing.End(v);
-        IntVar *const cumul_var = routing.CumulVar(index, "time");
+        IntVar *const cumul_var = routing.CumulVar(end_index, "time");
         cumul_var->SetMax(vehicle->time_end);
       }
     }
@@ -271,13 +278,15 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         if(coef > 0) {
           routing.GetMutableDimension("quantity" + std::to_string(i))->SetEndCumulVarSoftUpperBound(v, vehicle->capacity[i], coef);
         } else {
-          int64 index = routing.End(v);
-          IntVar *const cumul_var = routing.CumulVar(index, "quantity" + std::to_string(i));
+          IntVar *const cumul_var = routing.CumulVar(end_index, "quantity" + std::to_string(i));
           cumul_var->SetMax(vehicle->capacity[i]);
         }
       }
     }
     ++v;
+  }
+  if (FLAGS_vehicle_limit > 0) {
+    solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles), (int64)FLAGS_vehicle_limit));
   }
 
   // Setting solve parameters indicators
