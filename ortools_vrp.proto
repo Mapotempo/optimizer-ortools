@@ -21,6 +21,8 @@ message Service {
   uint32 matrix_index = 6;
   uint32 setup_duration = 7;
   string type = 8;
+  string id = 9;
+  repeated string linked_ids = 10;
 }
 
 message Rest {

@@ -64,6 +64,16 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     int timewindow_index = 0;
     int64 priority = 4;
 
+    std::vector<std::string>* linked_ids = data.LinkedServicesIds(i);
+    if (linked_ids != NULL) {
+      for (int link_index = 0 ; link_index < linked_ids->size(); ++link_index) {
+        routing.AddPickupAndDelivery(i, RoutingModel::NodeIndex(data.IdIndex(linked_ids->at(link_index))));
+        solver->AddConstraint(solver->MakeEquality(
+            routing.VehicleVar(routing.NodeToIndex(i)),
+            routing.VehicleVar(data.IdIndex(linked_ids->at(link_index)))));
+      }
+    }
+
     do {
       priority = data.Priority(i);
       int64 const ready = data.ReadyTime(i);
