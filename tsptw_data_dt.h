@@ -436,7 +436,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          service.duration()*100,
                                          service.setup_duration()*100,
                                          service.priority(),
-                                         timewindows.size() > 0 ? (int64)(timewindows[timewindow_index]->late_multiplier() * 1000) : 0,
+                                         timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                          v_i,
                                          q,
                                          t,
@@ -484,7 +484,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->break_size = vehicle.rests().size();
     v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT/100 ? vehicle.time_window().start() * 100 : -CUSTOM_MAX_INT;
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT/100 ? vehicle.time_window().end() * 100 : CUSTOM_MAX_INT;
-    v->late_multiplier = (int64)(vehicle.time_window().late_multiplier() * 1000);
+    v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * 1000);
     v->cost_fixed = (int64)(vehicle.cost_fixed() * 1000);
     v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000);
     v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
