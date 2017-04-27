@@ -57,6 +57,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   overflow_danger = overflow_danger || CheckOverflow(data_verif, size * size);
   data_verif = data_verif * size * size;
   RoutingModel::NodeIndex i(0);
+  int32 tw_index = 0;
 
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
   for (int activity = 0; activity < data.SizeMatrix() - 2; ++activity) {
@@ -150,11 +151,9 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         due = data.DueTime(i);
       }
     } else if (due.size() > 1) {
-      int32 tw_index = 1;
-      do {
-        cumul_var->RemoveInterval(due.at(tw_index - 1), ready.at(tw_index));
-        ++tw_index;
-      } while (tw_index < due.size());
+      for (tw_index = due.size() - 1; tw_index--; ) {
+        cumul_var->RemoveInterval(due.at(tw_index), ready.at(tw_index + 1));
+      }
       ++i;
     } else {
       ++i;
