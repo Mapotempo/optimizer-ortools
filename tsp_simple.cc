@@ -61,7 +61,6 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
   for (int activity = 0; activity < data.SizeMatrix() - 2; ++activity) {
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-    int timewindow_index = 0;
     int64 priority = 4;
 
     std::vector<std::string>* linked_ids = data.LinkedServicesIds(i);
@@ -74,56 +73,93 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
       }
     }
 
-    do {
-      priority = data.Priority(i);
-      int64 const ready = data.ReadyTime(i);
-      int64 const due = data.DueTime(i);
-      int64 const late_multiplier = data.LateMultiplier(i);
-      std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
-      int64 index = routing.NodeToIndex(i);
+    priority = data.Priority(i);
 
-      if (ready > -CUSTOM_MAX_INT || due < CUSTOM_MAX_INT) {
-        if (FLAGS_debug) {
-          std::cout << "Node " << i << " index " << index << " [" << (ready - min_start)/100 << " : " << (due - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
-        }
-        IntVar *const cumul_var = routing.CumulVar(index, "time");
+    int64 index = routing.NodeToIndex(i);
+    std::vector<int64> ready = data.ReadyTime(i);
+    std::vector<int64> due = data.DueTime(i);
 
-        if (ready > -CUSTOM_MAX_INT) {
-          cumul_var->SetMin(ready);
-        }
-        if (due < CUSTOM_MAX_INT) {
-          if (late_multiplier > 0) {
-            routing.SetCumulVarSoftUpperBound(i, "time", due, late_multiplier);
-          } else {
-            cumul_var->SetMax(due);
-          }
+    IntVar* cumul_var = routing.CumulVar(index, "time");
+    int64 const late_multiplier = data.LateMultiplier(i);
+    std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
+    std::string service_id = data.ServiceId(i);
+    if (ready.size() > 0 && (ready.at(0) > -CUSTOM_MAX_INT || due.at(due.size()- 1) < CUSTOM_MAX_INT)) {
+      if (FLAGS_debug) {
+        std::cout << "Node " << i << " index " << index << " [" << (ready.at(0) - min_start)/100 << " : " << (due.at(due.size()- 1) - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
+      }
+      if (ready.at(0) > -CUSTOM_MAX_INT) {
+        cumul_var->SetMin(ready.at(0));
+      }
+      if (due.at(due.size()- 1) < CUSTOM_MAX_INT) {
+        if (late_multiplier > 0) {
+          routing.SetCumulVarSoftUpperBound(i, "time", due.at(due.size()- 1), late_multiplier);
+        } else {
+          cumul_var->SetMax(due.at(due.size()- 1));
         }
       }
-      if (sticky_vehicle.size() > 0) {
-        for (int v = 0; v < size_vehicles; ++v) {
-          bool sticked = false;
-          for (int64 sticky : sticky_vehicle) {
-            if (v == sticky)
-              sticked = true;
-          }
-          if (!sticked) {
-            routing.VehicleVar(index)->RemoveValue(v);
-          }
+    }
+    if (sticky_vehicle.size() > 0) {
+      for (int v = 0; v < size_vehicles; ++v) {
+        bool sticked = false;
+        for (int64 sticky : sticky_vehicle) {
+          if (v == sticky)
+            sticked = true;
+        }
+        if (!sticked) {
+          routing.VehicleVar(index)->RemoveValue(v);
         }
       }
-
-      for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
-        IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
-        slack_var->SetValue(0);
-      }
-
-      if (timewindow_index == 0)
-        (*vect)[0] = i;
-      else
-        vect->push_back(i);
+    }
+    for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
+      IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
+      slack_var->SetValue(0);
+    }
+    (*vect)[0] = i;
+    if (late_multiplier > 0) {
       ++i;
-      ++timewindow_index;
-    } while (timewindow_index < data.TimeWindowsSize(activity));
+      ready = data.ReadyTime(i);
+      due = data.DueTime(i);
+      while (data.ServiceId(i) == service_id) {
+        index = routing.NodeToIndex(i);
+        cumul_var = routing.CumulVar(index, "time");
+        if (ready.at(0) > -CUSTOM_MAX_INT) {
+          cumul_var->SetMin(ready.at(0));
+        }
+        if (due.at(due.size()- 1) < CUSTOM_MAX_INT) {
+          routing.SetCumulVarSoftUpperBound(i, "time", due.at(due.size()- 1), late_multiplier);
+        }
+        if (sticky_vehicle.size() > 0) {
+          for (int v = 0; v < size_vehicles; ++v) {
+            bool sticked = false;
+            for (int64 sticky : sticky_vehicle) {
+              if (v == sticky)
+                sticked = true;
+            }
+            if (!sticked) {
+              routing.VehicleVar(index)->RemoveValue(v);
+            }
+          }
+        }
+        for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
+          IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
+          slack_var->SetValue(0);
+        }
+        vect->push_back(i);
+        ++i;
+        ready = data.ReadyTime(i);
+        due = data.DueTime(i);
+      }
+    } else if (due.size() > 1) {
+      int32 tw_index = 1;
+      do {
+        cumul_var->RemoveInterval(due.at(tw_index - 1), ready.at(tw_index));
+        ++tw_index;
+      } while (tw_index < due.size());
+      ++i;
+    } else {
+      ++i;
+    }
+
     // Otherwise this single service is never assigned
     if (size == 1)
       routing.AddDisjunction(*vect);
@@ -338,7 +374,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (size_rest > 0) {
     breaks = RestBuilder(data, routing, solver, size);
   }
-
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
   // Search strategy
