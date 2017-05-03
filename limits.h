@@ -208,7 +208,7 @@ class LoggerMonitor : public SearchLimit {
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
           std::cout << data_.MatrixIndex(nodeIndex);
           if (previous_index != -1)
-            std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min()/100 << "]";
+            std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min() << "]";
           std::cout << ",";
           if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
             std::cout << size_matrix_ + current_break << ",";
@@ -249,7 +249,7 @@ class LoggerMonitor : public SearchLimit {
     }
 
     if (debug_ && new_best) {
-      std::cout << "min start : " << min_start_/100 << std::endl;
+      std::cout << "min start : " << min_start_ << std::endl;
       for (RoutingModel::NodeIndex i(0); i < data_.SizeMatrix() - 1; ++i) {
           int64 index = routing_->NodeToIndex(i);
           IntVar *cumul_var = routing_->CumulVar(index, "time");
@@ -258,7 +258,7 @@ class LoggerMonitor : public SearchLimit {
           IntVar *const vehicle_var = routing_->VehicleVar(index);
           if (vehicle_var->Bound() && cumul_var->Bound() && transit_var->Bound() && slack_var->Bound()) {
             std::cout << "Node " << i << " index " << index << " ["<< vehicle_var->Value() << "] |";
-            std::cout << (cumul_var->Value() - min_start_)/100 << " + " << transit_var->Value()/100 << " -> " << slack_var->Value()/100 << std::endl;
+            std::cout << (cumul_var->Value() - min_start_) << " + " << transit_var->Value() << " -> " << slack_var->Value() << std::endl;
           }
       }
       std::cout << "-----------" << std::endl;

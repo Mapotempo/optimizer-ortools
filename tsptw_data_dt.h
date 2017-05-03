@@ -187,8 +187,8 @@ public:
       for (int64 i = 0; i < matrix_indices.size(); ++i) {
         for (int64 j = 0; j < matrix_indices.size(); ++j) {
           if (matrix_indices.at(i) != -1 && matrix_indices.at(j) != -1) {
-            max_time_ = std::max(max_time_, static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) * 100 + 0.5));
-            SetTimeMatrix(i, j) = static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) * 100 + 0.5);
+            max_time_ = std::max(max_time_, static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) + 0.5));
+            SetTimeMatrix(i, j) = static_cast<int64>(matrix.time(matrix_indices.at(i) * size_matrix_ + matrix_indices.at(j)) + 0.5);
           }
         }
       }
@@ -236,7 +236,7 @@ public:
     int64 TimeOrder(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      return 100 * std::sqrt(times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
+      return 10 * std::sqrt(times.Cost(RoutingModel::NodeIndex(data->tsptw_clients_[i.value()].matrix_index),
         RoutingModel::NodeIndex(data->tsptw_clients_[j.value()].matrix_index)));
     }
 
@@ -423,8 +423,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     std::vector<int64> due_time;
 
     for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-      timewindow->start() > -CUSTOM_MAX_INT/100 ? ready_time.push_back(timewindow->start()*100) : ready_time.push_back(-CUSTOM_MAX_INT);
-      timewindow->end() < CUSTOM_MAX_INT/100 ? due_time.push_back(timewindow->end()*100) : due_time.push_back(CUSTOM_MAX_INT);
+      timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start()) : ready_time.push_back(-CUSTOM_MAX_INT);
+      timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end()) : due_time.push_back(CUSTOM_MAX_INT);
     }
     tws_counter_ += timewindows.size();
     std::vector<std::string>* linked_ids = NULL;
@@ -443,22 +443,22 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     if (service.late_multiplier() > 0) {
       do {
         std::vector<int64> start;
-        if (timewindows.size() > 0 && timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT/100)
-          start.push_back(timewindows[timewindow_index]->start()*100);
+        if (timewindows.size() > 0 && timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT)
+          start.push_back(timewindows[timewindow_index]->start());
         else
           start.push_back(-CUSTOM_MAX_INT);
 
         std::vector<int64>  end;
-        if (timewindows.size() > 0 && timewindows[timewindow_index]->end() < CUSTOM_MAX_INT/100)
-          end.push_back(timewindows[timewindow_index]->end()*100);
+        if (timewindows.size() > 0 && timewindows[timewindow_index]->end() < CUSTOM_MAX_INT)
+          end.push_back(timewindows[timewindow_index]->end());
         else
           end.push_back(CUSTOM_MAX_INT);
         tsptw_clients_.push_back(TSPTWClient((std::string)service.id(),
                                            problem_index,
                                            start,
                                            end,
-                                           service.duration()*100,
-                                           service.setup_duration()*100,
+                                           service.duration(),
+                                           service.setup_duration(),
                                            service.priority(),
                                            timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                            v_i,
@@ -474,8 +474,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          problem_index,
                                          ready_time,
                                          due_time,
-                                         service.duration()*100,
-                                         service.setup_duration()*100,
+                                         service.duration(),
+                                         service.setup_duration(),
                                          service.priority(),
                                          timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                          v_i,
@@ -520,14 +520,14 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
 
     v->break_size = vehicle.rests().size();
-    v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT/100 ? vehicle.time_window().start() * 100 : -CUSTOM_MAX_INT;
-    v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT/100 ? vehicle.time_window().end() * 100 : CUSTOM_MAX_INT;
+    v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT ? vehicle.time_window().start() : -CUSTOM_MAX_INT;
+    v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT ? vehicle.time_window().end() : CUSTOM_MAX_INT;
     v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * 1000);
     v->cost_fixed = (int64)(vehicle.cost_fixed() * 1000);
     v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000);
     v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
-    v->duration = (int64)(vehicle.duration() * 100);
+    v->duration = (int64)(vehicle.duration());
     v->force_start = vehicle.force_start();
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
@@ -557,10 +557,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
       const ortools_vrp::TimeWindow* tw0 = rest.time_windows_size() >= 1 ? &rest.time_windows().Get(0) : NULL;
 
-      r->rest_start = tw0 && tw0->start() > -CUSTOM_MAX_INT/100 ? tw0->start()*100 : -CUSTOM_MAX_INT;
-      r->rest_end = tw0->end() < CUSTOM_MAX_INT/100 ? tw0->end()*100 : CUSTOM_MAX_INT;
+      r->rest_start = tw0 && tw0->start() > -CUSTOM_MAX_INT ? tw0->start() : -CUSTOM_MAX_INT;
+      r->rest_end = tw0->end() < CUSTOM_MAX_INT ? tw0->end() : CUSTOM_MAX_INT;
 
-      r->rest_duration = rest.duration()*100;
+      r->rest_duration = rest.duration();
       r->vehicle = v_index;
 
       tsptw_rests_.push_back(r);

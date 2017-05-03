@@ -86,7 +86,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     std::string service_id = data.ServiceId(i);
     if (ready.size() > 0 && (ready.at(0) > -CUSTOM_MAX_INT || due.at(due.size()- 1) < CUSTOM_MAX_INT)) {
       if (FLAGS_debug) {
-        std::cout << "Node " << i << " index " << index << " [" << (ready.at(0) - min_start)/100 << " : " << (due.at(due.size()- 1) - min_start)/100 << "]:" << data.ServiceTime(i) << std::endl;
+        std::cout << "Node " << i << " index " << index << " [" << (ready.at(0) - min_start) << " : " << (due.at(due.size()- 1) - min_start) << "]:" << data.ServiceTime(i) << std::endl;
       }
       if (ready.at(0) > -CUSTOM_MAX_INT) {
         cumul_var->SetMin(ready.at(0));
@@ -440,7 +440,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
         std::cout << data.MatrixIndex(nodeIndex);
         if (previous_index != -1)
-          std::cout << "[" << solution->Min(routing.GetMutableDimension("time")->CumulVar(index))/100 << "]";
+          std::cout << "[" << solution->Min(routing.GetMutableDimension("time")->CumulVar(index)) << "]";
         std::cout << ",";
         if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
           std::cout << size_matrix + current_break << ",";
