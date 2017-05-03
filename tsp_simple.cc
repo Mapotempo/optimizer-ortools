@@ -338,6 +338,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   int route_nbr = 0;
   int64 previous_distance_depot_start;
   int64 previous_distance_depot_end;
+  bool force_start = false;
   bool loop_route = true;
   bool unique_configuration = true;
   bool has_route_duration = false;
@@ -361,6 +362,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         loop_route = false;
       }
     }
+    force_start |= vehicle->force_start;
     previous_distance_depot_start = distance_depot_start;
     previous_distance_depot_end = distance_depot_end;
     previous_vehicle = vehicle;
@@ -381,7 +383,11 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (has_route_duration) {
+  if (force_start) {
+    if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
+  } else if (has_route_duration) {
+    if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
   } else if (data.DeliveriesCounter() > 0 || size_mtws > 0 && (float)size_mtws/size < 0.5) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
