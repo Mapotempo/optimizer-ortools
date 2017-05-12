@@ -16,7 +16,7 @@ message Service {
   repeated uint32 quantities = 2;
   uint32 duration = 3;
   uint32 priority = 4;
-  repeated uint32 vehicle_indices = 5;
+  repeated int32 vehicle_indices = 5;
   uint32 matrix_index = 6;
   uint32 setup_duration = 7;
   string type = 8;
