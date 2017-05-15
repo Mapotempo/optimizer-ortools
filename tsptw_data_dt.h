@@ -256,7 +256,7 @@ public:
     //  Transit quantity at a node "from"
     //  This is the quantity added after visiting node "from"
     int64 TimePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
-      return Time(from, to) + data->ServiceTime(from) + (Time(from, to) > 0 ? 0 : data->SetupTime(from));
+      return Time(from, to) + data->ServiceTime(from) + (Time(from, to) > 0 ? data->SetupTime(from) : 0);
     }
 
     int64 TimePlus(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
