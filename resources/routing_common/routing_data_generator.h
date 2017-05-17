@@ -19,9 +19,9 @@
 
 #include <string>
 
-#include "base/join.h"
-#include "base/integral_types.h"
-#include "constraint_solver/routing.h"
+#include "ortools/base/join.h"
+#include "ortools/base/integral_types.h"
+#include "ortools/constraint_solver/routing.h"
 
 #include "common/random.h"
 #include "routing_common/routing_common_flags.h"

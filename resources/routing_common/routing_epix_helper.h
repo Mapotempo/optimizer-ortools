@@ -20,8 +20,8 @@
 
 #include <memory>
 
-#include "constraint_solver/routing.h"
-#include "base/join.h"
+#include "ortools/constraint_solver/routing.h"
+#include "ortools/base/join.h"
 
 #include "routing_common/routing_common.h"
 

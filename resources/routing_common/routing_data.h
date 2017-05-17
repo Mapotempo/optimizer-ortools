@@ -19,7 +19,7 @@
 
 #include <ostream>
 
-#include "constraint_solver/routing.h"
+#include "ortools/constraint_solver/routing.h"
 
 #include "routing_common/routing_common.h"
 #include "routing_common/routing_data_generator.h"

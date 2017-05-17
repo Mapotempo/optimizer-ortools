@@ -27,14 +27,14 @@
 #include <limits>
 #include <vector>
 
-#include "base/integral_types.h"
-#include "base/filelinereader.h"
-#include "base/split.h"
-#include "base/strtoint.h"
+#include "ortools/base/integral_types.h"
+#include "ortools/base/filelinereader.h"
+#include "ortools/base/split.h"
+#include "ortools/base/strtoint.h"
 
-#include "routing_common/routing_common.h"
-#include "routing_common/routing_data.h"
-#include "routing_common/tsplib.h"
+#include "ortools/routing_common/routing_common.h"
+#include "ortools/routing_common/routing_data.h"
+#include "ortools/routing_common/tsplib.h"
 
 namespace operations_research {
   class TSPLIBReader : public RoutingData {

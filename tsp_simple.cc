@@ -17,17 +17,17 @@
 //
 #include <iostream>
 
-#include "base/commandlineflags.h"
-#include "constraint_solver/routing.h"
-#include "base/join.h"
-#include "base/timer.h"
-#include <base/callback.h>
+#include "ortools/base/commandlineflags.h"
+#include "ortools/constraint_solver/routing.h"
+#include "ortools/base/join.h"
+#include "ortools/base/timer.h"
+#include <ortools/base/callback.h>
 
 #include "tsptw_data_dt.h"
 #include "limits.h"
 
-#include "constraint_solver/routing.h"
-#include "constraint_solver/routing_flags.h"
+#include "ortools/constraint_solver/routing.h"
+#include "ortools/constraint_solver/routing_flags.h"
 
 DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
@@ -159,7 +159,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   }
 }
 
-vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
+std::vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
   std::vector<IntVar*> breaks;
   for (TSPTWDataDT::Rest* rest: data.Rests()) {
     int vehicle_index = rest->vehicle;
@@ -402,11 +402,11 @@ void TSPTWSolver(const TSPTWDataDT &data) {
 
   // Dimensions
   const int64 horizon = data.Horizon() * (has_lateness && !CheckOverflow(data.Horizon(), 2) ? 2 : 1);
-  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> time_evaluators;
-  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> distance_evaluators;
-  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> value_evaluators;
-  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> time_order_evaluators;
-  std::vector<ResultCallback2<long long int, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int>, IntType<operations_research::_RoutingModel_NodeIndex_tag_, int> >*> distance_order_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> distance_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> value_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_order_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> distance_order_evaluators;
   for (TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimePlusServiceTime));
     distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::Distance));

@@ -5,10 +5,10 @@
 #include <iomanip>
 #include <vector>
 
-#include "constraint_solver/routing.h"
-#include "base/filelinereader.h"
-#include "base/split.h"
-#include "base/strtoint.h"
+#include "ortools/constraint_solver/routing.h"
+#include "ortools/base/filelinereader.h"
+#include "ortools/base/split.h"
+#include "ortools/base/strtoint.h"
 
 
 #include "ortools_vrp.pb.h"
@@ -191,7 +191,7 @@ public:
     return size_rest_;
   }
 
-  int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<_RoutingModel_NodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+  int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<operations_research::RoutingNodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
 //    CheckNodeIsValid(from);
 //    CheckNodeIsValid(to);
     int64 index = nodeToIndex->Run(from);

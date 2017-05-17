@@ -17,7 +17,7 @@
 #ifndef OR_TOOLS_TUTORIALS_CPLUSPLUS_RANDOM_H
 #define OR_TOOLS_TUTORIALS_CPLUSPLUS_RANDOM_H
 
-#include "base/random.h"
+#include "ortools/base/random.h"
 
 #include "common/constants.h"
 

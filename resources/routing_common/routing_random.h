@@ -20,8 +20,8 @@
 #include <string>
 #include <vector>
 
-#include "base/random.h"
-#include "constraint_solver/routing.h"
+#include "ortools/base/random.h"
+#include "ortools/constraint_solver/routing.h"
 
 #include "common/random.h"
 #include "routing_common/routing_common.h"

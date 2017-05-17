@@ -23,8 +23,8 @@
 #include <sstream>
 #include <limits>
 
-#include "base/random.h"
-#include "constraint_solver/routing.h"
+#include "ortools/base/random.h"
+#include "ortools/constraint_solver/routing.h"
 
 #include "routing_common/routing_common_flags.h"
 #include "common/IO_helpers.h"

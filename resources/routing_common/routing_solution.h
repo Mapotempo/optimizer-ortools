@@ -19,7 +19,7 @@
 #ifndef OR_TOOLS_TUTORIALS_CPLUSPLUS_ROUTING_SOLUTION_H
 #define OR_TOOLS_TUTORIALS_CPLUSPLUS_ROUTING_SOLUTION_H
 
-#include "constraint_solver/routing.h"
+#include "ortools/constraint_solver/routing.h"
 
 #include "routing_data.h"
 
