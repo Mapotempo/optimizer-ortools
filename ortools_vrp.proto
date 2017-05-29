@@ -49,10 +49,18 @@ message Vehicle {
   int64 duration = 13;
   bool force_start = 14;
   float cost_late_multiplier = 15;
+  int32 day_index = 16;
+}
+
+message Relation {
+  string type = 1;
+  repeated string linked_ids = 2;
+  int32 lapse = 3;
 }
 
 message Problem {
   repeated Vehicle vehicles = 3;
   repeated Service services = 4;
   repeated Matrix matrices = 5;
+  repeated Relation relations = 6;
 }

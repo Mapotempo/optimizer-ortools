@@ -222,6 +222,73 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
   return breaks;
 }
 
+void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
+  for (TSPTWDataDT::Relation* relation: data.Relations()) {
+    std::string previous_id = "";
+    switch (relation->type) {
+      case Sequence:
+        break;
+      case Order:
+        break;
+      case SameRoute:
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          if (previous_id != "") {
+            solver->AddConstraint(solver->MakeEquality(
+                routing.VehicleVar(data.IdIndex(previous_id)),
+                routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))
+                ));
+          }
+          previous_id = relation->linked_ids->at(link_index);
+        }
+        break;
+      case MinimumDayLapse:
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          if (previous_id != "") {
+            IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index)));
+
+            IntVar *const previous_vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(previous_active_var, 0),
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(previous_id))), 0)->Var();
+
+            IntVar *const vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(active_var, 0),
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))), 0)->Var();
+
+            IntVar *const day_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
+            solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), CUSTOM_MAX_INT)->Var();
+            solver->AddConstraint(solver->MakeGreaterOrEqual(
+              day_lapse,
+              relation->lapse));
+          }
+          previous_id = relation->linked_ids->at(link_index);
+        }
+        break;
+      case MaximumDayLapse:
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          if (previous_id != "") {
+            IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index)));
+
+            IntVar *const previous_vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(previous_active_var, 0),
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(previous_id))), 0)->Var();
+
+            IntVar *const vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(active_var, 0),
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))), 0)->Var();
+
+            IntVar *const day_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
+            solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), CUSTOM_MAX_INT)->Var();
+            solver->AddConstraint(solver->MakeLessOrEqual(
+              day_lapse,
+              relation->lapse));
+          }
+          previous_id = relation->linked_ids->at(link_index);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 void TSPTWSolver(const TSPTWDataDT &data) {
   const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
@@ -375,6 +442,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (size_rest > 0) {
     breaks = RestBuilder(data, routing, solver, size);
   }
+  RelationBuilder(data, routing, solver, size);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
   // Search strategy

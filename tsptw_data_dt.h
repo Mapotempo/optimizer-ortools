@@ -16,6 +16,8 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,31)
 
+enum RelationType { MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+
 namespace operations_research {
 
 class TSPTWDataDT {
@@ -286,6 +288,7 @@ public:
     int64 cost_waiting_time_multiplier;
     int64 duration;
     bool force_start;
+    int32 day_index;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -306,6 +309,27 @@ public:
 
     std::vector<Rest*> Rests() const {
     return tsptw_rests_;
+  }
+
+  struct Relation {
+    Relation(int relation_no):
+        relation_number(relation_no), type(Order), linked_ids(NULL), lapse(-1){}
+    Relation(int relation_no, RelationType t, std::vector<std::string>* l_i):
+        relation_number(relation_no), type(t), linked_ids(l_i), lapse(-1){}
+    Relation(int relation_no, RelationType t, std::vector<std::string>* l_i, int32 l):
+        relation_number(relation_no), type(t), linked_ids(l_i), lapse(l){}
+        int relation_number;
+        RelationType type;
+        std::vector<std::string>* linked_ids;
+        int32 lapse;
+  };
+
+  std::vector<Relation*> Relations() const {
+    return tsptw_relations_;
+  }
+
+  std::vector<int> VehiclesDay() const {
+    return vehicles_day_;
   }
 /*
   Vehicle VehicleGet(int64 v) const {
@@ -357,9 +381,11 @@ private:
   std::vector<int32> tws_size_;
   std::vector<Vehicle*> tsptw_vehicles_;
   std::vector<Rest*> tsptw_rests_;
+  std::vector<Relation*> tsptw_relations_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::vector<CompleteGraphArcCost*> distances_matrices_;
   std::vector<CompleteGraphArcCost*> times_matrices_;
+  std::vector<int> vehicles_day_;
   std::string details_;
   int64 horizon_;
   int64 max_time_;
@@ -542,6 +568,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
     v->duration = (int64)(vehicle.duration());
     v->force_start = vehicle.force_start();
+    v->day_index = vehicle.day_index();
+    vehicles_day_.push_back(vehicle.day_index());
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
     max_time_cost_ = std::max(max_time_cost_, v->cost_time_multiplier);
@@ -564,6 +592,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   tsptw_clients_.push_back(TSPTWClient("vehicles_end",  ++problem_index));
   int v_index = 0;
   int r_index = 0;
+  int re_index = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
       Rest* r = new Rest(r_index);
@@ -580,6 +609,26 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       ++r_index;
     }
     ++v_index;
+  }
+
+  for (const ortools_vrp::Relation& relation: problem.relations()) {
+    std::vector<std::string>* linked_ids = new std::vector<std::string>();
+    for (const std::string linked_id: relation.linked_ids()) {
+      linked_ids->push_back(linked_id);
+    }
+
+    RelationType type;
+    if (relation.type() == "sequence") type = Sequence;
+    else if (relation.type() == "order") type = Order;
+    else if (relation.type() == "same_route") type = SameRoute;
+    else if (relation.type() == "minimum_day_lapse") type = MinimumDayLapse;
+    else if (relation.type() == "maximum_day_lapse") type = MaximumDayLapse;
+
+    tsptw_relations_.push_back(new Relation(re_index,
+                                        type,
+                                        linked_ids,
+                                        relation.lapse()));
+    ++re_index;
   }
 
   // Compute horizon
