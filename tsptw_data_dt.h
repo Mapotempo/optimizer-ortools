@@ -14,7 +14,7 @@
 #include "ortools_vrp.pb.h"
 #include "routing_common/routing_common.h"
 
-#define CUSTOM_MAX_INT (int64)std::pow(2,62)
+#define CUSTOM_MAX_INT (int64)std::pow(2,31)
 
 namespace operations_research {
 
