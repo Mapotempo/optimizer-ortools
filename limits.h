@@ -33,7 +33,7 @@ class NoImprovementLimit : public SearchLimit {
       minimize_(minimize),
       previous_time_(start_time_),
       initial_time_out_(time_out),
-      time_out_(10*time_out),
+      time_out_(time_out),
       time_out_coef_(time_out_coef),
       first_solution_(true),
       limit_reached_(false) {
@@ -60,7 +60,7 @@ class NoImprovementLimit : public SearchLimit {
 
   //  Returns true if limit is reached, false otherwise.
   virtual bool Check() {
-    if (!first_solution_ && nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ || 1e-6 * (base::GetCurrentTimeNanos() - previous_time_) > time_out_) {
+    if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ || 1e-6 * (base::GetCurrentTimeNanos() - previous_time_) > time_out_)) {
       limit_reached_ = true;
     }
     //VLOG(2) << "NoImprovementLimit's limit reached? " << limit_reached_;
