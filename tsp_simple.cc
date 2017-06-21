@@ -392,7 +392,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   } else if (data.DeliveriesCounter() > 0 || (float)size_mtws/size > 0.2) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
-  } else if (size_rest == 0 && loop_route && unique_configuration) {
+  } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10) {
     if (FLAGS_debug) std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
   } else if (unique_configuration || loop_route) {
