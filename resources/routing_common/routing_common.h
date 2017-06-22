@@ -119,14 +119,14 @@ private:
 
   void CreateMatrix(const int size) {
     CHECK_GT(size, 2) << "Size for matrix non consistent.";
-    int64 * p_array = NULL;
+    int64 * p_array = nullptr;
     try {
       p_array  = new int64 [size_ * size_];
     } catch (std::bad_alloc & e) {
-      p_array = NULL;
+      p_array = nullptr;
       LOG(FATAL) << "Problems allocating ressource. Try with a smaller size.";
     }
-    CHECK_NE(p_array, NULL) << "Not enough resources to create matrix";
+    CHECK(p_array != nullptr) << "Not enough resources to create matrix";
     matrix_.reset(p_array);
     is_created_ = true;
   }
