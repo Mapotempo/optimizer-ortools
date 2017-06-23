@@ -275,7 +275,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
               solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))), 0)->Var();
 
             IntVar *const day_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
-            solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), CUSTOM_MAX_INT)->Var();
+            solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), 0)->Var();
             solver->AddConstraint(solver->MakeLessOrEqual(
               day_lapse,
               relation->lapse));
