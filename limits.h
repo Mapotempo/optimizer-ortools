@@ -60,7 +60,7 @@ class NoImprovementLimit : public SearchLimit {
 
   //  Returns true if limit is reached, false otherwise.
   virtual bool Check() {
-    if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ || 1e-6 * (base::GetCurrentTimeNanos() - previous_time_) > time_out_)) {
+    if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ || 1e-6 * (base::GetCurrentTimeNanos() - start_time_) > time_out_)) {
       limit_reached_ = true;
     }
     //VLOG(2) << "NoImprovementLimit's limit reached? " << limit_reached_;
