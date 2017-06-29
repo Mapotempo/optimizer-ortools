@@ -243,44 +243,44 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
         break;
       case MinimumDayLapse:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          if (previous_id != "") {
+          previous_id = relation->linked_ids->at(link_index);
+          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
             IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
-            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index)));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
 
             IntVar *const previous_vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(previous_active_var, 0),
               solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(previous_id))), 0)->Var();
 
             IntVar *const vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(active_var, 0),
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))), 0)->Var();
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index_bis)))), 0)->Var();
 
             IntVar *const day_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
             solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), CUSTOM_MAX_INT)->Var();
             solver->AddConstraint(solver->MakeGreaterOrEqual(
               day_lapse,
-              relation->lapse));
+              (link_index_bis - link_index) * relation->lapse));
           }
-          previous_id = relation->linked_ids->at(link_index);
         }
         break;
       case MaximumDayLapse:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          if (previous_id != "") {
+          previous_id = relation->linked_ids->at(link_index);
+          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
             IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
-            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index)));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
 
             IntVar *const previous_vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(previous_active_var, 0),
               solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(previous_id))), 0)->Var();
 
             IntVar *const vehicle_day_var = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(active_var, 0),
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))), 0)->Var();
+              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index_bis)))), 0)->Var();
 
             IntVar *const day_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
             solver->MakeDifference(vehicle_day_var, previous_vehicle_day_var), 0)->Var();
             solver->AddConstraint(solver->MakeLessOrEqual(
               day_lapse,
-              relation->lapse));
+              (link_index_bis - link_index) * relation->lapse));
           }
-          previous_id = relation->linked_ids->at(link_index);
         }
         break;
       default:
