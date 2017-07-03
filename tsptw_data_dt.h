@@ -165,7 +165,14 @@ public:
 //    CheckNodeIsValid(to);
     int64 index = nodeToIndex->Run(from);
     if (i < tsptw_clients_.at(index).quantities.size()) {
-      if (tsptw_clients_[index].type != "delivery") {
+      if (tsptw_vehicles_[0]->counting.at(i)) {
+        if (tsptw_clients_[index].type != "delivery") {
+          return tsptw_clients_.at(index).quantities.at(i) + (tsptw_vehicles_[0]->stop == to || tsptw_vehicles_[0]->Distance(from, to) > 0 || tsptw_vehicles_[0]->Time(from, to) > 0 ? tsptw_clients_.at(index).setup_quantities.at(i) : 0);
+        } else {
+          return tsptw_clients_.at(index).quantities.at(i) + (tsptw_vehicles_[0]->stop == to || tsptw_vehicles_[0]->Distance(from, to) > 0 || tsptw_vehicles_[0]->Time(from, to) > 0 ? -tsptw_clients_.at(index).setup_quantities.at(i) : 0);
+        }
+      }
+      else if (tsptw_clients_[index].type != "delivery") {
         return tsptw_clients_.at(index).quantities.at(i);
       }
       else {
@@ -277,6 +284,7 @@ public:
     int64 problem_matrix_index;
     std::vector<int64> vehicle_indices;
     std::vector<int64> capacity;
+    std::vector<bool> counting;
     std::vector<int64> overload_multiplier;
     int32 break_size;
     int64 time_start;
@@ -361,6 +369,9 @@ private:
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::string t, std::vector<std::string>* l_ids):
     customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(t), linked_ids(l_ids){
     }
+    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, std::string t, std::vector<std::string>* l_ids):
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), type(t), linked_ids(l_ids){
+    }
     std::string customer_id;
     int32 matrix_index;
     std::vector<int64> ready_time;
@@ -371,6 +382,7 @@ private:
     int64 late_multiplier;
     std::vector<int64> vehicle_indices;
     std::vector<int64> quantities;
+    std::vector<int64> setup_quantities;
     std::string type;
     std::vector<std::string>* linked_ids;
   };
@@ -430,6 +442,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const int64& quantity: service.quantities()) {
       q.push_back(quantity);
     }
+
+    std::vector<int64> s_q;
+    for (const int64& setup_quantity: service.setup_quantities()) {
+      s_q.push_back(setup_quantity);
+    }
+
     std::vector<int64> v_i;
     for (const int64& index: service.vehicle_indices()) {
       v_i.push_back(index);
@@ -480,6 +498,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                            v_i,
                                            q,
+                                           s_q,
                                            t,
                                            linked_ids));
         ids_map_[(std::string)service.id()] = s;
@@ -498,6 +517,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                          v_i,
                                          q,
+                                         s_q,
                                          t,
                                          linked_ids));
       ids_map_[(std::string)service.id()] = s;
@@ -554,6 +574,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const ortools_vrp::Capacity& capacity: vehicle.capacities()) {
       v->capacity.push_back(capacity.limit());
       v->overload_multiplier.push_back(capacity.overload_multiplier());
+      v->counting.push_back(capacity.counting());
     }
 
     v->break_size = vehicle.rests().size();

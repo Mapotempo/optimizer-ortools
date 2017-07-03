@@ -23,6 +23,7 @@ message Service {
   string id = 9;
   repeated string linked_ids = 10;
   float late_multiplier = 11;
+  repeated uint32 setup_quantities = 12;
 }
 
 message Rest {
@@ -33,6 +34,7 @@ message Rest {
 message Capacity {
   int32 limit = 1;
   float overload_multiplier = 2;
+  bool counting = 3;
 }
 
 message Vehicle {
