@@ -71,6 +71,9 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         solver->AddConstraint(solver->MakeEquality(
             routing.VehicleVar(routing.NodeToIndex(i)),
             routing.VehicleVar(data.IdIndex(linked_ids->at(link_index)))));
+        solver->AddConstraint(
+          solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(routing.NodeToIndex(i)),
+                                  routing.GetMutableDimension("time")->CumulVar(data.IdIndex(linked_ids->at(link_index)))));
       }
     }
 
