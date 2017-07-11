@@ -299,6 +299,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   const int size_rest = data.SizeRest();
   const int size_mtws = data.TwiceTWsCounter();
   bool has_lateness = false;
+  bool has_route_duration = false;
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
   for(int v = 0; v < size_vehicles; ++v) {
@@ -383,7 +384,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
         cumul_var->SetMax(vehicle->time_end);
       }
     }
-    if (vehicle->duration >= 0) {
+    if (vehicle->duration >= 0 && vehicle->time_end - vehicle-> time_start > vehicle->duration) {
+      has_route_duration = true;
       solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeSum(routing.CumulVar(routing.Start(v), "time"), vehicle->duration), routing.CumulVar(routing.End(v), "time")));
     }
 
@@ -411,7 +413,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   bool force_start = false;
   bool loop_route = true;
   bool unique_configuration = true;
-  bool has_route_duration = false;
   RoutingModel::NodeIndex compareNodeIndex = routing.IndexToNode(rand() % (data.SizeMatrix() - 2));
   TSPTWDataDT::Vehicle* previous_vehicle = NULL;
   for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
@@ -423,7 +424,6 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     int64 distance_depot_end = std::max(vehicle->Time(compareNodeIndex, nodeIndexEnd), vehicle->Distance(compareNodeIndex, nodeIndexEnd));
     int64 distance_start_end = std::max(vehicle->Time(nodeIndexStart, nodeIndexEnd), vehicle->Distance(nodeIndexStart, nodeIndexEnd));
 
-    if (vehicle->duration >= 0) has_route_duration = true;
     if (previous_vehicle != NULL) {
       if (previous_distance_depot_start != distance_depot_start || previous_distance_depot_end != distance_depot_end) {
         unique_configuration = false;
@@ -457,13 +457,13 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (force_start) {
     if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
-  } else if (has_route_duration) {
+  } else if (has_route_duration && size_vehicles == 1) {
     if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
   } else if (data.DeliveriesCounter() > 0 || (float)size_mtws/size > 0.2) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
-  } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10) {
+  } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10 && !has_route_duration) {
     if (FLAGS_debug) std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
   } else if (unique_configuration || loop_route) {
