@@ -21,9 +21,8 @@ message Service {
   uint32 setup_duration = 7;
   string type = 8;
   string id = 9;
-  repeated string linked_ids = 10;
-  float late_multiplier = 11;
-  repeated uint32 setup_quantities = 12;
+  float late_multiplier = 10;
+  repeated uint32 setup_quantities = 11;
 }
 
 message Rest {

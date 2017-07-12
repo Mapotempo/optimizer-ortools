@@ -108,10 +108,6 @@ public:
     return tsptw_clients_[i.value()].customer_id;
   }
 
-  std::vector<std::string>* LinkedServicesIds(RoutingModel::NodeIndex i) const {
-    return tsptw_clients_[i.value()].linked_ids;
-  }
-
   std::vector<int64> ReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -349,28 +345,28 @@ private:
 
   struct TSPTWClient {
     TSPTWClient(std::string cust_id, int32 m_i):
-    customer_id(cust_id), matrix_index(m_i), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0){
     }
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0), type(""), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), setup_time(0.0), priority(4), late_multiplier(0), type(""){
     }
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), type(""), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), type(""){
     }
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m, std::vector<int64>& v_i):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), type(""), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), type(""){
     }
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""){
     }
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""), linked_ids(NULL){
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(0.0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(""){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::string t, std::vector<std::string>* l_ids):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(t), linked_ids(l_ids){
+    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::string t):
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), type(t){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, std::string t, std::vector<std::string>* l_ids):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), type(t), linked_ids(l_ids){
+    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, std::string t):
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), type(t){
     }
     std::string customer_id;
     int32 matrix_index;
@@ -384,7 +380,6 @@ private:
     std::vector<int64> quantities;
     std::vector<int64> setup_quantities;
     std::string type;
-    std::vector<std::string>* linked_ids;
   };
 
   int32 size_;
@@ -461,16 +456,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end()) : due_time.push_back(CUSTOM_MAX_INT);
     }
     tws_counter_ += timewindows.size();
-    std::vector<std::string>* linked_ids = NULL;
     std::string t = service.type();
 
     if (t == "delivery") ++deliveries_counter_;
-    if (service.linked_ids().size() > 0) linked_ids = new std::vector<std::string>();
     if (timewindows.size() > 1) multiple_tws_counter_ += 1;
-
-    for (const std::string linked_id: service.linked_ids()) {
-      linked_ids->push_back(linked_id);
-    }
 
     int timewindow_index = 0;
 
@@ -499,8 +488,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            v_i,
                                            q,
                                            s_q,
-                                           t,
-                                           linked_ids));
+                                           t));
         ids_map_[(std::string)service.id()] = s;
         s++;
         ++timewindow_index;
@@ -518,8 +506,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          v_i,
                                          q,
                                          s_q,
-                                         t,
-                                         linked_ids));
+                                         t));
       ids_map_[(std::string)service.id()] = s;
       s++;
     }

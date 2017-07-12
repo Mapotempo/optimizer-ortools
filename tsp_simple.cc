@@ -64,19 +64,6 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     int64 priority = 4;
 
-    std::vector<std::string>* linked_ids = data.LinkedServicesIds(i);
-    if (linked_ids != NULL) {
-      for (int link_index = 0 ; link_index < linked_ids->size(); ++link_index) {
-        routing.AddPickupAndDelivery(i, RoutingModel::NodeIndex(data.IdIndex(linked_ids->at(link_index))));
-        solver->AddConstraint(solver->MakeEquality(
-            routing.VehicleVar(routing.NodeToIndex(i)),
-            routing.VehicleVar(data.IdIndex(linked_ids->at(link_index)))));
-        solver->AddConstraint(
-          solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(routing.NodeToIndex(i)),
-                                  routing.GetMutableDimension("time")->CumulVar(data.IdIndex(linked_ids->at(link_index)))));
-      }
-    }
-
     priority = data.Priority(i);
 
     int64 index = routing.NodeToIndex(i);
@@ -232,15 +219,26 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       case Sequence:
         break;
       case Order:
+        previous_id = relation->linked_ids->at(0);
+        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
+          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index))));
+          solver->AddConstraint(solver->MakeEquality(
+              routing.VehicleVar(data.IdIndex(previous_id)),
+              routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+          solver->AddConstraint(
+            solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(data.IdIndex(previous_id)),
+                                    routing.GetMutableDimension("time")->CumulVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+          previous_id = relation->linked_ids->at(link_index);
+        }
         break;
       case SameRoute:
-        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          if (previous_id != "") {
-            solver->AddConstraint(solver->MakeEquality(
-                routing.VehicleVar(data.IdIndex(previous_id)),
-                routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))
-                ));
-          }
+        previous_id = relation->linked_ids->at(0);
+        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
+          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index))));
+          solver->AddConstraint(solver->MakeEquality(
+              routing.VehicleVar(data.IdIndex(previous_id)),
+              routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))
+              ));
           previous_id = relation->linked_ids->at(link_index);
         }
         break;
