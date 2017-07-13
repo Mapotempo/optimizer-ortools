@@ -458,7 +458,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   } else if (has_route_duration && size_vehicles == 1) {
     if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
-  } else if (data.DeliveriesCounter() > 0 || (float)size_mtws/size > 0.2) {
+  } else if (data.DeliveriesCounter() > 0 || size_mtws > 0) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
   } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10 && !has_route_duration) {
