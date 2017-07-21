@@ -220,26 +220,45 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
         break;
       case Order:
         previous_id = relation->linked_ids->at(0);
-        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
-          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index))));
-          solver->AddConstraint(solver->MakeEquality(
-              routing.VehicleVar(data.IdIndex(previous_id)),
-              routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))));
-          solver->AddConstraint(
-            solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(data.IdIndex(previous_id)),
-                                    routing.GetMutableDimension("time")->CumulVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
           previous_id = relation->linked_ids->at(link_index);
+          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+            routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index_bis))));
+            IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
+
+            IntVar *const previous_vehicle_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const vehicle_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
+
+            IntVar *const vehicle_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
+              solver->MakeDifference(vehicle_var, previous_vehicle_var), 0)->Var();
+
+            solver->AddConstraint(solver->MakeEquality(vehicle_lapse, 0));
+            solver->AddConstraint(
+              solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(data.IdIndex(previous_id)),
+                                      routing.GetMutableDimension("time")->CumulVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+            previous_id = relation->linked_ids->at(link_index);
+          }
         }
         break;
       case SameRoute:
         previous_id = relation->linked_ids->at(0);
-        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
-          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index))));
-          solver->AddConstraint(solver->MakeEquality(
-              routing.VehicleVar(data.IdIndex(previous_id)),
-              routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))
-              ));
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
           previous_id = relation->linked_ids->at(link_index);
+          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+            routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index_bis))));
+            IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
+
+            IntVar *const previous_vehicle_var = routing.ActiveVar(data.IdIndex(previous_id));
+            IntVar *const vehicle_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index_bis)));
+
+            IntVar *const vehicle_lapse = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(solver->MakeMin(previous_active_var, active_var), 0),
+              solver->MakeDifference(vehicle_var, previous_vehicle_var), 0)->Var();
+
+            solver->AddConstraint(solver->MakeEquality(vehicle_lapse, 0));
+            previous_id = relation->linked_ids->at(link_index);
+          }
         }
         break;
       case MinimumDayLapse:
@@ -282,6 +301,19 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
               day_lapse,
               (link_index_bis - link_index) * relation->lapse));
           }
+        }
+        break;
+      case Shipment:
+        previous_id = relation->linked_ids->at(0);
+        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
+          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(data.IdIndex(previous_id)), RoutingModel::NodeIndex(data.IdIndex(relation->linked_ids->at(link_index))));
+          solver->AddConstraint(solver->MakeEquality(
+            routing.VehicleVar(data.IdIndex(previous_id)),
+            routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+          solver->AddConstraint(
+            solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(data.IdIndex(previous_id)),
+                                    routing.GetMutableDimension("time")->CumulVar(data.IdIndex(relation->linked_ids->at(link_index)))));
+          previous_id = relation->linked_ids->at(link_index);
         }
         break;
       default:

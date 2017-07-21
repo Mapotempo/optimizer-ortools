@@ -16,7 +16,7 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,31)
 
-enum RelationType { MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum RelationType { Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
 
 namespace operations_research {
 
@@ -631,6 +631,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     else if (relation.type() == "same_route") type = SameRoute;
     else if (relation.type() == "minimum_day_lapse") type = MinimumDayLapse;
     else if (relation.type() == "maximum_day_lapse") type = MaximumDayLapse;
+    else if (relation.type() == "shipment") type = Shipment;
 
     tsptw_relations_.push_back(new Relation(re_index,
                                         type,
