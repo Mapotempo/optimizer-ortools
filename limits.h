@@ -151,7 +151,7 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class LoggerMonitor : public SearchLimit {
   public:
-    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, const bool minimize = true) :
+    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, bool intermediate, const bool minimize = true) :
     data_(data),
     routing_(routing),
     SearchLimit(routing->solver()),
@@ -163,6 +163,7 @@ class LoggerMonitor : public SearchLimit {
     size_matrix_(size_matrix),
     breaks_(breaks),
     debug_(debug),
+    intermediate_(intermediate),
     minimize_(minimize) {
         if (minimize_) {
           best_result_ = kint64max;
@@ -198,7 +199,7 @@ class LoggerMonitor : public SearchLimit {
     bool new_best = false;
 
     const IntVar* objective = prototype_->Objective();
-    if (minimize_ && objective->Min() * 1.01 < best_result_) {
+    if (intermediate_ && minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       int current_break = 0;
@@ -225,7 +226,7 @@ class LoggerMonitor : public SearchLimit {
       std::cout << std::endl;
 
       new_best = true;
-    } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
+    } else if (intermediate_ && !minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       int current_break = 0;
@@ -311,6 +312,7 @@ class LoggerMonitor : public SearchLimit {
     bool minimize_;
     bool limit_reached_;
     bool debug_;
+    bool intermediate_;
     int64 pow_;
     int64 iteration_counter_;
     std::unique_ptr<Assignment> prototype_;
@@ -318,8 +320,8 @@ class LoggerMonitor : public SearchLimit {
 
 } // namespace
 
-LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, const bool minimize = true) {
-  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, minimize));
+LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, vector<IntVar*> breaks, bool debug, bool intermediate, const bool minimize = true) {
+  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, intermediate, minimize));
 }
 }  //  namespace operations_research
 

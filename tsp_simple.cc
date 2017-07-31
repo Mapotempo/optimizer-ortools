@@ -36,6 +36,7 @@ DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_bool(nearby, false, "Short segment priority");
 DEFINE_bool(debug, false, "debug display");
+DEFINE_bool(intermediate_solutions, false, "display intermediate solutions");
 
 
 namespace operations_research {
@@ -522,7 +523,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
   routing.CloseModelWithParameters(parameters);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
