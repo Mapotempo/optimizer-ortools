@@ -417,6 +417,8 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     }
     if (vehicle->duration >= 0 && vehicle->time_end - vehicle-> time_start > vehicle->duration) {
       has_route_duration = true;
+      routing.AddVariableMinimizedByFinalizer(routing.CumulVar(routing.End(v), "time"));
+      routing.AddVariableMaximizedByFinalizer(routing.CumulVar(routing.Start(v), "time"));
       solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeSum(routing.CumulVar(routing.Start(v), "time"), vehicle->duration), routing.CumulVar(routing.End(v), "time")));
     }
 
