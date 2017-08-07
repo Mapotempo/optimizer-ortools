@@ -311,6 +311,25 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           previous_id = relation->linked_ids->at(link_index);
         }
         break;
+      case MeetUp:
+        previous_id = relation->linked_ids->at(0);
+        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
+          IntVar *const previous_active_var = routing.ActiveVar(data.IdIndex(previous_id));
+          IntVar *const active_var = routing.ActiveVar(data.IdIndex(relation->linked_ids->at(link_index)));
+          IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+
+          IntExpr *const previous_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(data.IdIndex(previous_id)));
+          IntExpr *const next_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index))));
+
+          IntExpr *const lapse = solver->MakeProd(isConstraintActive, 1);
+            solver->AddConstraint(solver->MakeGreaterOrEqual(next_part, solver->MakeSum(previous_part, lapse)));
+
+          solver->AddConstraint(
+            solver->MakeEquality(solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(data.IdIndex(previous_id))),
+                                    solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(data.IdIndex(relation->linked_ids->at(link_index))))));
+          previous_id = relation->linked_ids->at(link_index);
+        }
+        break;
       default:
         break;
     }
