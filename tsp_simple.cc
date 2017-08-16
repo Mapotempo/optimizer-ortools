@@ -294,7 +294,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
               solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(data.IdIndex(relation->linked_ids->at(link_index_bis)))));
             IntExpr *const lapse = solver->MakeProd(isConstraintActive, (link_index_bis - link_index) * relation->lapse);
 
-            solver->AddConstraint(solver->MakeLessOrEqual(next_part, solver->MakeSum(previous_part, lapse)));
+            solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeDifference(next_part, previous_part), lapse));
           }
         }
         break;
