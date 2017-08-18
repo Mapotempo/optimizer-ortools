@@ -51,9 +51,10 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   const int size_vehicles = data.Vehicles().size();
   int64 max_time = (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
   int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
+  int64 max_value = 2 * data.MaxValue() * data.MaxValueCost();
 
-  bool overflow_danger = CheckOverflow(max_time + max_distance, size_vehicles * size_vehicles);
-  int64 data_verif = (max_time + max_distance)  * size_vehicles * size_vehicles;
+  bool overflow_danger = CheckOverflow(max_time + max_distance + max_value, size_vehicles * size_vehicles);
+  int64 data_verif = (max_time + max_distance + max_value)  * size_vehicles * size_vehicles;
 
   overflow_danger = overflow_danger || CheckOverflow(data_verif, size * size);
   data_verif = data_verif * size * size;

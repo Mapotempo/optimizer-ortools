@@ -92,6 +92,10 @@ public:
     return max_distance_;
   }
 
+  int64 MaxValue() const {
+    return max_value_;
+  }
+
   int64 MaxServiceTime() const {
     return max_service_;
   }
@@ -102,6 +106,10 @@ public:
 
   int64 MaxDistanceCost() const {
     return max_distance_cost_;
+  }
+
+  int64 MaxValueCost() const {
+    return max_value_cost_;
   }
 
   int64 TWsCounter() const {
@@ -634,7 +642,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);
     max_time_cost_ = std::max(max_time_cost_, v->cost_time_multiplier);
-    max_value_cost_ = std::max(max_value_cost_, max_value_ * v->cost_value_multiplier);
+    max_value_cost_ = std::max(max_value_cost_, v->cost_value_multiplier);
 
     tsptw_vehicles_.push_back(v);
   }
