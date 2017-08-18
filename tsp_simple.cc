@@ -53,11 +53,11 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
   int64 max_value = 2 * data.MaxValue() * data.MaxValueCost();
 
-  bool overflow_danger = CheckOverflow(max_time + max_distance + max_value, size_vehicles * size_vehicles);
-  int64 data_verif = (max_time + max_distance + max_value)  * size_vehicles * size_vehicles;
+  bool overflow_danger = CheckOverflow(max_time + max_distance + max_value, size_vehicles);
+  int64 data_verif = (max_time + max_distance + max_value) * size_vehicles;
 
-  overflow_danger = overflow_danger || CheckOverflow(data_verif, size * size);
-  data_verif = data_verif * size * size;
+  overflow_danger = overflow_danger || CheckOverflow(data_verif, std::pow(2,4) * size);
+  data_verif = data_verif * std::pow(2,4) * size;
   RoutingModel::NodeIndex i(0);
   int32 tw_index = 0;
 
