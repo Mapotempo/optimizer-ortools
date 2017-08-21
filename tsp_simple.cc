@@ -359,7 +359,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           IntExpr *const next_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(current_index));
 
           IntExpr *const lapse = solver->MakeProd(isConstraintActive, 1);
-            solver->AddConstraint(solver->MakeGreaterOrEqual(next_part, solver->MakeSum(previous_part, lapse)));
+          solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeAbs(solver->MakeDifference(next_part, previous_part)), lapse));
 
           solver->AddConstraint(
             solver->MakeEquality(solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(previous_index)),
