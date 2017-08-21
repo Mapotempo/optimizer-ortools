@@ -45,7 +45,8 @@ public:
     int32 size_matrix = sqrt(matrix.time_size());
     for (int64 i = 0; i < size_matrix; ++i) {
       for (int64 j = 0; j < size_matrix; ++j) {
-        max_time_ = std::max(max_time_, static_cast<int64>(matrix.time(i * size_matrix + j) + 0.5));
+        if (static_cast<int64>(matrix.time(i * size_matrix + j)) < CUSTOM_MAX_INT)
+          max_time_ = std::max(max_time_, static_cast<int64>(matrix.time(i * size_matrix + j) + 0.5));
         SetTimeMatrix(i, j) = static_cast<int64>(matrix.time(i * size_matrix + j) + 0.5);
       }
     }
@@ -57,7 +58,8 @@ public:
     int32 size_matrix = sqrt(matrix.distance_size());
     for (int64 i = 0; i < size_matrix; ++i) {
       for (int64 j = 0; j < size_matrix; ++j) {
-          max_distance_ = std::max(max_distance_, static_cast<int64>(matrix.distance(i * size_matrix + j)));
+          if (static_cast<int64>(matrix.distance(i * size_matrix + j)) < CUSTOM_MAX_INT)
+            max_distance_ = std::max(max_distance_, static_cast<int64>(matrix.distance(i * size_matrix + j)));
           SetMatrix(i, j) = static_cast<int64>(matrix.distance(i * size_matrix + j));
       }
     }
@@ -69,7 +71,8 @@ public:
     int32 size_matrix = sqrt(matrix.value_size());
     for (int64 i = 0; i < size_matrix; ++i) {
       for (int64 j = 0; j < size_matrix; ++j) {
-          max_value_ = std::max(max_value_, static_cast<int64>(matrix.value(i * size_matrix + j)));
+          if (static_cast<int64>(matrix.value(i * size_matrix + j)) < CUSTOM_MAX_INT)
+            max_value_ = std::max(max_value_, static_cast<int64>(matrix.value(i * size_matrix + j)));
           SetValueMatrix(i, j) = static_cast<int64>(matrix.value(i * size_matrix + j));
       }
     }
