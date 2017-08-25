@@ -541,7 +541,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (force_start) {
+  if (size_rest == 0 && force_start) {
     if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   } else if (has_route_duration && size_vehicles == 1) {
