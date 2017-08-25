@@ -199,53 +199,56 @@ class LoggerMonitor : public SearchLimit {
     bool new_best = false;
 
     const IntVar* objective = prototype_->Objective();
-    if (intermediate_ && minimize_ && objective->Min() * 1.01 < best_result_) {
+    if (minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
-      int current_break = 0;
-      for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-        int previous_index = -1;
-        for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
-          RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-          std::cout << data_.MatrixIndex(nodeIndex);
-          if (previous_index != -1)
-            std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min() << "]";
-          std::cout << ",";
-          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
-            std::cout << size_matrix_ + current_break << ",";
-            current_break++;
+      if (intermediate_) {
+        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+        int current_break = 0;
+        for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+          int previous_index = -1;
+          for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
+            RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
+            std::cout << data_.MatrixIndex(nodeIndex);
+            if (previous_index != -1)
+              std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min() << "]";
+            std::cout << ",";
+            if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
+              std::cout << size_matrix_ + current_break << ",";
+              current_break++;
+            }
+            previous_index = index;
           }
-          previous_index = index;
+          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
+              std::cout << size_matrix_ + current_break << ",";
+              current_break++;
+          }
+          std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
         }
-        if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
-            std::cout << size_matrix_ + current_break << ",";
-            current_break++;
-        }
-        std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
+        std::cout << std::endl;
       }
-      std::cout << std::endl;
-
       new_best = true;
-    } else if (intermediate_ && !minimize_ && objective->Max() * 0.99 > best_result_) {
+    } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
-      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
-      int current_break = 0;
-      for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-        for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
-          RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-          std::cout << data_.MatrixIndex(nodeIndex) << ",";
-          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
-            std::cout << size_matrix_ + current_break << ",";
-            current_break++;
+      if (intermediate_) {
+        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+        int current_break = 0;
+        for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+          for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
+            RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
+            std::cout << data_.MatrixIndex(nodeIndex) << ",";
+            if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
+              std::cout << size_matrix_ + current_break << ",";
+              current_break++;
+            }
           }
+          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
+              std::cout << size_matrix_ + current_break << ",";
+              current_break++;
+          }
+          std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
         }
-        if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
-            std::cout << size_matrix_ + current_break << ",";
-            current_break++;
-        }
-        std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
+        std::cout << std::endl;
       }
-      std::cout << std::endl;
       new_best = true;
     }
 
