@@ -298,7 +298,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       case MinimumDayLapse:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
           previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), 4); ++link_index_bis) {
+          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), link_index + 4); ++link_index_bis) {
             current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
             IntVar *const active_var = routing.ActiveVar(current_index);
@@ -317,7 +317,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       case MaximumDayLapse:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
           previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), 4); ++link_index_bis) {
+          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), link_index + 4); ++link_index_bis) {
             current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
             IntVar *const active_var = routing.ActiveVar(current_index);
