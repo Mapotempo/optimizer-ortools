@@ -31,7 +31,7 @@
 
 DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
-DEFINE_int64(initial_time_out_no_solution_improvement, 30000, "Initial time whitout improvement in ms");
+DEFINE_int64(initial_time_out_no_solution_improvement, -1, "Initial time whitout improvement in ms");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_bool(nearby, false, "Short segment priority");
@@ -583,7 +583,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
-    if (FLAGS_no_solution_improvement_limit > 0) {
+    if (FLAGS_no_solution_improvement_limit > 0 || FLAGS_initial_time_out_no_solution_improvement > 0) {
       NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, FLAGS_initial_time_out_no_solution_improvement, FLAGS_time_out_multiplier, true);
       routing.AddSearchMonitor(no_improvement_limit);
     }

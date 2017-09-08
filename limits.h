@@ -31,7 +31,6 @@ class NoImprovementLimit : public SearchLimit {
       start_time_(base::GetCurrentTimeNanos()),
       nbr_solutions_with_no_better_obj_(0),
       minimize_(minimize),
-      previous_time_(start_time_),
       initial_time_out_(time_out),
       time_out_(time_out),
       time_out_coef_(time_out_coef),
@@ -49,7 +48,6 @@ class NoImprovementLimit : public SearchLimit {
 
   virtual void Init() {
     nbr_solutions_with_no_better_obj_ = 0;
-    previous_time_ = base::GetCurrentTimeNanos();
     limit_reached_ = false;
     if (minimize_) {
       best_result_ = kint64max;
@@ -60,7 +58,7 @@ class NoImprovementLimit : public SearchLimit {
 
   //  Returns true if limit is reached, false otherwise.
   virtual bool Check() {
-    if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ || 1e-6 * (base::GetCurrentTimeNanos() - start_time_) > time_out_)) {
+    if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ && solution_nbr_tolerance_ > 0 || 1e-6 * (base::GetCurrentTimeNanos() - start_time_) > time_out_ && initial_time_out_ > 0)) {
       limit_reached_ = true;
     }
     //VLOG(2) << "NoImprovementLimit's limit reached? " << limit_reached_;
@@ -78,17 +76,15 @@ class NoImprovementLimit : public SearchLimit {
         first_solution_ = false;
       }
       best_result_ = objective->Min();
-      previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       if (first_solution_) {
         first_solution_ = false;
       }
       best_result_ = objective->Max();
-      previous_time_ = base::GetCurrentTimeNanos();
       nbr_solutions_with_no_better_obj_ = 0;
-      time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     }
 
     ++nbr_solutions_with_no_better_obj_;
@@ -105,7 +101,6 @@ class NoImprovementLimit : public SearchLimit {
     minimize_ = copy_limit->minimize_;
     initial_time_out_= copy_limit->initial_time_out_;
     time_out_ = copy_limit->time_out_;
-    previous_time_ = copy_limit->previous_time_;
     limit_reached_ = copy_limit->limit_reached_;
     first_solution_ = copy_limit->first_solution_;
     time_out_coef_ = copy_limit->time_out_coef_;
@@ -133,7 +128,6 @@ class NoImprovementLimit : public SearchLimit {
     bool first_solution_;
     double initial_time_out_;
     double time_out_;
-    double previous_time_;
     int64 time_out_coef_;
     int64 nbr_solutions_with_no_better_obj_;
     std::unique_ptr<Assignment> prototype_;
