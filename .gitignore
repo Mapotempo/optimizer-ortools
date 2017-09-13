@@ -2,7 +2,6 @@
 *.slo
 *.lo
 *.o
-
 # Compiled Dynamic libraries
 *.so
 *.dylib
@@ -11,3 +10,6 @@
 *.lai
 *.la
 *.a
+
+# Binary files
+tsp_simple
