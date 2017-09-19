@@ -14,7 +14,7 @@
 #include "ortools_vrp.pb.h"
 #include "routing_common/routing_common.h"
 
-#define CUSTOM_MAX_INT (int64)std::pow(2,31)
+#define CUSTOM_MAX_INT (int64)std::pow(2,30)
 
 enum RelationType { MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
 
