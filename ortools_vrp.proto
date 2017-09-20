@@ -12,19 +12,25 @@ message TimeWindow {
   int64 end = 2;
 }
 
+message TimeTable {
+  repeated TimeWindow timewindows = 1;
+  uint32 duration = 2;
+  uint32 setup_duration = 3;
+  float late_multiplier = 4;
+  string id = 5;
+}
+
 message Service {
-  repeated TimeWindow time_windows = 1;
-  repeated uint32 quantities = 2;
-  uint32 duration = 3;
-  uint32 priority = 4;
-  repeated int32 vehicle_indices = 5;
-  uint32 matrix_index = 6;
-  uint32 setup_duration = 7;
-  string type = 8;
-  string id = 9;
-  float late_multiplier = 10;
-  repeated uint32 setup_quantities = 11;
-  uint32 additional_value = 12;
+  repeated uint32 quantities = 1;
+  uint32 priority = 2;
+  repeated int32 vehicle_indices = 3;
+  uint32 matrix_index = 4;
+  uint32 timetable_index = 5;
+  string type = 6;
+  string id = 7;
+  repeated uint32 setup_quantities = 8;
+  uint32 additional_value = 9;
+  string alternative_id = 10;
 }
 
 message Rest {
@@ -68,4 +74,5 @@ message Problem {
   repeated Service services = 4;
   repeated Matrix matrices = 5;
   repeated Relation relations = 6;
+  repeated TimeTable timetables = 7;
 }
