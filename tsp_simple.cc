@@ -180,155 +180,184 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
 
 void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
   for (TSPTWDataDT::Relation* relation: data.Relations()) {
-    int64 previous_index;
-    int64 current_index;
     switch (relation->type) {
       case Sequence:
-        int64 new_current_index;
-        previous_index = data.IdIndex(relation->linked_ids->at(0));
-        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
-          current_index = data.IdIndex(relation->linked_ids->at(link_index));
-          IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-          IntVar *const active_var = routing.ActiveVar(current_index);
-          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
+            IntVar *const previous_active_var = routing.ActiveVar(previous_index);
+            IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
 
-          IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
-          IntVar *const vehicle_var = routing.VehicleVar(current_index);
-          IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+            for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+              for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index_bis))) {
 
-          solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
-                                                     solver->MakeProd(isConstraintActive, vehicle_var)));
-          solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
-            solver->MakeProd(isConstraintActive, current_index)));
+                IntVar *const active_var = routing.ActiveVar(current_index);
+                IntVar *const vehicle_var = routing.VehicleVar(current_index);
 
-          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
-            new_current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
-            IntVar *const new_active_var = routing.ActiveVar(current_index);
-            IntVar *const new_vehicle_var = routing.VehicleVar(current_index);
+                routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
 
-            IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, new_vehicle_var);
+                IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
 
-            solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
-                                                       solver->MakeProd(isConstraintActive, new_vehicle_var)));
+                if (link_index_bis == link_index + 1) {
+                  solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
+                  solver->MakeProd(isConstraintActive, current_index)));
+                }
+                solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
+                                                           solver->MakeProd(isConstraintActive, vehicle_var)));
 
-            solver->AddConstraint(
-              solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
-                                      routing.GetMutableDimension("time")->CumulVar(current_index)));
+                solver->AddConstraint(
+                solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
+                                        routing.GetMutableDimension("time")->CumulVar(current_index)));
+              }
+            }
           }
-
-          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
         }
         break;
       case Order:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
-            current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
-            routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
+          for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-            IntVar *const active_var = routing.ActiveVar(current_index);
-
             IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
-            IntVar *const vehicle_var = routing.VehicleVar(current_index);
 
-            IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var);
+            for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+              for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index_bis))) {
 
-            solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
-                                                       solver->MakeProd(isConstraintActive, vehicle_var)));
+                IntVar *const active_var = routing.ActiveVar(current_index);
+                IntVar *const vehicle_var = routing.VehicleVar(current_index);
 
-            solver->AddConstraint(
-              solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
-                                      routing.GetMutableDimension("time")->CumulVar(current_index)));
+                routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
+
+                IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+
+                solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
+                                                           solver->MakeProd(isConstraintActive, vehicle_var)));
+
+                solver->AddConstraint(
+                solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
+                                        routing.GetMutableDimension("time")->CumulVar(current_index)));
+              }
+            }
           }
         }
         break;
       case SameRoute:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
-            current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
+          for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-            IntVar *const active_var = routing.ActiveVar(current_index);
-
             IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
-            IntVar *const vehicle_var = routing.VehicleVar(current_index);
 
-            IntVar *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
-            solver->AddConstraint(solver->MakeEquality(solver->MakeProd(previous_vehicle_var, isConstraintActive),
-                                                       solver->MakeProd(vehicle_var, isConstraintActive)));
+            for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+              for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index_bis))) {
+
+                IntVar *const active_var = routing.ActiveVar(current_index);
+                IntVar *const vehicle_var = routing.VehicleVar(current_index);
+
+                IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+
+                solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
+                                                           solver->MakeProd(isConstraintActive, vehicle_var)));
+
+              }
+            }
           }
         }
         break;
       case MinimumDayLapse:
+
+
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), link_index + 4); ++link_index_bis) {
-            current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
+          for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-            IntVar *const active_var = routing.ActiveVar(current_index);
-            IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+            IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
 
-            IntExpr *const previous_part = solver->MakeProd(isConstraintActive,
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(previous_index)));
-            IntExpr *const next_part = solver->MakeProd(isConstraintActive,
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(current_index)));
-            IntExpr *const lapse = solver->MakeProd(isConstraintActive, (link_index_bis - link_index) * relation->lapse);
+            for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+              for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index_bis))) {
+                IntVar *const active_var = routing.ActiveVar(current_index);
 
-            solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(previous_part, lapse), next_part));
+                IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+
+                IntExpr *const previous_part = solver->MakeProd(isConstraintActive,
+                  solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(previous_index)));
+                IntExpr *const next_part = solver->MakeProd(isConstraintActive,
+                  solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(current_index)));
+                IntExpr *const lapse = solver->MakeProd(isConstraintActive, (link_index_bis - link_index) * relation->lapse);
+
+                solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(previous_part, lapse), next_part));
+
+              }
+            }
           }
         }
         break;
       case MaximumDayLapse:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
-          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), link_index + 4); ++link_index_bis) {
-            current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
+          for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-            IntVar *const active_var = routing.ActiveVar(current_index);
-            IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+            IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
 
-            IntExpr *const previous_part = solver->MakeProd(isConstraintActive,
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(previous_index)));
-            IntExpr *const next_part = solver->MakeProd(isConstraintActive,
-              solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(current_index)));
-            IntExpr *const lapse = solver->MakeProd(isConstraintActive, (link_index_bis - link_index) * relation->lapse);
+            for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+              for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index_bis))) {
+                IntVar *const active_var = routing.ActiveVar(current_index);
 
-            solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeDifference(next_part, previous_part), lapse));
+                IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+
+                IntExpr *const previous_part = solver->MakeProd(isConstraintActive,
+                  solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(previous_index)));
+                IntExpr *const next_part = solver->MakeProd(isConstraintActive,
+                  solver->MakeElement(data.VehiclesDay(), routing.VehicleVar(current_index)));
+                IntExpr *const lapse = solver->MakeProd(isConstraintActive, (link_index_bis - link_index) * relation->lapse);
+
+                solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeDifference(next_part, previous_part), lapse));
+
+              }
+            }
           }
         }
         break;
       case Shipment:
-        previous_index = data.IdIndex(relation->linked_ids->at(0));
-        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
-          current_index = data.IdIndex(relation->linked_ids->at(link_index));
-          routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
-          solver->AddConstraint(solver->MakeEquality(
-            routing.VehicleVar(previous_index),
-            routing.VehicleVar(current_index)));
-          solver->AddConstraint(
-            solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
-                                    routing.GetMutableDimension("time")->CumulVar(current_index)));
-          previous_index = current_index;
+        for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(0))) {
+          IntVar *const previous_active_var = routing.ActiveVar(previous_index);
+          IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
+
+          for (int link_index = 1; link_index < relation->linked_ids->size(); ++link_index) {
+            for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
+
+              routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
+              IntVar *const active_var = routing.ActiveVar(current_index);
+              IntVar *const vehicle_var = routing.VehicleVar(current_index);
+              solver->AddConstraint(solver->MakeEquality(routing.VehicleVar(previous_index), routing.VehicleVar(current_index)));
+
+              solver->AddConstraint(
+                solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
+                                        routing.GetMutableDimension("time")->CumulVar(current_index)));
+
+            }
+          }
         }
         break;
       case MeetUp:
-        previous_index = data.IdIndex(relation->linked_ids->at(0));
-        for (int link_index = 1 ; link_index < relation->linked_ids->size(); ++link_index) {
-          current_index = data.IdIndex(relation->linked_ids->at(link_index));
+        for (int32 previous_index : data.AlternativesIndices(relation->linked_ids->at(0))) {
           IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-          IntVar *const active_var = routing.ActiveVar(current_index);
-          IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
 
-          IntExpr *const previous_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(previous_index));
-          IntExpr *const next_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(current_index));
+          for (int link_index = 1; link_index < relation->linked_ids->size(); ++link_index) {
+            for (int32 current_index : data.AlternativesIndices(relation->linked_ids->at(link_index))) {
+              IntVar *const active_var = routing.ActiveVar(current_index);
+              IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
 
-          IntExpr *const lapse = solver->MakeProd(isConstraintActive, 1);
-          solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeAbs(solver->MakeDifference(next_part, previous_part)), lapse));
+              IntExpr *const previous_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(previous_index));
+              IntExpr *const next_part = solver->MakeProd(isConstraintActive, routing.VehicleVar(current_index));
 
-          solver->AddConstraint(
-            solver->MakeEquality(solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(previous_index)),
-                                    solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(current_index))));
-          previous_index = current_index;
+              IntExpr *const lapse = solver->MakeProd(isConstraintActive, 1);
+              solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeAbs(solver->MakeDifference(next_part, previous_part)), lapse));
+
+
+              IntVar *const vehicle_var = routing.VehicleVar(current_index);
+              solver->AddConstraint(solver->MakeEquality(routing.VehicleVar(previous_index), routing.VehicleVar(current_index)));
+              solver->AddConstraint(
+                solver->MakeEquality(solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(previous_index)),
+                                        solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(current_index))));
+
+            }
+          }
         }
         break;
       default:

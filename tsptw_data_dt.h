@@ -568,7 +568,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       output_map_[(std::string)service.id()] = service_id_index;
       ++service_id_index;
     }
-    alternatives_[(std::string)service.id()].push_back(s);
+    alternatives_[(std::string)service.alternative_id()].push_back(s);
     ++s;
   }
 
