@@ -202,7 +202,7 @@ class LoggerMonitor : public SearchLimit {
           int previous_index = -1;
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
             RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-            std::cout << data_.MatrixIndex(nodeIndex);
+            std::cout << data_.OutputIndex(data_.ServiceId(nodeIndex));
             if (previous_index != -1)
               std::cout << "[" << routing_->GetMutableDimension("time")->CumulVar(index)->Min() << "]";
             std::cout << ",";
@@ -216,7 +216,7 @@ class LoggerMonitor : public SearchLimit {
               std::cout << size_matrix_ + current_break << ",";
               current_break++;
           }
-          std::cout << data_.MatrixIndex(routing_->IndexToNode(routing_->End(route_nbr))) << ";";
+          std::cout << data_.OutputIndex(data_.ServiceId(routing_->IndexToNode(routing_->End(route_nbr)))) << ";";
         }
         std::cout << std::endl;
       }
