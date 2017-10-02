@@ -367,6 +367,22 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           previous_index = current_index;
         }
         break;
+      case MaximumDurationLapse:
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          previous_index = data.IdIndex(relation->linked_ids->at(link_index));
+          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+            current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
+            IntVar *const previous_active_var = routing.ActiveVar(previous_index);
+            IntVar *const active_var = routing.ActiveVar(current_index);
+
+            IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+            IntExpr *const difference = solver->MakeDifference(routing.GetMutableDimension("time")->CumulVar(current_index), routing.GetMutableDimension("time")->CumulVar(previous_index));
+
+            IntExpr *const lapse = solver->MakeProd(isConstraintActive, relation->lapse);
+            solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeProd(isConstraintActive, difference), lapse));
+          }
+        }
+        break;
       default:
         break;
     }
