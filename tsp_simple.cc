@@ -214,7 +214,7 @@ vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solv
   return breaks;
 }
 
-void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
+void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment) {
   for (TSPTWDataDT::Relation* relation: data.Relations()) {
     int64 previous_index;
     int64 current_index;
@@ -258,10 +258,11 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       case Order:
         for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
           previous_index = data.IdIndex(relation->linked_ids->at(link_index));
-          for (int link_index_bis = link_index + 1; link_index_bis < relation->linked_ids->size(); ++link_index_bis) {
+          for (int link_index_bis = link_index + 1; link_index_bis < std::min(int(relation->linked_ids->size()), link_index + 4); ++link_index_bis) {
             current_index = data.IdIndex(relation->linked_ids->at(link_index_bis));
             routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
             IntVar *const previous_active_var = routing.ActiveVar(previous_index);
+            IntVar *const next_var = routing.NextVar(previous_index);
             IntVar *const active_var = routing.ActiveVar(current_index);
 
             IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
@@ -272,9 +273,15 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
             solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
                                                        solver->MakeProd(isConstraintActive, vehicle_var)));
 
+            if (data.OrderCounter() == 1 && link_index_bis == link_index + 1) {
+              assignment->Add(next_var);
+              assignment->SetValue(next_var, current_index);
+            }
+
             solver->AddConstraint(
               solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
                                       routing.GetMutableDimension("time")->CumulVar(current_index)));
+
           }
         }
         break;
@@ -444,6 +451,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   Solver *solver = routing.solver();
+  Assignment *assignment = routing.solver()->MakeAssignment();
 
   int64 v = 0;
   int64 min_start = CUSTOM_MAX_INT;
@@ -548,7 +556,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   if (size_rest > 0) {
     breaks = RestBuilder(data, routing, solver, size);
   }
-  RelationBuilder(data, routing, solver, size);
+  RelationBuilder(data, routing, solver, size, assignment);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
   // Search strategy
@@ -608,7 +616,13 @@ void TSPTWSolver(const TSPTWDataDT &data) {
     routing.AddSearchMonitor(limit);
   }
 
-  const Assignment *solution = routing.SolveWithParameters(parameters);
+  const Assignment *solution;
+  if (data.OrderCounter() == 1) {
+    routing.solver()->CheckAssignment(assignment);
+    solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
+  } else {
+    solution = routing.SolveWithParameters(parameters);
+  }
 
   if (solution != NULL) {
     int64 cost = (int64)(solution->ObjectiveValue() / 1000.0); // Back to original cost

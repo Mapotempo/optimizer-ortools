@@ -123,6 +123,10 @@ public:
     return multiple_tws_counter_;
   }
 
+  int64 OrderCounter() const {
+    return order_counter_;
+  }
+
   int64 DeliveriesCounter() const {
     return deliveries_counter_;
   }
@@ -451,6 +455,7 @@ private:
   int64 max_service_;
   int64 max_rest_;
   int64 tws_counter_;
+  int64 order_counter_;
   int64 deliveries_counter_;
   int64 multiple_tws_counter_;
   std::map<std::string, int64> ids_map_;
@@ -473,6 +478,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   multiple_tws_counter_ = 0;
   deliveries_counter_ = 0;
   int32 problem_index = 0;
+  order_counter_ = 0;
   std::vector<int64> matrix_indices;
   for (const ortools_vrp::Service& service: problem.services()) {
     const int32 tws_size = service.time_windows_size();
@@ -692,7 +698,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
     RelationType type;
     if (relation.type() == "sequence") type = Sequence;
-    else if (relation.type() == "order") type = Order;
+    else if (relation.type() == "order") {
+      type = Order;
+      ++order_counter_;
+    }
     else if (relation.type() == "same_route") type = SameRoute;
     else if (relation.type() == "minimum_day_lapse") type = MinimumDayLapse;
     else if (relation.type() == "maximum_day_lapse") type = MaximumDayLapse;
