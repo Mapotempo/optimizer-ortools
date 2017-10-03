@@ -91,16 +91,16 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         }
       }
     }
-    if (sticky_vehicle.size() > 0) {
-      for (int v = 0; v < size_vehicles; ++v) {
-        bool sticked = false;
+    for (int v = 0; v < size_vehicles; ++v) {
+      bool sticked = false;
+      if (sticky_vehicle.size() > 0) {
         for (int64 sticky : sticky_vehicle) {
-          if (v == sticky)
+          if (v == sticky || sticky == -1)
             sticked = true;
         }
-        if (!sticked) {
-          routing.VehicleVar(index)->RemoveValue(v);
-        }
+      }
+      if (!sticked) {
+        routing.VehicleVar(index)->RemoveValue(v);
       }
     }
     for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
