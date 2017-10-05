@@ -384,6 +384,14 @@ public:
   std::vector<int> VehiclesDay() const {
     return vehicles_day_;
   }
+
+  int VehicleDay(int64 index) const {
+    if (index < 0) {
+      return -1;
+    }
+    return vehicles_day_.at(index);
+  }
+
 /*
   Vehicle VehicleGet(int64 v) const {
     return tsptw_vehicles_.at(v);
