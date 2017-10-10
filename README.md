@@ -1,7 +1,7 @@
 optimizer-ortools
 ===================
 
-Compute an optimized solution to the Vehicle Routing Problem with Time Windows using OR-Tools through an HTTP API.
+Compute an optimized solution to the Vehicle Routing Problem with Time Windows using OR-Tools.
 
 Installation
 ============
