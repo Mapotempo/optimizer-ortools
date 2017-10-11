@@ -14,16 +14,15 @@ message TimeWindow {
 
 message Service {
   repeated TimeWindow time_windows = 1;
-  repeated uint32 quantities = 2;
+  repeated int32 quantities = 2;
   uint32 duration = 3;
   uint32 priority = 4;
   repeated int32 vehicle_indices = 5;
   uint32 matrix_index = 6;
   uint32 setup_duration = 7;
-  string type = 8;
   string id = 9;
   float late_multiplier = 10;
-  repeated uint32 setup_quantities = 11;
+  repeated int32 setup_quantities = 11;
   uint32 additional_value = 12;
 }
 
