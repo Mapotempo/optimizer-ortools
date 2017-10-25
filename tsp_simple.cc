@@ -60,13 +60,13 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   data_verif = data_verif * std::pow(2,4) * size;
   RoutingModel::NodeIndex i(0);
   int32 tw_index = 0;
-
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
   for (int activity = 0; activity < data.SizeMatrix() - 2; ++activity) {
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     int64 priority = 4;
 
     priority = data.Priority(i);
+    int64 exclusion_cost = data.ExclusionCost(i);
 
     int64 index = routing.NodeToIndex(i);
     std::vector<int64> ready = data.ReadyTime(i);
@@ -155,7 +155,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     if (size == 1)
       routing.AddDisjunction(*vect);
     else
-      routing.AddDisjunction(*vect, disjunction_cost * std::pow(2, 4 - priority));
+      routing.AddDisjunction(*vect, exclusion_cost == -1 ? disjunction_cost * std::pow(2, 4 - priority) : exclusion_cost);
   }
 }
 

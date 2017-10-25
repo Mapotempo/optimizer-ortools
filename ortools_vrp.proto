@@ -24,6 +24,7 @@ message Service {
   float late_multiplier = 10;
   repeated int32 setup_quantities = 11;
   uint32 additional_value = 12;
+  int32 exclusion_cost = 13;
 }
 
 message Rest {

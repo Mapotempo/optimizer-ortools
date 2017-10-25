@@ -167,6 +167,10 @@ public:
     return (int64)tsptw_clients_[i.value()].priority;
   }
 
+  int64 ExclusionCost(RoutingModel::NodeIndex i) const {
+    return (int64)tsptw_clients_[i.value()].exclusion_cost;
+  }
+
   std::vector<int64> VehicleIndices(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].vehicle_indices;
   }
@@ -405,8 +409,8 @@ private:
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
     customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q){
+    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c):
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c){
     }
     std::string customer_id;
     int32 matrix_index;
@@ -420,6 +424,7 @@ private:
     std::vector<int64> vehicle_indices;
     std::vector<int64> quantities;
     std::vector<int64> setup_quantities;
+    int64 exclusion_cost;
   };
 
   int32 size_;
@@ -532,7 +537,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                            v_i,
                                            q,
-                                           s_q));
+                                           s_q,
+                                           service.exclusion_cost()));
         ids_map_[(std::string)service.id()] = s;
         s++;
         ++timewindow_index;
@@ -550,7 +556,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
                                          v_i,
                                          q,
-                                         s_q));
+                                         s_q,
+                                         service.exclusion_cost()));
       ids_map_[(std::string)service.id()] = s;
       s++;
     }
