@@ -378,6 +378,34 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           previous_index = current_index;
         }
         break;
+      case NeverFirst:
+        for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+          current_index = data.IdIndex(relation->linked_ids->at(link_index));
+          for (int v = 0; v < data.Vehicles().size(); ++v) {
+            int64 start_index = routing.Start(v);
+            int64 end_index = routing.End(v);
+            IntVar *const next_var = routing.NextVar(start_index);
+            next_var->RemoveValue(current_index);
+          }
+        }
+        break;
+      case ForceFirst:
+        {
+          std::vector<int64> values;
+          for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+            current_index = data.IdIndex(relation->linked_ids->at(link_index));
+            values.push_back(current_index);
+          }
+          for (int v = 0; v < data.Vehicles().size(); ++v) {
+            int64 start_index = routing.Start(v);
+            int64 end_index = routing.End(v);
+            IntVar *const next_var = routing.NextVar(start_index);
+            values.push_back(end_index);
+            next_var->SetValues(values);
+            values.pop_back();
+          }
+        }
+        break;
       default:
         break;
     }
