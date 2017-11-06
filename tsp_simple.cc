@@ -103,9 +103,12 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         routing.VehicleVar(index)->RemoveValue(v);
       }
     }
+
+    std::vector<bool> refill_quantities = data.RefillQuantities(i);
     for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
-      IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
-      slack_var->SetValue(0);
+      RoutingDimension* quantity_dimension = routing.GetMutableDimension("quantity" + std::to_string(q));
+      if (!refill_quantities.at(q)) quantity_dimension->SlackVar(index)->SetValue(0);
+      routing.AddVariableMinimizedByFinalizer(quantity_dimension->CumulVar(index));
     }
     (*vect)[0] = i;
     if (late_multiplier > 0) {

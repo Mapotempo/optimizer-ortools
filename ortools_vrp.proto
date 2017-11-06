@@ -25,6 +25,7 @@ message Service {
   repeated int32 setup_quantities = 11;
   uint32 additional_value = 12;
   int32 exclusion_cost = 13;
+  repeated bool refill_quantities = 14;
 }
 
 message Rest {

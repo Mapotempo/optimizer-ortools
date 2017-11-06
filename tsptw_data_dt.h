@@ -191,6 +191,10 @@ public:
     return size_rest_;
   }
 
+  std::vector<bool> RefillQuantities(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].refill_quantities;
+  }
+
   int64 Quantity(_ConstMemberResultCallback_0_1<false, int64, RoutingModel, IntType<operations_research::RoutingNodeIndex_tag_, int> >::base* nodeToIndex, int64 i, RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
 //    CheckNodeIsValid(from);
 //    CheckNodeIsValid(to);
@@ -409,8 +413,8 @@ private:
     TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
     customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c){
+    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q):
+    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c), refill_quantities(r_q){
     }
     std::string customer_id;
     int32 matrix_index;
@@ -425,6 +429,7 @@ private:
     std::vector<int64> quantities;
     std::vector<int64> setup_quantities;
     int64 exclusion_cost;
+    std::vector<bool> refill_quantities;
   };
 
   int32 size_;
@@ -494,6 +499,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       s_q.push_back(setup_quantity);
     }
 
+    std::vector<bool> r_q;
+    for (const bool refill: service.refill_quantities()) {
+      r_q.push_back(refill);
+    }
+
     std::vector<int64> v_i;
     for (const int64& index: service.vehicle_indices()) {
       v_i.push_back(index);
@@ -538,7 +548,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            v_i,
                                            q,
                                            s_q,
-                                           service.exclusion_cost()));
+                                           service.exclusion_cost(),
+                                           r_q));
         ids_map_[(std::string)service.id()] = s;
         s++;
         ++timewindow_index;
@@ -557,7 +568,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          v_i,
                                          q,
                                          s_q,
-                                         service.exclusion_cost()));
+                                         service.exclusion_cost(),
+                                         r_q));
       ids_map_[(std::string)service.id()] = s;
       s++;
     }
