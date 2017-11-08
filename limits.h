@@ -217,6 +217,11 @@ class LoggerMonitor : public SearchLimit {
             if (previous_index == -1) activity->set_type("start");
             else activity->set_type("service");
 
+            for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+              double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
+              activity->add_quantities(exchange/1000.);
+            }
+
             if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
               ortools_result::Activity* break_activity = route->add_activities();
               break_activity->set_index(route_break);
@@ -257,6 +262,11 @@ class LoggerMonitor : public SearchLimit {
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
             else activity->set_type("service");
+
+            for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+              double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
+              activity->add_quantities(exchange/1000.);
+            }
 
             if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
               ortools_result::Activity* break_activity = route->add_activities();

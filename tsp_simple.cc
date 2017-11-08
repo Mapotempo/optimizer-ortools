@@ -662,6 +662,10 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(index)));
         if (previous_index == -1) activity->set_type("start");
         else activity->set_type("service");
+        for (int64 q = 0 ; q < data.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+          double exchange = solution->Min(routing.CumulVar(solution->Value(routing.NextVar(index)), "quantity" + std::to_string(q)));
+          activity->add_quantities(exchange/1000.);
+        }
 
         if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
           ortools_result::Activity* break_activity = route->add_activities();
