@@ -1,0 +1,20 @@
+syntax = "proto3";
+package ortools_result;
+
+message Activity {
+  int32 index = 1;
+  repeated int32 quantities = 2;
+  int32 start_time = 3;
+  string type = 4;
+}
+
+message Route {
+  repeated Activity activities = 1;
+}
+
+message Result {
+  int64 cost = 1;
+  float duration = 2;
+  int32 iterations = 3;
+  repeated Route routes = 4;
+}

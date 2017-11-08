@@ -415,7 +415,12 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
   }
 }
 
-void TSPTWSolver(const TSPTWDataDT &data) {
+int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  ortools_result::Result result;
+  ortools_result::Route* init_route = result.add_routes();
+
   const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
   const int size_matrix = data.SizeMatrix();
@@ -622,7 +627,7 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
   routing.CloseModelWithParameters(parameters);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, &result, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
@@ -644,33 +649,55 @@ void TSPTWSolver(const TSPTWDataDT &data) {
   }
 
   if (solution != NULL) {
-    int64 cost = (int64)(solution->ObjectiveValue() / 1000.0); // Back to original cost
-    logger->GetFinalLog();
+    if (result.routes_size() > 0) result.clear_routes();
     int current_break = 0;
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+      int route_break = 0;
+      ortools_result::Route* route = result.add_routes();
       int previous_index = -1;
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
+        ortools_result::Activity* activity = route->add_activities();
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        std::cout << data.MatrixIndex(nodeIndex);
-        if (previous_index != -1)
-          std::cout << "[" << solution->Min(routing.GetMutableDimension("time")->CumulVar(index)) << "]";
-        std::cout << ",";
+        activity->set_index(data.MatrixIndex(nodeIndex));
+        activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(index)));
+        if (previous_index == -1) activity->set_type("start");
+        else activity->set_type("service");
+
         if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
-          std::cout << size_matrix + current_break << ",";
+          ortools_result::Activity* break_activity = route->add_activities();
+          break_activity->set_index(route_break);
+          break_activity->set_type("break");
           current_break++;
+          route_break++;
         }
         previous_index = index;
       }
       if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == routing.End(route_nbr)) {
-          std::cout << size_matrix + current_break << ",";
+          ortools_result::Activity* break_activity = route->add_activities();
+          break_activity->set_index(route_break);
+          break_activity->set_type("break");
           current_break++;
+          route_break++;
       }
-      std::cout << data.MatrixIndex(routing.IndexToNode(routing.End(route_nbr))) << ";";
+      ortools_result::Activity* end_activity = route->add_activities();
+      RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(routing.End(route_nbr));
+      end_activity->set_index(data.MatrixIndex(nodeIndex));
+      end_activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(routing.End(route_nbr))));
+      end_activity->set_type("end");
     }
-    std::cout << std::endl;
+
+    logger->GetFinalScore();
+    std::fstream output(filename, std::ios::out | std::ios::trunc | std::ios::binary);
+    if (!result.SerializeToOstream(&output)) {
+      std::cout << "Failed to write result." << std::endl;
+      return -1;
+    }
+
+    logger->GetFinalLog();
   } else {
     std::cout << "No solution found..." << std::endl;
   }
+  return 0;
 }
 
 } // namespace operations_research
@@ -680,7 +707,7 @@ int main(int argc, char **argv) {
 
   if(FLAGS_time_limit_in_ms > 0 || FLAGS_no_solution_improvement_limit > 0) {
     operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
-    operations_research::TSPTWSolver(tsptw_data);
+    return operations_research::TSPTWSolver(tsptw_data, FLAGS_solution_file);
   } else {
     std::cout << "No Stop condition" << std::endl;
   }
