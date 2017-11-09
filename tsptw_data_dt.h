@@ -240,6 +240,8 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1) return 0;
+      if (max_ride_distance_ > 0 && data->distances_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()])) > max_ride_distance_) return CUSTOM_MAX_INT;
       return data->distances_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
         RoutingModel::NodeIndex(vehicle_indices[j.value()]));
     }
@@ -248,6 +250,8 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1) return 0;
+      if (max_ride_time_ > 0 && data->times_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()])) > max_ride_time_) return CUSTOM_MAX_INT;
       return data->times_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
         RoutingModel::NodeIndex(vehicle_indices[j.value()]));
     }
@@ -333,6 +337,8 @@ public:
     int64 duration;
     bool force_start;
     int32 day_index;
+    int64 max_ride_time_;
+    int64 max_ride_distance_;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -653,6 +659,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->duration = (int64)(vehicle.duration());
     v->force_start = vehicle.force_start();
     v->day_index = vehicle.day_index();
+    v->max_ride_time_ = vehicle.max_ride_time();
+    v->max_ride_distance_ = vehicle.max_ride_distance();
     vehicles_day_.push_back(vehicle.day_index());
 
     max_distance_cost_ = std::max(max_distance_cost_, v->cost_distance_multiplier);

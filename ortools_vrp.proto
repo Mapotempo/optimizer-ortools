@@ -56,6 +56,8 @@ message Vehicle {
   int32 day_index = 16;
   uint32 value_matrix_index = 17;
   float cost_value_multiplier = 18;
+  int64 max_ride_time = 19;
+  int64 max_ride_distance = 20;
 }
 
 message Relation {
