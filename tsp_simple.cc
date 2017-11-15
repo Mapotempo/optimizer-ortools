@@ -217,6 +217,24 @@ std::vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing,
   return breaks;
 }
 
+void RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, Assignment *assignment) {
+  for (TSPTWDataDT::Route* route: data.Routes()) {
+    int64 current_index;
+    IntVar* previous_var = NULL;
+    for (std::string service_id: route->service_ids) {
+      current_index = data.IdIndex(service_id);
+      if (current_index != -1) {
+        IntVar* next_var = routing.NextVar(current_index);
+        assignment->Add(next_var);
+        if (previous_var != NULL) assignment->SetValue(previous_var, current_index);
+        IntVar* const vehicle_var = routing.VehicleVar(current_index);
+        if (route->vehicle_index >= 0) assignment->SetValue(vehicle_var, route->vehicle_index);
+        previous_var = next_var;
+      }
+    }
+  }
+}
+
 void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment) {
 
   Solver::IndexEvaluator1 vehicle_evaluator = [&data](int64 index) {
@@ -575,6 +593,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   // Setting visit time windows
   TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
+  RouteBuilder(data, routing, solver, assignment);
   std::vector<IntVar*> breaks;
   // Setting rest time windows
   if (size_rest > 0) {

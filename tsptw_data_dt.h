@@ -132,7 +132,11 @@ public:
   }
 
   int64 IdIndex(std::string id) const {
-    return ids_map_.find(id)->second;
+    std::map<std::string, int64>::const_iterator it = ids_map_.find(id);
+    if (it != ids_map_.end())
+      return it->second;
+    else
+      return -1;
   }
 
   std::string ServiceId(RoutingModel::NodeIndex i) const {
@@ -314,6 +318,7 @@ public:
     }
 
     TSPTWDataDT* data;
+    std::string id;
     int32 size;
     int32 size_matrix;
     int32 size_rest;
@@ -343,6 +348,20 @@ public:
 
   std::vector<Vehicle*> Vehicles() const {
     return tsptw_vehicles_;
+  }
+
+  struct Route {
+    Route(std::string v_id):
+      vehicle_id(v_id), vehicle_index(-1){}
+    Route(std::string v_id, int v_int, std::vector<std::string> s_ids):
+      vehicle_id(v_id), vehicle_index(v_int), service_ids(s_ids){}
+      std::string vehicle_id;
+      int vehicle_index;
+      std::vector<std::string> service_ids;
+  };
+
+  std::vector<Route*> Routes() const {
+    return tsptw_routes_;
   }
 
   struct Rest {
@@ -446,6 +465,7 @@ private:
   std::vector<Rest*> tsptw_rests_;
   std::vector<Relation*> tsptw_relations_;
   std::vector<TSPTWClient> tsptw_clients_;
+  std::vector<Route*> tsptw_routes_;
   std::vector<CompleteGraphArcCost*> distances_matrices_;
   std::vector<CompleteGraphArcCost*> times_matrices_;
   std::vector<CompleteGraphArcCost*> values_matrices_;
@@ -644,6 +664,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v->counting.push_back(capacity.counting());
     }
 
+    v->id = vehicle.id();
     v->break_size = vehicle.rests().size();
     v->problem_matrix_index = vehicle.matrix_index();
     v->value_matrix_index = vehicle.value_matrix_index();
@@ -668,6 +689,17 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     max_value_cost_ = std::max(max_value_cost_, v->cost_value_multiplier);
 
     tsptw_vehicles_.push_back(v);
+  }
+
+  for (const ortools_vrp::Route& route: problem.routes()) {
+    Route* r = new Route(route.vehicle_id());
+    for (int i = 0; i < tsptw_vehicles_.size(); ++i) {
+      if (tsptw_vehicles_.at(i)->id == route.vehicle_id()) r->vehicle_index = i;
+    }
+    for (std::string service_id: route.service_ids()) {
+      r->service_ids.push_back(service_id);
+    }
+    tsptw_routes_.push_back(r);
   }
 
   // Setting start

@@ -40,6 +40,7 @@ message Capacity {
 }
 
 message Vehicle {
+  string id = 1;
   repeated Capacity capacities = 3;
   TimeWindow time_window = 4;
   repeated Rest rests = 5;
@@ -66,9 +67,15 @@ message Relation {
   int32 lapse = 3;
 }
 
+message Route {
+  string vehicle_id = 1;
+  repeated string service_ids = 2;
+}
+
 message Problem {
   repeated Vehicle vehicles = 3;
   repeated Service services = 4;
   repeated Matrix matrices = 5;
   repeated Relation relations = 6;
+  repeated Route routes = 7;
 }
