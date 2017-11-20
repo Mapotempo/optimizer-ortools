@@ -148,7 +148,7 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class LoggerMonitor : public SearchLimit {
   public:
-    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result, const bool minimize = true) :
+    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) :
     data_(data),
     routing_(routing),
     SearchLimit(routing->solver()),
@@ -162,6 +162,7 @@ class LoggerMonitor : public SearchLimit {
     debug_(debug),
     intermediate_(intermediate),
     result_(result),
+    filename_(filename),
     minimize_(minimize) {
         if (minimize_) {
           best_result_ = kint64max;
@@ -200,7 +201,7 @@ class LoggerMonitor : public SearchLimit {
     if (minimize_ && objective->Min() * 1.01 < best_result_) {
       best_result_ = objective->Min();
       if (intermediate_) {
-        if (result_->routes().size() > 0) result_->clear_routes();
+        if (result_->routes_size() > 0) result_->clear_routes();
         result_->set_cost((int64)(best_result_ / 1000.0));
         result_->set_iterations(iteration_counter_);
         int current_break = 0;
@@ -244,12 +245,19 @@ class LoggerMonitor : public SearchLimit {
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
         }
+        std::fstream output(filename_, std::ios::out | std::ios::trunc | std::ios::binary);
+        if (!result_->SerializeToOstream(&output)) {
+          std::cout << "Failed to write result." << std::endl;
+          return false;
+        }
+        output.close();
         std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       }
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       best_result_ = objective->Max();
       if (intermediate_) {
+        if (result_->routes_size() > 0) result_->clear_routes();
         int current_break = 0;
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
           int route_break = 0;
@@ -290,6 +298,12 @@ class LoggerMonitor : public SearchLimit {
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
         }
+        std::fstream output(filename_, std::ios::out | std::ios::trunc | std::ios::binary);
+        if (!result_->SerializeToOstream(&output)) {
+          std::cout << "Failed to write result." << std::endl;
+          return false;
+        }
+        output.close();
         std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       }
       new_best = true;
@@ -336,17 +350,15 @@ class LoggerMonitor : public SearchLimit {
   // Allocates a clone of the limit
   virtual SearchLimit* MakeClone() const {
     // we don't to copy the variables
-    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, size_matrix_, breaks_, debug_, intermediate_, result_, minimize_));
+    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, size_matrix_, breaks_, debug_, intermediate_, result_, filename_, minimize_));
   }
 
   virtual std::string DebugString() const {
     return StringPrintf("LoggerMonitor(crossed = %i)", limit_reached_);
   }
 
-  void GetFinalScore() {
-    result_->set_cost((int64)(best_result_ / 1000.0));
-    result_->set_duration(1e-9 * (base::GetCurrentTimeNanos() - start_time_));
-    result_->set_iterations(iteration_counter_);
+  std::vector<double> GetFinalScore() {
+    return {(best_result_ / 1000.0), 1e-9 * (base::GetCurrentTimeNanos() - start_time_), (double)iteration_counter_};
   }
 
   void GetFinalLog() {
@@ -369,13 +381,14 @@ class LoggerMonitor : public SearchLimit {
     int64 pow_;
     int64 iteration_counter_;
     std::unique_ptr<Assignment> prototype_;
+    std::string filename_;
     ortools_result::Result* result_;
 };
 
 } // namespace
 
-LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result,const bool minimize = true) {
-  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, intermediate, result, minimize));
+LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) {
+  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, intermediate, result, filename, minimize));
 }
 }  //  namespace operations_research
 

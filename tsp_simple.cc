@@ -437,7 +437,6 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ortools_result::Result result;
-  ortools_result::Route* init_route = result.add_routes();
 
   const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
@@ -646,7 +645,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
   routing.CloseModelWithParameters(parameters);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, &result, true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, &result, filename, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
@@ -709,17 +708,24 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       end_activity->set_type("end");
     }
 
-    logger->GetFinalScore();
+    std::vector<double> scores = logger->GetFinalScore();
+    result.set_cost((int64)scores[0]);
+    result.set_duration(scores[1]);
+    result.set_iterations(scores[2]);
+
     std::fstream output(filename, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!result.SerializeToOstream(&output)) {
       std::cout << "Failed to write result." << std::endl;
       return -1;
     }
+    output.close();
 
     logger->GetFinalLog();
   } else {
     std::cout << "No solution found..." << std::endl;
   }
+
+  google::protobuf::ShutdownProtobufLibrary();
   return 0;
 }
 
