@@ -217,22 +217,40 @@ std::vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing,
   return breaks;
 }
 
-void RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, Assignment *assignment) {
+bool RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, Assignment *assignment) {
+  const int size_vehicles = data.Vehicles().size();
+  std::vector<std::vector<RoutingModel::NodeIndex>> routes(size_vehicles);
   for (TSPTWDataDT::Route* route: data.Routes()) {
     int64 current_index;
     IntVar* previous_var = NULL;
+    std::vector<RoutingModel::NodeIndex> route_nodes;
+
+    if (route->vehicle_index >= 0) {
+        previous_var = routing.NextVar(routing.Start(route->vehicle_index));
+        assignment->Add(previous_var);
+    }
     for (std::string service_id: route->service_ids) {
       current_index = data.IdIndex(service_id);
       if (current_index != -1) {
+        route_nodes.push_back(RoutingModel::NodeIndex(current_index));
         IntVar* next_var = routing.NextVar(current_index);
         assignment->Add(next_var);
-        if (previous_var != NULL) assignment->SetValue(previous_var, current_index);
-        IntVar* const vehicle_var = routing.VehicleVar(current_index);
-        if (route->vehicle_index >= 0) assignment->SetValue(vehicle_var, route->vehicle_index);
+        if (previous_var != NULL) {
+          assignment->SetValue(previous_var, current_index);
+        }
         previous_var = next_var;
       }
     }
+    if (route->vehicle_index >= 0) {
+      if (previous_var != NULL) {
+        assignment->SetValue(previous_var, routing.End(route->vehicle_index));
+      }
+      std::vector<RoutingModel::NodeIndex> actual_route = routes.at(route->vehicle_index);
+      actual_route.insert(actual_route.end(), route_nodes.begin(), route_nodes.end());
+      routes.at(route->vehicle_index) = actual_route;
+    }
   }
+  return routing.RoutesToAssignment(routes, true, false, assignment);
 }
 
 void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment) {
@@ -376,6 +394,11 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 
           IntExpr *const lapse = solver->MakeProd(isConstraintActive, 1);
           solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeAbs(solver->MakeDifference(next_part, previous_part)), lapse));
+
+          IntExpr *const previous_part_global_index = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(previous_index));
+          IntExpr *const next_part_global_index = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(current_index));
+
+          solver->AddConstraint(solver->MakeEquality(previous_part_global_index, next_part_global_index));
 
           solver->AddConstraint(
             solver->MakeEquality(solver->MakeProd(isConstraintActive,routing.GetMutableDimension("time")->CumulVar(previous_index)),
@@ -594,7 +617,6 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   // Setting visit time windows
   TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
-  RouteBuilder(data, routing, solver, assignment);
   std::vector<IntVar*> breaks;
   // Setting rest time windows
   if (size_rest > 0) {
@@ -647,6 +669,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
   routing.CloseModelWithParameters(parameters);
 
+  bool build_route = RouteBuilder(data, routing, solver, assignment);
+
   LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, &result, filename, true);
   routing.AddSearchMonitor(logger);
 
@@ -661,8 +685,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
 
   const Assignment *solution;
-  if (data.OrderCounter() == 1) {
-    routing.solver()->CheckAssignment(assignment);
+  if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
     solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
   } else {
     solution = routing.SolveWithParameters(parameters);
