@@ -290,7 +290,6 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           current_index = data.IdIndex(relation->linked_ids->at(link_index));
           routing.AddPickupAndDelivery(RoutingModel::NodeIndex(previous_index), RoutingModel::NodeIndex(current_index));
           IntVar *const previous_active_var = routing.ActiveVar(previous_index);
-          IntVar *const next_var = routing.NextVar(previous_index);
           IntVar *const active_var = routing.ActiveVar(current_index);
 
           IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
@@ -301,11 +300,6 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 
           solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
                                                      solver->MakeProd(isConstraintActive, vehicle_var)));
-
-          if (data.OrderCounter() == 1) {
-            assignment->Add(next_var);
-            assignment->SetValue(next_var, current_index);
-          }
 
           solver->AddConstraint(
             solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
