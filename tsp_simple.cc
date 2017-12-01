@@ -523,6 +523,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       cumul_var->SetMin(vehicle->time_start);
       if (vehicle->force_start) {
         cumul_var->SetMax(vehicle->time_start);
+        IntVar *const slack_var = routing.SlackVar(start_index, "time");
+        routing.AddVariableMinimizedByFinalizer(slack_var);
       }
     }
     if (vehicle->time_end < CUSTOM_MAX_INT) {
