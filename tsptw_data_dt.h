@@ -408,6 +408,13 @@ public:
     return vehicles_day_.at(index);
   }
 
+  int VehicleDayAlt(int64 index) const {
+    if (index < 0) {
+      return CUSTOM_MAX_INT;
+    }
+    return vehicles_day_.at(index);
+  }
+
 /*
   Vehicle VehicleGet(int64 v) const {
     return tsptw_vehicles_.at(v);

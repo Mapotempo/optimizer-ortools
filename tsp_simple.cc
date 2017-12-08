@@ -226,8 +226,8 @@ bool RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver
     std::vector<RoutingModel::NodeIndex> route_nodes;
 
     if (route->vehicle_index >= 0) {
-        previous_var = routing.NextVar(routing.Start(route->vehicle_index));
-        assignment->Add(previous_var);
+      previous_var = routing.NextVar(routing.Start(route->vehicle_index));
+      assignment->Add(previous_var);
     }
     for (std::string service_id: route->service_ids) {
       current_index = data.IdIndex(service_id);
@@ -257,6 +257,10 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 
   Solver::IndexEvaluator1 vehicle_evaluator = [&data](int64 index) {
     return data.VehicleDay(index);
+  };
+
+  Solver::IndexEvaluator1 alternative_vehicle_evaluator = [&data](int64 index) {
+    return data.VehicleDayAlt(index);
   };
 
   for (TSPTWDataDT::Relation* relation: data.Relations()) {
@@ -336,12 +340,9 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 
           solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
 
-          IntExpr *const previous_part = solver->MakeProd(isConstraintActive,
-            solver->MakeElement(vehicle_evaluator, routing.VehicleVar(previous_index)));
-          IntExpr *const next_part = solver->MakeProd(isConstraintActive,
-            solver->MakeElement(vehicle_evaluator, routing.VehicleVar(current_index)));
-          IntExpr *const lapse = solver->MakeProd(isConstraintActive, relation->lapse);
-          solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(previous_part, lapse), next_part));
+          IntExpr *const previous_part = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(previous_index));
+          IntExpr *const next_part = solver->MakeElement(alternative_vehicle_evaluator, routing.VehicleVar(current_index));
+          solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(previous_part, relation->lapse), next_part));
           previous_index = current_index;
         }
         break;
