@@ -136,10 +136,6 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
             }
           }
         }
-        for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
-          IntVar *const slack_var = routing.SlackVar(index, "quantity" + std::to_string(q));
-          slack_var->SetValue(0);
-        }
         vect->push_back(i);
         ++i;
         ready = data.ReadyTime(i);
