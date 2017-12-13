@@ -553,7 +553,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     if (vehicle->duration >= 0 && vehicle->time_end - vehicle-> time_start > vehicle->duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(routing.CumulVar(routing.End(v), "time"));
-      routing.AddVariableMaximizedByFinalizer(routing.CumulVar(routing.Start(v), "time"));
+      if(!vehicle->force_start)
+        routing.AddVariableMaximizedByFinalizer(routing.CumulVar(routing.Start(v), "time"));
       solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeSum(routing.CumulVar(routing.Start(v), "time"), vehicle->duration), routing.CumulVar(routing.End(v), "time")));
     }
 
