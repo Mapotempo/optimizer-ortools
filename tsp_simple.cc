@@ -441,6 +441,24 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           }
         }
         break;
+      case ForceEnd:
+        {
+          std::vector<int64> values;
+          for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
+            current_index = data.IdIndex(relation->linked_ids->at(link_index));
+            values.push_back(current_index);
+          }
+          std::vector<int64> intermediate_values(values);
+          for (int v = 0; v < data.Vehicles().size(); ++v) {
+            int64 end_index = routing.End(v);
+            intermediate_values.push_back(end_index);
+          }
+          for (int index : values) {
+            IntVar *const next_var = routing.NextVar(index);
+            next_var->SetValues(intermediate_values);
+          }
+        }
+        break;
       default:
         break;
     }
