@@ -240,6 +240,10 @@ public:
       stop = s;
     }
 
+    int64 ReturnZero(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      return 0;
+    }
+
     int64 Distance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
