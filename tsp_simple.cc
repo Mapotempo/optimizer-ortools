@@ -511,7 +511,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     routing.AddDimensionWithVehicleTransits(zero_evaluators, LLONG_MAX, LLONG_MAX, true, "distance_balance");
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
-  routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time_without_wait");
+  routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false, "time_without_wait");
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, "value");
   if (FLAGS_nearby) {
@@ -548,7 +548,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       routing.GetMutableDimension("time_balance")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_time_multiplier, v);
       routing.GetMutableDimension("distance_balance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     }
-    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)std::max(vehicle->cost_time_multiplier - without_wait_cost, (int64)0), v);
+    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
     routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle((int64)std::max(without_wait_cost, (int64)0), v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.GetMutableDimension("value")->SetSpanCostCoefficientForVehicle(vehicle->cost_value_multiplier, v);
@@ -590,7 +590,9 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     if (vehicle->duration >= 0 && vehicle->time_end - vehicle-> time_start > vehicle->duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(end_cumul_var);
-      if(!vehicle->force_start)
+      if (vehicle->force_start)
+        routing.AddVariableMinimizedByFinalizer(cumul_var);
+      else
         routing.AddVariableMaximizedByFinalizer(cumul_var);
       solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeSum(cumul_var, vehicle->duration), end_cumul_var));
     } else if (FLAGS_balance) {
