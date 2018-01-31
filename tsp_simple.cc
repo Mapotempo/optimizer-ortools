@@ -263,6 +263,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
   for (TSPTWDataDT::Relation* relation: data.Relations()) {
     int64 previous_index;
     int64 current_index;
+    std::vector<int64> previous_indices;
     switch (relation->type) {
       case Sequence:
         int64 new_current_index;
@@ -277,11 +278,13 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
           IntVar *const vehicle_var = routing.VehicleVar(current_index);
           IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var)->Var();
+          routing.NextVar(current_index)->RemoveValues(previous_indices);
 
           solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
                                                      solver->MakeProd(isConstraintActive, vehicle_var)));
           solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
             solver->MakeProd(isConstraintActive, current_index)));
+          previous_indices.push_back(previous_index);
           previous_index = data.IdIndex(relation->linked_ids->at(link_index));
         }
         break;
@@ -295,6 +298,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 
           IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
           IntVar *const vehicle_var = routing.VehicleVar(current_index);
+          routing.NextVar(current_index)->RemoveValues(previous_indices);
 
           solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
           IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var);
@@ -305,6 +309,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           solver->AddConstraint(
             solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
                                     routing.GetMutableDimension("time")->CumulVar(current_index)));
+          previous_indices.push_back(previous_index);
           previous_index = current_index;
 
         }
