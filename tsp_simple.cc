@@ -442,7 +442,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           }
         }
         break;
-      case ForceEnd:
+      case ForceLast:
         {
           std::vector<int64> values;
           for (int link_index = 0 ; link_index < relation->linked_ids->size(); ++link_index) {
@@ -573,7 +573,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     if (vehicle->time_start > -CUSTOM_MAX_INT) {
       min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
-      if (vehicle->force_start) {
+      if (vehicle->shift_preference == ForceStart) {
         cumul_var->SetMax(vehicle->time_start);
         IntVar *const slack_var = routing.SlackVar(start_index, "time");
         routing.AddVariableMinimizedByFinalizer(slack_var);
@@ -583,14 +583,22 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       int64 coef = vehicle->late_multiplier;
       if(coef > 0) {
         routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
+        if (vehicle->shift_preference == ForceEnd) {
+          routing.AddVariableMaximizedByFinalizer(end_cumul_var);
+        } 
       } else {
         end_cumul_var->SetMax(vehicle->time_end);
+        if (vehicle->shift_preference == ForceEnd) {
+          end_cumul_var->SetMin(vehicle->time_end);
+          IntVar *const slack_var = routing.SlackVar(end_index, "time");
+          routing.AddVariableMinimizedByFinalizer(slack_var);
+        }
       }
     }
     if (vehicle->duration >= 0 && vehicle->time_end - vehicle-> time_start > vehicle->duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(end_cumul_var);
-      if (vehicle->force_start)
+      if (vehicle->shift_preference == ForceStart)
         routing.AddVariableMinimizedByFinalizer(cumul_var);
       else
         routing.AddVariableMaximizedByFinalizer(cumul_var);
@@ -639,7 +647,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   int route_nbr = 0;
   int64 previous_distance_depot_start;
   int64 previous_distance_depot_end;
-  bool force_start = false;
+  ShiftPref shift_preference = MinimizeSpan;
   bool loop_route = true;
   bool unique_configuration = true;
   RoutingModel::NodeIndex compareNodeIndex = routing.IndexToNode(rand() % (data.SizeMatrix() - 2));
@@ -661,7 +669,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         loop_route = false;
       }
     }
-    force_start |= vehicle->force_start;
+    shift_preference = vehicle->shift_preference;
     previous_distance_depot_start = distance_depot_start;
     previous_distance_depot_end = distance_depot_end;
     previous_vehicle = vehicle;
@@ -683,7 +691,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (size_rest == 0 && force_start) {
+  if (size_rest == 0 && shift_preference == ForceStart) {
     if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   } else if (has_route_duration && size_vehicles == 1) {

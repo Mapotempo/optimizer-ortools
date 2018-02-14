@@ -16,7 +16,8 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,30)
 
-enum RelationType { ForceEnd = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum RelationType { ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum ShiftPref { ForceStart = 2, ForceEnd = 1, MinimizeSpan = 0 };
 
 namespace operations_research {
 
@@ -344,7 +345,7 @@ public:
     int64 cost_waiting_time_multiplier;
     int64 cost_value_multiplier;
     int64 duration;
-    bool force_start;
+    ShiftPref shift_preference;
     int32 day_index;
     int64 max_ride_time_;
     int64 max_ride_distance_;
@@ -689,7 +690,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
     v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000);
     v->duration = (int64)(vehicle.duration());
-    v->force_start = vehicle.force_start();
+    if (vehicle.shift_preference().compare("force_start") == 0)
+      v->shift_preference = ForceStart;
+    else if (vehicle.shift_preference().compare("force_end") == 0)
+      v->shift_preference = ForceEnd;
+    else 
+      v->shift_preference = MinimizeSpan;
     v->day_index = vehicle.day_index();
     v->max_ride_time_ = vehicle.max_ride_time();
     v->max_ride_distance_ = vehicle.max_ride_distance();
@@ -767,7 +773,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     else if (relation.type() == "maximum_duration_lapse") type = MaximumDurationLapse;
     else if (relation.type() == "force_first") type = ForceFirst;
     else if (relation.type() == "never_first") type = NeverFirst;
-    else if (relation.type() == "force_end") type = ForceEnd;
+    else if (relation.type() == "force_end") type = ForceLast;
 
     tsptw_relations_.push_back(new Relation(re_index,
                                         type,
