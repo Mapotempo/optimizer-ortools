@@ -59,12 +59,14 @@ message Vehicle {
   float cost_value_multiplier = 18;
   int64 max_ride_time = 19;
   int64 max_ride_distance = 20;
+  int64 weekly_duration = 21;
 }
 
 message Relation {
   string type = 1;
   repeated string linked_ids = 2;
   int32 lapse = 3;
+  repeated string linked_vehicles_ids = 4;
 }
 
 message Route {

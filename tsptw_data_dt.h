@@ -16,7 +16,7 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,30)
 
-enum RelationType { ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum RelationType { VehicleGroupWeekDuration = 11, ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
 enum ShiftPref { ForceStart = 2, ForceEnd = 1, MinimizeSpan = 0 };
 
 namespace operations_research {
@@ -345,6 +345,7 @@ public:
     int64 cost_waiting_time_multiplier;
     int64 cost_value_multiplier;
     int64 duration;
+    int64 weekly_duration;
     ShiftPref shift_preference;
     int32 day_index;
     int64 max_ride_time_;
@@ -387,14 +388,15 @@ public:
 
   struct Relation {
     Relation(int relation_no):
-        relation_number(relation_no), type(Order), linked_ids(NULL), lapse(-1){}
+        relation_number(relation_no), type(Order), linked_ids(NULL), linked_vehicles_ids(NULL), lapse(-1){}
     Relation(int relation_no, RelationType t, std::vector<std::string>* l_i):
-        relation_number(relation_no), type(t), linked_ids(l_i), lapse(-1){}
-    Relation(int relation_no, RelationType t, std::vector<std::string>* l_i, int32 l):
-        relation_number(relation_no), type(t), linked_ids(l_i), lapse(l){}
+        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicles_ids(NULL), lapse(-1){}
+    Relation(int relation_no, RelationType t, std::vector<std::string>* l_i, std::vector<std::string>* l_v_i, int32 l):
+        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicles_ids(l_v_i), lapse(l){}
         int relation_number;
         RelationType type;
         std::vector<std::string>* linked_ids;
+        std::vector<std::string>* linked_vehicles_ids;
         int32 lapse;
   };
 
@@ -664,6 +666,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
   }
 
+  int v_idx = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     Vehicle* v = new Vehicle(this, size_);
     std::vector<int64> vehicle_indices(matrix_indices);
@@ -690,6 +693,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
     v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000);
     v->duration = (int64)(vehicle.duration());
+    v->weekly_duration = (int64)(vehicle.weekly_duration());
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;
     else if (vehicle.shift_preference().compare("force_end") == 0)
@@ -706,6 +710,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     max_value_cost_ = std::max(max_value_cost_, v->cost_value_multiplier);
 
     tsptw_vehicles_.push_back(v);
+    ids_map_[(std::string)vehicle.id()] = v_idx;
+    v_idx++;
   }
 
   for (const ortools_vrp::Route& route: problem.routes()) {
@@ -758,6 +764,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     for (const std::string linked_id: relation.linked_ids()) {
       linked_ids->push_back(linked_id);
     }
+    std::vector<std::string>* linked_v_ids = new std::vector<std::string>();
+    for (const std::string linked_v_id: relation.linked_vehicles_ids()) {
+      linked_v_ids->push_back(linked_v_id);
+    }
 
     RelationType type;
     if (relation.type() == "sequence") type = Sequence;
@@ -774,10 +784,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     else if (relation.type() == "force_first") type = ForceFirst;
     else if (relation.type() == "never_first") type = NeverFirst;
     else if (relation.type() == "force_end") type = ForceLast;
+    else if (relation.type() == "vehicle_group_week_duration") type = VehicleGroupWeekDuration;
 
     tsptw_relations_.push_back(new Relation(re_index,
                                         type,
                                         linked_ids,
+                                        linked_v_ids,
                                         relation.lapse()));
     ++re_index;
   }
