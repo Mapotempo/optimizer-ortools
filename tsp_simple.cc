@@ -506,6 +506,16 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
   RoutingModel routing(size, size_vehicles, *start_ends);
 
+  int64 maximum_route_distance = 0;
+  int64 v = 0;
+  while ((maximum_route_distance != INT_MAX) && (v<size_vehicles)) {
+    if (data.Vehicles().at(v)->distance == -1)
+      maximum_route_distance = INT_MAX;
+    else
+      maximum_route_distance = std::max(maximum_route_distance, data.Vehicles().at(v)->distance);
+    v++;
+  }
+
   // Dimensions
   const int64 horizon = data.Horizon() * (has_lateness && !CheckOverflow(data.Horizon(), 2) ? 2 : 1);
 
@@ -532,7 +542,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
   routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false, "time_without_wait");
-  routing.AddDimensionWithVehicleTransits(distance_evaluators, 0, LLONG_MAX, true, "distance");
+  routing.AddDimensionWithVehicleTransits(distance_evaluators, 0,  maximum_route_distance, true, "distance");
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, "value");
   if (FLAGS_nearby) {
     routing.AddDimensionWithVehicleTransits(time_order_evaluators, 0, LLONG_MAX, true, "time_order");
@@ -555,7 +565,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   Solver *solver = routing.solver();
   Assignment *assignment = routing.solver()->MakeAssignment();
 
-  int64 v = 0;
+  v = 0;
   int64 min_start = CUSTOM_MAX_INT;
   std::vector<IntVar*> used_vehicles;
   std::vector<IntVar*> shift_vars;
@@ -588,7 +598,13 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     used_vehicles.push_back(is_vehicle_used);
     IntVar *const time_difference = solver->MakeDifference(end_cumul_var, cumul_var)->Var();
     shift_vars.push_back(time_difference);
-    ends_distance_vars.push_back(routing.CumulVar(end_index, "distance"));
+    IntVar *const dist_end_cumul_var = routing.CumulVar(end_index, "distance");
+    ends_distance_vars.push_back(dist_end_cumul_var);
+    // Vehicle maximum distance
+    if (vehicle->distance > 0){
+      // routing.AddVariableMinimizedByFinalizer(dist_end_cumul_var);
+      solver->AddConstraint(solver->MakeLessOrEqual(dist_end_cumul_var, vehicle->distance));
+    }
     // Vehicle time windows
     if (vehicle->time_start > -CUSTOM_MAX_INT) {
       min_start = std::min(min_start, vehicle->time_start);

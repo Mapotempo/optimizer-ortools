@@ -346,6 +346,7 @@ public:
     int64 cost_value_multiplier;
     int64 duration;
     int64 weekly_duration;
+    int64 distance;
     ShiftPref shift_preference;
     int32 day_index;
     int64 max_ride_time_;
@@ -694,6 +695,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000);
     v->duration = (int64)(vehicle.duration());
     v->weekly_duration = (int64)(vehicle.weekly_duration());
+    v->distance = vehicle.distance();
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;
     else if (vehicle.shift_preference().compare("force_end") == 0)
