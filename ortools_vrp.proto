@@ -61,10 +61,10 @@ message Vehicle {
   int64 max_ride_time = 19;
   int64 max_ride_distance = 20;
   int64 distance = 22;
-  float coef_setup = 23;
-  float coef_travel = 24;
-  int64 additional_setup = 25;
-  int64 additional_travel = 26;
+  float coef_service = 23;
+  float coef_setup = 24;
+  int64 additional_service = 25;
+  int64 additional_setup = 26;
 }
 
 message Relation {
