@@ -298,7 +298,7 @@ public:
     //  Transit quantity at a node "from"
     //  This is the quantity added after visiting node "from"
     int64 TimePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
-      return Time(from, to) + data->ServiceTime(from) + (Time(from, to) > 0 ? data->SetupTime(from) : 0);
+      return coef_travel * Time(from, to) + coef_setup * data->ServiceTime(from) + additional_travel + additional_setup;
     }
 
     int64 ValuePlusServiceValue(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
@@ -344,6 +344,10 @@ public:
     int64 cost_time_multiplier;
     int64 cost_waiting_time_multiplier;
     int64 cost_value_multiplier;
+    float coef_setup;
+    int64 additional_setup;
+    float coef_travel;
+    int64 additional_travel;
     int64 duration;
     int64 weekly_duration;
     int64 distance;
@@ -693,6 +697,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
     v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
     v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000);
+    v->coef_setup = vehicle.coef_setup();
+    v->additional_setup = vehicle.additional_setup();
+    v->coef_travel = vehicle.coef_travel();
+    v->additional_travel = vehicle.additional_travel();
     v->duration = (int64)(vehicle.duration());
     v->weekly_duration = (int64)(vehicle.weekly_duration());
     v->distance = vehicle.distance();
