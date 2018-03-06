@@ -424,7 +424,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           }
         }
         break;
-      case VehicleGroupWeekDuration:
+      case VehicleGroupDuration:
         {
           if (relation->lapse > -1){
             std::vector<IntVar*> same_vehicle_vars;
@@ -435,9 +435,6 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
               IntVar *const cumul_var = routing.CumulVar(start_index, "time");
               IntVar *const end_cumul_var = routing.CumulVar(end_index, "time");
               IntVar *const vehicle_time = solver -> MakeDifference(end_cumul_var, cumul_var)->Var();
-              routing.AddVariableMaximizedByFinalizer(cumul_var);       // removable
-              routing.AddVariableMinimizedByFinalizer(end_cumul_var);   // removable
-              routing.AddVariableMinimizedByFinalizer(vehicle_time);    // removable
               same_vehicle_vars.push_back(vehicle_time);
             }
             solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(same_vehicle_vars), relation->lapse));

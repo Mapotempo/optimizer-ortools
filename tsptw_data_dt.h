@@ -16,7 +16,7 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,30)
 
-enum RelationType { VehicleGroupWeekDuration = 11, ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum RelationType { VehicleGroupDuration = 11, ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
 enum ShiftPref { ForceStart = 2, ForceEnd = 1, MinimizeSpan = 0 };
 
 namespace operations_research {
@@ -386,7 +386,7 @@ public:
     float coef_travel;
     int64 additional_travel;
     int64 duration;
-    int64 weekly_duration;
+    int64 overall_duration;
     int64 distance;
     ShiftPref shift_preference;
     int32 day_index;
@@ -737,7 +737,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->coef_travel = vehicle.coef_travel();
     v->additional_travel = vehicle.additional_travel();
     v->duration = (int64)(vehicle.duration());
-    v->weekly_duration = (int64)(vehicle.weekly_duration());
+    v->overall_duration = (int64)(vehicle.overall_duration());
     v->distance = vehicle.distance();
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;
@@ -857,7 +857,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     else if (relation.type() == "force_first") type = ForceFirst;
     else if (relation.type() == "never_first") type = NeverFirst;
     else if (relation.type() == "force_end") type = ForceLast;
-    else if (relation.type() == "vehicle_group_week_duration") type = VehicleGroupWeekDuration;
+    else if (relation.type() == "vehicle_group_duration") type = VehicleGroupDuration;
 
     tsptw_relations_.push_back(new Relation(re_index,
                                         type,
