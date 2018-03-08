@@ -386,7 +386,6 @@ public:
     float coef_travel;
     int64 additional_travel;
     int64 duration;
-    int64 overall_duration;
     int64 distance;
     ShiftPref shift_preference;
     int32 day_index;
@@ -737,7 +736,6 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->coef_travel = vehicle.coef_travel();
     v->additional_travel = vehicle.additional_travel();
     v->duration = (int64)(vehicle.duration());
-    v->overall_duration = (int64)(vehicle.overall_duration());
     v->distance = vehicle.distance();
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;

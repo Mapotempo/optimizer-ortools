@@ -60,7 +60,6 @@ message Vehicle {
   float cost_value_multiplier = 18;
   int64 max_ride_time = 19;
   int64 max_ride_distance = 20;
-  int64 overall_duration = 21;
   int64 distance = 22;
   float coef_setup = 23;
   float coef_travel = 24;
