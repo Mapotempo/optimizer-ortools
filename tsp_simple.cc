@@ -50,6 +50,8 @@ bool CheckOverflow(int64 a, int64 b) {
 
 void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start, bool loop_route, bool unique_configuration) {
   const int size_vehicles = data.Vehicles().size();
+  const int size_matrix = data.SizeMatrix();
+  const int size_rests = data.SizeRest();
   int64 max_time = (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
   int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
   int64 max_value = 2 * data.MaxValue() * data.MaxValueCost();
@@ -62,7 +64,7 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   RoutingModel::NodeIndex i(0);
   int32 tw_index = 0;
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
-  for (int activity = 0; activity < data.SizeMatrix() - 2; ++activity) {
+  for (int activity = 0; activity < size_matrix - 2 + size_rests; ++activity) {
     std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
     int64 priority = 4;
 
@@ -157,61 +159,6 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
     else
       routing.AddDisjunction(*vect, exclusion_cost == -1 ? disjunction_cost * std::pow(2, 4 - priority) : exclusion_cost);
   }
-}
-
-std::vector<IntVar*> RestBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size) {
-  std::vector<IntVar*> breaks;
-  for (TSPTWDataDT::Rest* rest: data.Rests()) {
-    int vehicle_index = rest->vehicle;
-    IntVar* break_position = solver->MakeIntVar(-1, CUSTOM_MAX_INT, "break position");
-    breaks.push_back(break_position);
-    std::vector<int64> values;
-    if (data.Vehicles()[vehicle_index]->break_size > 0) {
-      for (RoutingModel::NodeIndex i(0); i < size ; ++i) {
-        int64 index;
-        if ( i == size - 2) {
-          index = routing.Start(vehicle_index);
-        } else if ( i == size - 1){
-          index = routing.End(vehicle_index);
-        } else {
-          index = routing.NodeToIndex(i);
-        }
-        values.push_back(index);
-
-        IntVar *cumul_var = routing.CumulVar(index, "time");
-        IntVar *slack_var = routing.SlackVar(index, "time");
-        IntVar *const vehicle_var = routing.VehicleVar(index);
-        if (i == size - 2) {
-          solver->AddConstraint(solver->MakeGreaterOrEqual(cumul_var, data.Vehicles()[vehicle_index]->time_start));
-        } else if (i == size -1) {
-          slack_var = solver->MakeIntVar(0, CUSTOM_MAX_INT, "end slack");
-        }
-        // Verify if node is affected to the right vehicle
-        IntVar *const remove_index = solver->MakeConditionalExpression(solver->MakeIsDifferentCstVar(vehicle_var, vehicle_index),
-          solver->MakeIntConst(index), -1)->Var();
-        solver->AddConstraint(solver->MakeNonEquality(break_position, remove_index));
-        // Define break_duration if the break position is equal to the current node
-        IntVar *const break_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-          solver->MakeIntConst(rest->rest_duration), 0)->Var();
-        // Add a waiting_time before the break if its timeWindow in not already open
-        IntVar *const break_wait_duration = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-        solver->MakeMax(solver->MakeDifference(rest->rest_start, solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i)))), 0), 0)->Var();
-        routing.AddVariableMinimizedByFinalizer(break_wait_duration);
-        // Associate the break position accordingly to its TW
-        IntVar *const upper_rest_bound = solver->MakeConditionalExpression(solver->MakeIsEqualCstVar(break_position, index)->Var(),
-          solver->MakeIntConst(rest->rest_end), CUSTOM_MAX_INT)->Var();
-        solver->AddConstraint(solver->MakeGreaterOrEqual(slack_var, solver->MakeSum(break_wait_duration, break_duration)));
-        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(cumul_var, solver->MakeIntConst(data.ServiceTime(i))), upper_rest_bound));
-      }
-      rest++;
-    } else {
-      values.push_back(-1);
-    }
-    break_position->SetValues(values);
-    routing.AddVariableMinimizedByFinalizer(break_position);
-    routing.AddToAssignment(break_position);
-  }
-  return breaks;
 }
 
 bool RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, Assignment *assignment) {
@@ -493,6 +440,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   const int size_vehicles = data.Vehicles().size();
   const int size = data.Size();
+  const int size_missions = data.SizeMissions();
   const int size_matrix = data.SizeMatrix();
   const int size_rest = data.SizeRest();
   const int size_mtws = data.TwiceTWsCounter();
@@ -579,6 +527,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       routing.GetMutableDimension("distance_balance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     }
     routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+    vehicle->routing = &routing;
     routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle((int64)std::max(without_wait_cost, (int64)0), v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.GetMutableDimension("value")->SetSpanCostCoefficientForVehicle(vehicle->cost_value_multiplier, v);
@@ -713,11 +662,6 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   // Setting visit time windows
   TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
-  std::vector<IntVar*> breaks;
-  // Setting rest time windows
-  if (size_rest > 0) {
-    breaks = RestBuilder(data, routing, solver, size);
-  }
   RelationBuilder(data, routing, solver, size, assignment);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
@@ -727,19 +671,19 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
-  if (size_rest == 0 && shift_preference == ForceStart) {
+  if (shift_preference == ForceStart) {
     if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   } else if (has_route_duration && size_vehicles == 1) {
     if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
-  } else if (data.DeliveriesCounter() > 0 || size_mtws > 0) {
+  } else if (size_rest > 0 && size_vehicles == 1 || data.DeliveriesCounter() > 0 || size_mtws > 0) {
     if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
   } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10 && !has_route_duration) {
     if (FLAGS_debug) std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
-  } else if (unique_configuration || loop_route) {
+  } else if (size_rest > 0 || unique_configuration || loop_route) {
     if (FLAGS_debug) std::cout << "Paralell Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
   } else {
@@ -767,7 +711,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   bool build_route = RouteBuilder(data, routing, solver, assignment);
 
-  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, breaks, FLAGS_debug, FLAGS_intermediate_solutions, &result, filename, true);
+  LoggerMonitor * const logger = MakeLoggerMonitor(data, &routing, min_start, size_matrix, FLAGS_debug, FLAGS_intermediate_solutions, &result, filename, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
@@ -787,40 +731,31 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     solution = routing.SolveWithParameters(parameters);
   }
 
+
   if (solution != NULL) {
     if (result.routes_size() > 0) result.clear_routes();
-    int current_break = 0;
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
-      int route_break = 0;
       ortools_result::Route* route = result.add_routes();
       int previous_index = -1;
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index); index = solution->Value(routing.NextVar(index))) {
         ortools_result::Activity* activity = route->add_activities();
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
-        activity->set_index(data.MatrixIndex(nodeIndex));
         activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(index)));
         if (previous_index == -1) activity->set_type("start");
-        else activity->set_type("service");
+        else {
+           if (index >= size_missions) {
+            activity->set_type("break");
+            activity->set_index(int64 (nodeIndex.value() - size_missions));
+          } else {
+            activity->set_type("service");
+            activity->set_index(data.MatrixIndex(nodeIndex));
+          }
+        }
         for (int64 q = 0 ; q < data.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
           double exchange = solution->Min(routing.CumulVar(solution->Value(routing.NextVar(index)), "quantity" + std::to_string(q)));
           activity->add_quantities(exchange/1000.);
         }
-
-        if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == index) {
-          ortools_result::Activity* break_activity = route->add_activities();
-          break_activity->set_index(route_break);
-          break_activity->set_type("break");
-          current_break++;
-          route_break++;
-        }
         previous_index = index;
-      }
-      if (current_break < data.Rests().size() && data.Vehicles().at(route_nbr)->break_size > 0 && solution->Value(breaks[current_break]) == routing.End(route_nbr)) {
-          ortools_result::Activity* break_activity = route->add_activities();
-          break_activity->set_index(route_break);
-          break_activity->set_type("break");
-          current_break++;
-          route_break++;
       }
       ortools_result::Activity* end_activity = route->add_activities();
       RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(routing.End(route_nbr));

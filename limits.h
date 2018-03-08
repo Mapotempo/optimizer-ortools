@@ -148,7 +148,7 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class LoggerMonitor : public SearchLimit {
   public:
-    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) :
+    LoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) :
     data_(data),
     routing_(routing),
     SearchLimit(routing->solver()),
@@ -158,7 +158,6 @@ class LoggerMonitor : public SearchLimit {
     pow_(0),
     min_start_(min_start),
     size_matrix_(size_matrix),
-    breaks_(breaks),
     debug_(debug),
     intermediate_(intermediate),
     result_(result),
@@ -216,28 +215,20 @@ class LoggerMonitor : public SearchLimit {
             activity->set_index(data_.MatrixIndex(nodeIndex));
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
-            else activity->set_type("service");
-
-            for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
-              double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
-              activity->add_quantities(exchange/1000.);
-            }
-
-            if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
-              ortools_result::Activity* break_activity = route->add_activities();
-              break_activity->set_index(route_break);
-              break_activity->set_type("break");
-              current_break++;
-              route_break++;
+            else {
+               if (index >= data_.SizeMissions()) {
+                activity->set_type("break");
+                activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
+              } else {
+                activity->set_type("service");
+                activity->set_index(data_.MatrixIndex(nodeIndex));
+                for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+                  double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
+                  activity->add_quantities(exchange/1000.);
+                }
+              }
             }
             previous_index = index;
-          }
-          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
-              ortools_result::Activity* break_activity = route->add_activities();
-              break_activity->set_index(route_break);
-              break_activity->set_type("break");
-              current_break++;
-              route_break++;
           }
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(routing_->End(route_nbr));
@@ -269,28 +260,20 @@ class LoggerMonitor : public SearchLimit {
             activity->set_index(data_.MatrixIndex(nodeIndex));
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
-            else activity->set_type("service");
-
-            for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
-              double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
-              activity->add_quantities(exchange/1000.);
-            }
-
-            if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == index) {
-              ortools_result::Activity* break_activity = route->add_activities();
-              break_activity->set_index(route_break);
-              break_activity->set_type("break");
-              current_break++;
-              route_break++;
+            else {
+               if (index >= data_.SizeMissions()) {
+                activity->set_type("break");
+                activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
+              } else {
+                activity->set_type("service");
+                activity->set_index(data_.MatrixIndex(nodeIndex));
+              }
+              for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+                double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
+                activity->add_quantities(exchange/1000.);
+              }
             }
             previous_index = index;
-          }
-          if (current_break < data_.Rests().size() && data_.Vehicles().at(route_nbr)->break_size > 0 && breaks_[current_break]->Value() == routing_->End(route_nbr)) {
-              ortools_result::Activity* break_activity = route->add_activities();
-              break_activity->set_index(route_break);
-              break_activity->set_type("break");
-              current_break++;
-              route_break++;
           }
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(routing_->End(route_nbr));
@@ -341,7 +324,6 @@ class LoggerMonitor : public SearchLimit {
     iteration_counter_ = copy_limit->iteration_counter_;
     start_time_ = copy_limit->start_time_;
     size_matrix_ = copy_limit->size_matrix_;
-    breaks_ = copy_limit->breaks_;
     result_ = copy_limit->result_;
     minimize_ = copy_limit->minimize_;
     limit_reached_ = copy_limit->limit_reached_;
@@ -350,7 +332,7 @@ class LoggerMonitor : public SearchLimit {
   // Allocates a clone of the limit
   virtual SearchLimit* MakeClone() const {
     // we don't to copy the variables
-    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, size_matrix_, breaks_, debug_, intermediate_, result_, filename_, minimize_));
+    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, min_start_, size_matrix_, debug_, intermediate_, result_, filename_, minimize_));
   }
 
   virtual std::string DebugString() const {
@@ -373,7 +355,6 @@ class LoggerMonitor : public SearchLimit {
     double start_time_;
     int64 min_start_;
     int64 size_matrix_;
-    std::vector<IntVar*> breaks_;
     bool minimize_;
     bool limit_reached_;
     bool debug_;
@@ -387,8 +368,8 @@ class LoggerMonitor : public SearchLimit {
 
 } // namespace
 
-LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, std::vector<IntVar*> breaks, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) {
-  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, breaks, debug, intermediate, result, filename, minimize));
+LoggerMonitor * MakeLoggerMonitor(const TSPTWDataDT &data, RoutingModel * routing, int64 min_start, int64 size_matrix, bool debug, bool intermediate, ortools_result::Result* result, std::string filename, const bool minimize = true) {
+  return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, min_start, size_matrix, debug, intermediate, result, filename, minimize));
 }
 }  //  namespace operations_research
 
