@@ -94,16 +94,15 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
         }
       }
     }
-    for (int v = 0; v < size_vehicles; ++v) {
-      bool sticked = false;
-      if (sticky_vehicle.size() > 0) {
-        for (int64 sticky : sticky_vehicle) {
-          if (v == sticky || sticky == -1)
-            sticked = true;
-        }
-      }
-      if (!sticked) {
-        routing.VehicleVar(index)->RemoveValue(v);
+    if (sticky_vehicle.size() > 0) {
+      std::vector<int64> vehicle_indices;
+      std::vector<int64> vehicle_intersection;
+      std::vector<int64> vehicle_difference;
+      for (int v = 0; v < size_vehicles; ++v) vehicle_indices.push_back(v);
+      std::set_intersection(vehicle_indices.begin(), vehicle_indices.end(), sticky_vehicle.begin(), sticky_vehicle.end(), std::back_inserter(vehicle_intersection));
+      std::set_difference(vehicle_indices.begin(), vehicle_indices.end(), vehicle_intersection.begin(), vehicle_intersection.end(), std::back_inserter(vehicle_difference));
+      if (vehicle_difference.size() > 0) {
+        for (int64 remove : vehicle_difference) routing.VehicleVar(index)->RemoveValue(remove);
       }
     }
 
