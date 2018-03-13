@@ -197,7 +197,7 @@ bool RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver
   return routing.RoutesToAssignment(routes, true, false, assignment);
 }
 
-void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment) {
+void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment, bool &has_overall_duration) {
 
   const int size_vehicles = data.Vehicles().size();
 
@@ -427,6 +427,7 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       case VehicleGroupDuration:
         {
           if (relation->lapse > -1){
+            has_overall_duration = true;
             std::vector<IntVar*> same_vehicle_vars;
             for (int link_index = 0 ; link_index < relation->linked_vehicles_ids->size(); ++link_index) {
               current_index = data.IdIndex(relation->linked_vehicles_ids->at(link_index));
@@ -460,6 +461,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   const int size_mtws = data.TwiceTWsCounter();
   bool has_lateness = false;
   bool has_route_duration = false;
+  bool has_overall_duration = false;
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
   for(int v = 0; v < size_vehicles; ++v) {
@@ -676,7 +678,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   // Setting visit time windows
   TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
-  RelationBuilder(data, routing, solver, size, assignment);
+  RelationBuilder(data, routing, solver, size, assignment, has_overall_duration);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
   // Search strategy
@@ -709,9 +711,15 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   case 5:
     if (FLAGS_debug) std::cout << "Default" << std::endl;
     break;
+  case 6:
+    if (FLAGS_debug) std::cout << "Christofides" << std::endl;
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
+    break;
   default:
-    if (FLAGS_debug) std::cout << "First solution strategy : ";
-    if (shift_preference == ForceStart) {
+    if (has_overall_duration) {
+      if (FLAGS_debug) std::cout << "Christofides" << std::endl;
+      parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
+    } else if (shift_preference == ForceStart) {
       if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     } else if (has_route_duration && size_vehicles == 1) {
