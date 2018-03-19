@@ -198,8 +198,14 @@ bool RouteBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver
 
 void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, Assignment *assignment) {
 
+  const int size_vehicles = data.Vehicles().size();
+
   Solver::IndexEvaluator1 vehicle_evaluator = [&data](int64 index) {
     return data.VehicleDay(index);
+  };
+
+  Solver::IndexEvaluator1 day_to_vehicle_evaluator = [&data](int64 index) {
+    return data.DayIndexToVehicleIndex(index);
   };
 
   Solver::IndexEvaluator1 alternative_vehicle_evaluator = [&data](int64 index) {
@@ -284,10 +290,16 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           current_index = data.IdIndex(relation->linked_ids->at(link_index));
           IntVar *const previous_active_var = routing.ActiveVar(previous_index);
           IntVar *const active_var = routing.ActiveVar(current_index);
+          IntVar *const vehicle_var = routing.VehicleVar(current_index);
 
-          IntExpr *const previous_part = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(previous_index));
-          IntExpr *const next_part = solver->MakeElement(alternative_vehicle_evaluator, routing.VehicleVar(current_index));
-          solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(previous_part, relation->lapse), next_part));
+          IntVar *const previous_part = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(previous_index))->Var();
+          IntVar *const next_part = solver->MakeElement(alternative_vehicle_evaluator, routing.VehicleVar(current_index))->Var();
+
+          IntVar *const NextVehicleIndexVar = solver->MakeElement(day_to_vehicle_evaluator, solver->MakeSum(previous_part, relation->lapse)->Var())->Var();
+          solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
+          IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var);
+
+          solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeProd(vehicle_var, isConstraintActive), solver->MakeProd(NextVehicleIndexVar, isConstraintActive)));
           previous_index = current_index;
         }
         break;
@@ -297,12 +309,17 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           current_index = data.IdIndex(relation->linked_ids->at(link_index));
           IntVar *const previous_active_var = routing.ActiveVar(previous_index);
           IntVar *const active_var = routing.ActiveVar(current_index);
+          IntVar *const vehicle_var = routing.VehicleVar(current_index);
+          IntVar *const previous_vehicle_var = routing.VehicleVar(previous_index);
 
           IntExpr *const previous_part = solver->MakeElement(alternative_vehicle_evaluator, routing.VehicleVar(previous_index));
           IntExpr *const next_part = solver->MakeElement(vehicle_evaluator, routing.VehicleVar(current_index));
 
-          solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeDifference(next_part, previous_part), relation->lapse));
-          previous_index = current_index;
+          IntVar *const NextVehicleIndexVar = solver->MakeElement(day_to_vehicle_evaluator, solver->MakeSum(previous_part, relation->lapse)->Var())->Var();
+          solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
+          IntExpr *const isConstraintActive = solver->MakeProd(previous_active_var, active_var);
+          solver->AddConstraint(solver->MakeGreaterOrEqual(solver->MakeProd(vehicle_var, isConstraintActive), solver->MakeProd(previous_vehicle_var, isConstraintActive)));
+          solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeProd(vehicle_var, isConstraintActive), solver->MakeProd(NextVehicleIndexVar, isConstraintActive)));
         }
         break;
       case Shipment:

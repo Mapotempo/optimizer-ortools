@@ -140,6 +140,13 @@ public:
       return -1;
   }
 
+  int64 DayIndexToVehicleIndex(int64 day_index) const {
+    if (day_index_to_vehicle_index_.count(day_index)) {
+      return day_index_to_vehicle_index_.at(day_index);
+    }
+    return CUSTOM_MAX_INT;
+  }
+
   std::string ServiceId(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].customer_id;
   }
@@ -522,6 +529,7 @@ private:
   int64 deliveries_counter_;
   int64 multiple_tws_counter_;
   std::map<std::string, int64> ids_map_;
+  std::map<int64, int64> day_index_to_vehicle_index_;
 };
 
 void TSPTWDataDT::LoadInstance(const std::string & filename) {
@@ -694,7 +702,9 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
   }
 
+  int64 current_day_index = 0;
   int v_idx = 0;
+  day_index_to_vehicle_index_[0] = v_idx;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     Vehicle* v = new Vehicle(this, size_);
     // Every vehicle has its own matrix definition
@@ -746,6 +756,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
     tsptw_vehicles_.push_back(v);
     ids_map_[(std::string)vehicle.id()] = v_idx;
+    if (current_day_index < vehicle.day_index()) {
+      do {
+        ++current_day_index;
+        day_index_to_vehicle_index_[current_day_index] = v_idx;
+      } while (current_day_index < vehicle.day_index());
+    }
     v_idx++;
   }
 
