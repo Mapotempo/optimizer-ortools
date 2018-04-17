@@ -147,12 +147,21 @@ public:
     return CUSTOM_MAX_INT;
   }
 
+  int32 AlternativeSize(int32 problem_index) const {
+    if (alternative_size_map_.count(problem_index)) return alternative_size_map_.at(problem_index);
+    return -1;
+  }
+
   std::string ServiceId(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].customer_id;
   }
 
   int32 ProblemIndex(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].problem_index;
+  }
+
+  int32 AlternativeIndex(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].alternative_index;
   }
 
   std::vector<int64> ReadyTime(RoutingModel::NodeIndex i) const {
@@ -205,6 +214,10 @@ public:
 
   int32 SizeMatrix() const {
     return size_matrix_;
+  }
+
+  int32 SizeProblem() const {
+    return size_problem_;
   }
 
   int32 SizeRest() const {
@@ -462,19 +475,20 @@ private:
   struct TSPTWClient {
     // Depot definition
     TSPTWClient(std::string cust_id, int32 m_i, int32 p_i):
-    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(0), is_break(false){
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), alternative_index(0), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(0), is_break(false){
     }
     // Mission definition
-    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q):
-    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c), refill_quantities(r_q), is_break(false){
+    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, int32 a_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q):
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), alternative_index(a_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c), refill_quantities(r_q), is_break(false){
     }
     // Rests definition
-    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, int64 e_c, bool i_b):
-    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0), setup_time(0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities({}), setup_quantities({}), exclusion_cost(e_c), refill_quantities({}), is_break(i_b){
+    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, int32 a_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, int64 e_c, bool i_b):
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), alternative_index(a_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0), setup_time(0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities({}), setup_quantities({}), exclusion_cost(e_c), refill_quantities({}), is_break(i_b){
     }
     std::string customer_id;
     int32 matrix_index;
     int32 problem_index;
+    int32 alternative_index;
     std::vector<int64> ready_time;
     std::vector<int64> due_time;
     int64 service_time;
@@ -494,10 +508,12 @@ private:
   int32 size_missions_;
   int32 size_matrix_;
   int32 size_rest_;
+  int32 size_problem_;
   std::vector<int32> tws_size_;
   std::vector<Vehicle*> tsptw_vehicles_;
   std::vector<Relation*> tsptw_relations_;
   std::vector<TSPTWClient> tsptw_clients_;
+  std::map<int32, int32> alternative_size_map_;
   std::vector<Route*> tsptw_routes_;
   std::vector<CompleteGraphArcCost*> distances_matrices_;
   std::vector<CompleteGraphArcCost*> times_matrices_;
@@ -539,8 +555,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   deliveries_counter_ = 0;
   int32 matrix_index = 0;
   order_counter_ = 0;
+  size_problem_ = 0;
   std::vector<int64> matrix_indices;
   for (const ortools_vrp::Service& service: problem.services()) {
+    if (!alternative_size_map_.count(service.problem_index())) alternative_size_map_[service.problem_index()] = 0;
     const int32 tws_size = service.time_windows_size();
     tws_size_.push_back(tws_size);
     std::vector<const ortools_vrp::TimeWindow*> timewindows;
@@ -596,9 +614,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
           end.push_back(timewindows[timewindow_index]->end());
         else
           end.push_back(CUSTOM_MAX_INT);
+        size_problem_ = std::max(size_problem_, service.problem_index());
         tsptw_clients_.push_back(TSPTWClient((std::string)service.id(),
                                            matrix_index,
                                            service.problem_index(),
+                                           alternative_size_map_[service.problem_index()],
                                            start,
                                            end,
                                            service.duration(),
@@ -611,15 +631,18 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            s_q,
                                            service.exclusion_cost(),
                                            r_q));
+        alternative_size_map_[service.problem_index()] += 1;
         ids_map_[(std::string)service.id()] = node_index;
         node_index++;
         ++timewindow_index;
       } while (timewindow_index < service.time_windows_size());
     } else {
       matrix_indices.push_back(service.matrix_index());
+      size_problem_ = std::max(size_problem_, service.problem_index());
       tsptw_clients_.push_back(TSPTWClient((std::string)service.id(),
                                          matrix_index,
                                          service.problem_index(),
+                                         alternative_size_map_[service.problem_index()],
                                          ready_time,
                                          due_time,
                                          service.duration(),
@@ -632,6 +655,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          s_q,
                                          service.exclusion_cost(),
                                          r_q));
+      alternative_size_map_[service.problem_index()] += 1;
       ids_map_[(std::string)service.id()] = node_index;
       node_index++;
     }
@@ -768,8 +792,10 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
   int v_index = 0;
   int re_index = 0;
+  int32 problem_rest_index = size_problem_ + 1;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     for (const ortools_vrp::Rest& rest: vehicle.rests()) {
+      if (!alternative_size_map_.count(problem_rest_index)) alternative_size_map_[problem_rest_index] = 0;
       const int32 tws_size = rest.time_windows_size();
       tws_size_.push_back(tws_size);
       std::vector<const ortools_vrp::TimeWindow*> timewindows;
@@ -794,7 +820,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
       tsptw_clients_.push_back(TSPTWClient((std::string)rest.id(),
                                          size_matrix_,
-                                         node_index,
+                                         problem_rest_index,
+                                         alternative_size_map_[problem_rest_index],
                                          ready_time,
                                          due_time,
                                          rest.duration(),
@@ -804,7 +831,9 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          -1,
                                          true));
       ids_map_[(std::string)rest.id()] = node_index;
+      alternative_size_map_[problem_rest_index] += 1;
       ++node_index;
+      ++problem_rest_index;
     }
     ++v_index;
   }

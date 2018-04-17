@@ -8,6 +8,7 @@ message Activity {
   repeated float quantities = 2;
   int32 start_time = 3;
   string type = 4;
+  int32 alternative = 5;
 }
 
 message Route {

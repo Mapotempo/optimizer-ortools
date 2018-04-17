@@ -49,10 +49,12 @@ bool CheckOverflow(int64 a, int64 b) {
   return false;
 }
 
-void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start, bool loop_route, bool unique_configuration) {
+void MissionsBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, int64 size, int64 min_start, bool loop_route, bool unique_configuration) {
   const int size_vehicles = data.Vehicles().size();
   const int size_matrix = data.SizeMatrix();
   const int size_rests = data.SizeRest();
+  const int size_problem = data.SizeProblem();
+
   int64 max_time = (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
   int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
   int64 max_value = 2 * data.MaxValue() * data.MaxValueCost();
@@ -65,91 +67,64 @@ void TWBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *solver, i
   RoutingModel::NodeIndex i(0);
   int32 tw_index = 0;
   int64 disjunction_cost = !overflow_danger && !CheckOverflow(data_verif, size)? data_verif : std::pow(2, 52);
-  for (int activity = 0; activity < size_matrix - 2 + size_rests; ++activity) {
-    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>(1);
-    int64 priority = 4;
 
-    priority = data.Priority(i);
+  for (int activity = 0; activity <= size_problem + size_rests; ++activity) {
+    std::vector<RoutingModel::NodeIndex> *vect = new std::vector<RoutingModel::NodeIndex>();
+    int32 alternative_size = data.AlternativeSize(activity);
+
+    int64 priority = data.Priority(i);
     int64 exclusion_cost = data.ExclusionCost(i);
 
-    int64 index = routing.NodeToIndex(i);
-    std::vector<int64> ready = data.ReadyTime(i);
-    std::vector<int64> due = data.DueTime(i);
+    for (int alternative = 0; alternative < alternative_size; ++alternative) {
+      vect->push_back(i);
+      int64 index = routing.NodeToIndex(i);
+      std::vector<int64> ready = data.ReadyTime(i);
+      std::vector<int64> due = data.DueTime(i);
 
-    IntVar* cumul_var = routing.CumulVar(index, "time");
-    int64 const late_multiplier = data.LateMultiplier(i);
-    std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
-    std::string service_id = data.ServiceId(i);
-    if (ready.size() > 0 && (ready.at(0) > -CUSTOM_MAX_INT || due.at(due.size()- 1) < CUSTOM_MAX_INT)) {
-      if (FLAGS_debug) {
-        std::cout << "Node " << i << " index " << index << " [" << (ready.at(0) - min_start) << " : " << (due.at(due.size()- 1) - min_start) << "]:" << data.ServiceTime(i) << std::endl;
-      }
-      if (ready.at(0) > -CUSTOM_MAX_INT) {
-        cumul_var->SetMin(ready.at(0));
-      }
-      if (due.at(due.size()- 1) < CUSTOM_MAX_INT) {
-        if (late_multiplier > 0) {
-          routing.SetCumulVarSoftUpperBound(i, "time", due.at(due.size()- 1), late_multiplier);
-        } else {
-          cumul_var->SetMax(due.at(due.size()- 1));
+      IntVar* cumul_var = routing.CumulVar(index, "time");
+      int64 const late_multiplier = data.LateMultiplier(i);
+      std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
+      std::string service_id = data.ServiceId(i);
+      if (ready.size() > 0 && (ready.at(0) > -CUSTOM_MAX_INT || due.at(due.size()- 1) < CUSTOM_MAX_INT)) {
+        if (FLAGS_debug) {
+          std::cout << "Node " << i << " index " << index << " [" << (ready.at(0) - min_start) << " : " << (due.at(due.size()- 1) - min_start) << "]:" << data.ServiceTime(i) << std::endl;
         }
-      }
-    }
-    if (sticky_vehicle.size() > 0) {
-      std::vector<int64> vehicle_indices;
-      std::vector<int64> vehicle_intersection;
-      std::vector<int64> vehicle_difference;
-      for (int v = 0; v < size_vehicles; ++v) vehicle_indices.push_back(v);
-      std::set_intersection(vehicle_indices.begin(), vehicle_indices.end(), sticky_vehicle.begin(), sticky_vehicle.end(), std::back_inserter(vehicle_intersection));
-      std::set_difference(vehicle_indices.begin(), vehicle_indices.end(), vehicle_intersection.begin(), vehicle_intersection.end(), std::back_inserter(vehicle_difference));
-      if (vehicle_difference.size() > 0) {
-        for (int64 remove : vehicle_difference) routing.VehicleVar(index)->RemoveValue(remove);
-      }
-    }
-
-    std::vector<bool> refill_quantities = data.RefillQuantities(i);
-    for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
-      RoutingDimension* quantity_dimension = routing.GetMutableDimension("quantity" + std::to_string(q));
-      if (!refill_quantities.at(q)) quantity_dimension->SlackVar(index)->SetValue(0);
-      routing.AddVariableMinimizedByFinalizer(quantity_dimension->CumulVar(index));
-    }
-    (*vect)[0] = i;
-    if (late_multiplier > 0) {
-      ++i;
-      ready = data.ReadyTime(i);
-      due = data.DueTime(i);
-      while (data.ServiceId(i) == service_id) {
-        index = routing.NodeToIndex(i);
-        cumul_var = routing.CumulVar(index, "time");
         if (ready.at(0) > -CUSTOM_MAX_INT) {
           cumul_var->SetMin(ready.at(0));
         }
         if (due.at(due.size()- 1) < CUSTOM_MAX_INT) {
-          routing.SetCumulVarSoftUpperBound(i, "time", due.at(due.size()- 1), late_multiplier);
-        }
-        if (sticky_vehicle.size() > 0) {
-          for (int v = 0; v < size_vehicles; ++v) {
-            bool sticked = false;
-            for (int64 sticky : sticky_vehicle) {
-              if (v == sticky)
-                sticked = true;
-            }
-            if (!sticked) {
-              routing.VehicleVar(index)->RemoveValue(v);
+          if (late_multiplier > 0) {
+            routing.SetCumulVarSoftUpperBound(i, "time", due.at(due.size()- 1), late_multiplier);
+          } else {
+            cumul_var->SetMax(due.at(due.size()- 1));
+            if (due.size() > 1) {
+              for (tw_index = due.size() - 1; tw_index--; ) {
+                cumul_var->RemoveInterval(due.at(tw_index), ready.at(tw_index + 1));
+              }
             }
           }
         }
-        vect->push_back(i);
-        ++i;
-        ready = data.ReadyTime(i);
-        due = data.DueTime(i);
       }
-    } else if (due.size() > 1) {
-      for (tw_index = due.size() - 1; tw_index--; ) {
-        cumul_var->RemoveInterval(due.at(tw_index), ready.at(tw_index + 1));
+
+      if (sticky_vehicle.size() > 0) {
+        std::vector<int64> vehicle_indices;
+        std::vector<int64> vehicle_intersection;
+        std::vector<int64> vehicle_difference;
+        for (int v = 0; v < size_vehicles; ++v) vehicle_indices.push_back(v);
+        std::set_intersection(vehicle_indices.begin(), vehicle_indices.end(), sticky_vehicle.begin(), sticky_vehicle.end(), std::back_inserter(vehicle_intersection));
+        std::set_difference(vehicle_indices.begin(), vehicle_indices.end(), vehicle_intersection.begin(), vehicle_intersection.end(), std::back_inserter(vehicle_difference));
+        if (vehicle_difference.size() > 0) {
+          for (int64 remove : vehicle_difference) routing.VehicleVar(index)->RemoveValue(remove);
+        }
       }
-      ++i;
-    } else {
+
+      std::vector<bool> refill_quantities = data.RefillQuantities(i);
+      for (int64 q = 0 ; q < data.Quantities(i).size(); ++q) {
+        RoutingDimension* quantity_dimension = routing.GetMutableDimension("quantity" + std::to_string(q));
+        if (!refill_quantities.at(q)) quantity_dimension->SlackVar(index)->SetValue(0);
+        routing.AddVariableMinimizedByFinalizer(quantity_dimension->CumulVar(index));
+      }
+
       ++i;
     }
 
@@ -677,7 +652,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
 
   // Setting visit time windows
-  TWBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
+  MissionsBuilder(data, routing, solver, size - 2, min_start, loop_route, unique_configuration);
   RelationBuilder(data, routing, solver, size, assignment, has_overall_duration);
   RoutingSearchParameters parameters = BuildSearchParametersFromFlags();
 
@@ -797,7 +772,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
             activity->set_index(int64 (nodeIndex.value() - size_missions));
           } else {
             activity->set_type("service");
-            activity->set_index(data.MatrixIndex(nodeIndex));
+            activity->set_index(data.ProblemIndex(nodeIndex));
+            activity->set_alternative(data.AlternativeIndex(nodeIndex));
           }
         }
         for (int64 q = 0 ; q < data.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
@@ -808,7 +784,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       }
       ortools_result::Activity* end_activity = route->add_activities();
       RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(routing.End(route_nbr));
-      end_activity->set_index(data.MatrixIndex(nodeIndex));
+      end_activity->set_index(data.ProblemIndex(nodeIndex));
       end_activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
     }

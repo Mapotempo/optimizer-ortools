@@ -212,7 +212,7 @@ class LoggerMonitor : public SearchLimit {
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
             ortools_result::Activity* activity = route->add_activities();
             RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-            activity->set_index(data_.MatrixIndex(nodeIndex));
+            activity->set_index(data_.ProblemIndex(nodeIndex));
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
             else {
@@ -221,7 +221,8 @@ class LoggerMonitor : public SearchLimit {
                 activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
               } else {
                 activity->set_type("service");
-                activity->set_index(data_.MatrixIndex(nodeIndex));
+                activity->set_index(data_.ProblemIndex(nodeIndex));
+                activity->set_alternative(data_.AlternativeIndex(nodeIndex));
                 for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
                   double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
                   activity->add_quantities(exchange/1000.);
@@ -232,7 +233,7 @@ class LoggerMonitor : public SearchLimit {
           }
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(routing_->End(route_nbr));
-          end_activity->set_index(data_.MatrixIndex(nodeIndex));
+          end_activity->set_index(data_.ProblemIndex(nodeIndex));
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
         }
@@ -257,7 +258,7 @@ class LoggerMonitor : public SearchLimit {
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
             ortools_result::Activity* activity = route->add_activities();
             RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
-            activity->set_index(data_.MatrixIndex(nodeIndex));
+            activity->set_index(data_.ProblemIndex(nodeIndex));
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
             else {
@@ -266,7 +267,8 @@ class LoggerMonitor : public SearchLimit {
                 activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
               } else {
                 activity->set_type("service");
-                activity->set_index(data_.MatrixIndex(nodeIndex));
+                activity->set_index(data_.ProblemIndex(nodeIndex));
+                activity->set_alternative(data_.AlternativeIndex(nodeIndex));
               }
               for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
                 double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
@@ -277,7 +279,7 @@ class LoggerMonitor : public SearchLimit {
           }
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(routing_->End(route_nbr));
-          end_activity->set_index(data_.MatrixIndex(nodeIndex));
+          end_activity->set_index(data_.ProblemIndex(nodeIndex));
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
         }
