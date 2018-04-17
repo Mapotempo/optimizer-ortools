@@ -151,6 +151,10 @@ public:
     return tsptw_clients_[i.value()].customer_id;
   }
 
+  int32 ProblemIndex(RoutingModel::NodeIndex i) const {
+    return tsptw_clients_[i.value()].problem_index;
+  }
+
   std::vector<int64> ReadyTime(RoutingModel::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -456,35 +460,21 @@ private:
   void ProcessNewLine(char* const line);
 
   struct TSPTWClient {
-    TSPTWClient(std::string cust_id, int32 m_i):
-    customer_id(cust_id), matrix_index(m_i), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(0), is_break(false){
+    // Depot definition
+    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i):
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time({-CUSTOM_MAX_INT}), due_time({CUSTOM_MAX_INT}), service_time(0.0), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(0), is_break(false){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(0.0), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(0), is_break(false){
+    // Mission definition
+    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q):
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c), refill_quantities(r_q), is_break(false){
     }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(l_m), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m, std::vector<int64>& v_i):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(0.0), priority(4), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(0.0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0.0), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v, double st_t, int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(s_v), setup_time(st_t), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities(q), setup_quantities(s_q), exclusion_cost(e_c), refill_quantities(r_q), is_break(false){
-    }
-    TSPTWClient(std::string cust_id, int32 m_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, int64 e_c, bool i_b):
-    customer_id(cust_id), matrix_index(m_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0), setup_time(0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities({}), setup_quantities({}), exclusion_cost(e_c), refill_quantities({}), is_break(i_b){
+    // Rests definition
+    TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, std::vector<int64> r_t, std::vector<int64> d_t, double s_t, int32 p_t, double l_m, std::vector<int64>& v_i, int64 e_c, bool i_b):
+    customer_id(cust_id), matrix_index(m_i), problem_index(p_i), ready_time(r_t), due_time(d_t), service_time(s_t), service_value(0), setup_time(0), priority(p_t), late_multiplier(l_m), vehicle_indices(v_i), quantities({}), setup_quantities({}), exclusion_cost(e_c), refill_quantities({}), is_break(i_b){
     }
     std::string customer_id;
     int32 matrix_index;
+    int32 problem_index;
     std::vector<int64> ready_time;
     std::vector<int64> due_time;
     int64 service_time;
@@ -543,11 +533,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     }
   }
 
-  int s = 0;
+  int32 node_index = 0;
   tws_counter_ = 0;
   multiple_tws_counter_ = 0;
   deliveries_counter_ = 0;
-  int32 problem_index = 0;
+  int32 matrix_index = 0;
   order_counter_ = 0;
   std::vector<int64> matrix_indices;
   for (const ortools_vrp::Service& service: problem.services()) {
@@ -607,7 +597,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
         else
           end.push_back(CUSTOM_MAX_INT);
         tsptw_clients_.push_back(TSPTWClient((std::string)service.id(),
-                                           problem_index,
+                                           matrix_index,
+                                           service.problem_index(),
                                            start,
                                            end,
                                            service.duration(),
@@ -620,14 +611,15 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            s_q,
                                            service.exclusion_cost(),
                                            r_q));
-        ids_map_[(std::string)service.id()] = s;
-        s++;
+        ids_map_[(std::string)service.id()] = node_index;
+        node_index++;
         ++timewindow_index;
       } while (timewindow_index < service.time_windows_size());
     } else {
       matrix_indices.push_back(service.matrix_index());
       tsptw_clients_.push_back(TSPTWClient((std::string)service.id(),
-                                         problem_index,
+                                         matrix_index,
+                                         service.problem_index(),
                                          ready_time,
                                          due_time,
                                          service.duration(),
@@ -640,23 +632,23 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          s_q,
                                          service.exclusion_cost(),
                                          r_q));
-      ids_map_[(std::string)service.id()] = s;
-      s++;
+      ids_map_[(std::string)service.id()] = node_index;
+      node_index++;
     }
-    ++problem_index;
+    ++matrix_index;
   }
 
   size_rest_ = 0;
   for (const ortools_vrp::Vehicle& vehicle: problem.vehicles()) {
     size_rest_ += vehicle.rests().size();
   }
-  size_matrix_ = problem_index + 2;
+  size_matrix_ = matrix_index + 2;
 
   for (int rest_index = 0; rest_index < size_rest_; ++rest_index) {
     matrix_indices.push_back(size_matrix_);
   }
-  size_missions_ = s;
-  size_ = s + size_rest_ + 2;
+  size_missions_ = node_index;
+  size_ = node_index + size_rest_ + 2;
 
   max_time_ = 0;
   max_distance_ = 0;
@@ -802,6 +794,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
 
       tsptw_clients_.push_back(TSPTWClient((std::string)rest.id(),
                                          size_matrix_,
+                                         node_index,
                                          ready_time,
                                          due_time,
                                          rest.duration(),
@@ -810,25 +803,25 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          v_i,
                                          -1,
                                          true));
-      ids_map_[(std::string)rest.id()] = s;
-      s++;
+      ids_map_[(std::string)rest.id()] = node_index;
+      ++node_index;
     }
     ++v_index;
   }
 
   // Setting start
   for (Vehicle* v: tsptw_vehicles_) {
-    v->start = RoutingModel::NodeIndex(s);
+    v->start = RoutingModel::NodeIndex(node_index);
   }
-  s++;
-  tsptw_clients_.push_back(TSPTWClient("vehicles_start", problem_index));
+  tsptw_clients_.push_back(TSPTWClient("vehicles_start", matrix_index, node_index));
 
+  node_index++;
   // Setting stop
   for (Vehicle* v: tsptw_vehicles_) {
-    v->stop = RoutingModel::NodeIndex(s);
+    v->stop = RoutingModel::NodeIndex(node_index);
   }
-  s++;
-  tsptw_clients_.push_back(TSPTWClient("vehicles_end",  ++problem_index));
+  // node_index++;
+  tsptw_clients_.push_back(TSPTWClient("vehicles_end",  ++matrix_index, node_index));
 
   for (const ortools_vrp::Relation& relation: problem.relations()) {
     std::vector<std::string>* linked_ids = new std::vector<std::string>();
