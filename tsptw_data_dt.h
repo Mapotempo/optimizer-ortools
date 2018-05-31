@@ -682,8 +682,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
   max_value_cost_ = 0;
 
   for (const ortools_vrp::Matrix& matrix: problem.matrices()) {
-
-    int32 problem_size = std::max(std::max(sqrt(matrix.distance_size()), sqrt(matrix.time_size())), sqrt(matrix.value_size())) + (size_rest_ > 0 ? 1 : 0);
+    // + 2 In case vehicles have no depots
+    int32 problem_size = std::max(std::max(sqrt(matrix.distance_size()), sqrt(matrix.time_size())), sqrt(matrix.value_size())) + 2 + (size_rest_ > 0 ? 1 : 0);
     CompleteGraphArcCost* distances = new CompleteGraphArcCost();
     distances->Create(std::max(problem_size, 3));
     CompleteGraphArcCost* times = new CompleteGraphArcCost();
@@ -757,7 +757,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       v->shift_preference = ForceStart;
     else if (vehicle.shift_preference().compare("force_end") == 0)
       v->shift_preference = ForceEnd;
-    else 
+    else
       v->shift_preference = MinimizeSpan;
     v->day_index = vehicle.day_index();
     v->max_ride_time_ = vehicle.max_ride_time();
