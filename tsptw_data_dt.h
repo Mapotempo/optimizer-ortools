@@ -430,15 +430,15 @@ public:
 
   struct Relation {
     Relation(int relation_no):
-        relation_number(relation_no), type(Order), linked_ids(NULL), linked_vehicles_ids(NULL), lapse(-1){}
+        relation_number(relation_no), type(Order), linked_ids(NULL), linked_vehicle_ids(NULL), lapse(-1){}
     Relation(int relation_no, RelationType t, std::vector<std::string>* l_i):
-        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicles_ids(NULL), lapse(-1){}
+        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicle_ids(NULL), lapse(-1){}
     Relation(int relation_no, RelationType t, std::vector<std::string>* l_i, std::vector<std::string>* l_v_i, int32 l):
-        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicles_ids(l_v_i), lapse(l){}
+        relation_number(relation_no), type(t), linked_ids(l_i), linked_vehicle_ids(l_v_i), lapse(l){}
         int relation_number;
         RelationType type;
         std::vector<std::string>* linked_ids;
-        std::vector<std::string>* linked_vehicles_ids;
+        std::vector<std::string>* linked_vehicle_ids;
         int32 lapse;
   };
 
@@ -858,7 +858,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
       linked_ids->push_back(linked_id);
     }
     std::vector<std::string>* linked_v_ids = new std::vector<std::string>();
-    for (const std::string linked_v_id: relation.linked_vehicles_ids()) {
+    for (const std::string linked_v_id: relation.linked_vehicle_ids()) {
       linked_v_ids->push_back(linked_v_id);
     }
 

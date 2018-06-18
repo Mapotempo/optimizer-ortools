@@ -72,7 +72,7 @@ message Relation {
   string type = 1;
   repeated string linked_ids = 2;
   int32 lapse = 3;
-  repeated string linked_vehicles_ids = 4;
+  repeated string linked_vehicle_ids = 4;
 }
 
 message Route {
