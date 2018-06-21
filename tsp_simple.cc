@@ -694,7 +694,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     if (has_overall_duration) {
       if (FLAGS_debug) std::cout << "Christofides" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
-    } else if (shift_preference == ForceStart || ((float)size_mtws)/size_missions > 0.2) {
+    } else if (shift_preference == ForceStart || ((float)size_mtws)/size_missions > 0.2 && size_rest == 0) {
       if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     } else if (has_route_duration && size_vehicles == 1) {
