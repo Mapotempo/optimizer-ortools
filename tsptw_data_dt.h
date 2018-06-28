@@ -309,6 +309,24 @@ public:
         RoutingModel::NodeIndex(vehicle_indices[j.value()]));
     }
 
+    int64 FakeTime(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 || i == Start() && free_approach || j == Stop() && free_return) return 0;
+      if (j.value() >= data->SizeMissions() && j != Stop()) {
+        IntVar* next_var = routing->NextVar(j.value());
+        if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
+          return Time(i, routing->IndexToNode(next_var->Value()));
+        } else {
+          return Time(i, Stop());
+        }
+      }
+      if (i != Start() && j != Stop() && max_ride_time_ > 0 && data->times_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()])) > max_ride_time_) return CUSTOM_MAX_INT;
+      return data->times_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()]));
+    }
+
     int64 Value(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
@@ -351,6 +369,10 @@ public:
     //  This is the quantity added after visiting node "from"
     int64 TimePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
       return Time(from, to) + coef_service * data->ServiceTime(from) + additional_service + (Time(from, to) > 0 ? coef_setup * data->SetupTime(from) + (data->SetupTime(from) > 0 ? additional_setup : 0 ) : 0);
+    }
+
+    int64 FakeTimePlusServiceTime(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
+      return FakeTime(from, to) + coef_service * data->ServiceTime(from) + additional_service + (FakeTime(from, to) > 0 ? coef_setup * data->SetupTime(from) + (data->SetupTime(from) > 0 ? additional_setup : 0 ) : 0);
     }
 
     int64 ValuePlusServiceValue(RoutingModel::NodeIndex from, RoutingModel::NodeIndex to) const {
@@ -408,6 +430,8 @@ public:
     int32 day_index;
     int64 max_ride_time_;
     int64 max_ride_distance_;
+    bool free_approach;
+    bool free_return;
   };
 
   std::vector<Vehicle*> Vehicles() const {
@@ -753,6 +777,8 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->additional_setup = vehicle.additional_setup();
     v->duration = (int64)(vehicle.duration());
     v->distance = vehicle.distance();
+    v->free_approach = vehicle.free_approach();
+    v->free_return = vehicle.free_return();
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;
     else if (vehicle.shift_preference().compare("force_end") == 0)

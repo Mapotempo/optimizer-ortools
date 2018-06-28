@@ -437,6 +437,13 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   bool has_lateness = false;
   bool has_route_duration = false;
   bool has_overall_duration = false;
+  bool free_approach_return = false;
+
+  for (TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
+    if (vehicle->free_approach == true || vehicle->free_return == true) {
+      free_approach_return = true;
+    }
+  }
 
   std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>> *start_ends = new std::vector<std::pair<RoutingModel::NodeIndex, RoutingModel::NodeIndex>>(size_vehicles);
   for(int v = 0; v < size_vehicles; ++v) {
@@ -460,6 +467,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> zero_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> fake_time_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> distance_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> value_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_order_evaluators;
@@ -467,6 +475,9 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   for (TSPTWDataDT::Vehicle* vehicle: data.Vehicles()) {
     zero_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::ReturnZero));
     time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimePlusServiceTime));
+    if (vehicle->free_approach == true || vehicle->free_return == true) {
+      fake_time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::FakeTimePlusServiceTime));  
+    }
     distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::Distance));
     value_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::ValuePlusServiceValue));
     if (FLAGS_nearby) {
@@ -480,6 +491,10 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     routing.AddDimensionWithVehicleTransits(zero_evaluators, LLONG_MAX, LLONG_MAX, true, "distance_balance");
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, horizon, horizon, false, "time");
+
+  if (free_approach_return == true) {
+    routing.AddDimensionWithVehicleTransits(fake_time_evaluators, horizon, horizon, false, "fake_time");
+  }
   routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false, "time_without_wait");
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0,  maximum_route_distance, true, "distance");
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, "value");
@@ -517,7 +532,11 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       routing.GetMutableDimension("time_balance")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_time_multiplier, v);
       routing.GetMutableDimension("distance_balance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     }
-    routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+    if (vehicle->free_approach == true || vehicle->free_return == true) {
+      routing.GetMutableDimension("fake_time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+    } else {
+      routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+    }
     vehicle->routing = &routing;
     routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle((int64)std::max(without_wait_cost, (int64)0), v);
     routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
@@ -582,6 +601,11 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     } else if (FLAGS_balance) {
       routing.AddVariableMinimizedByFinalizer(end_cumul_var);
       routing.AddVariableMaximizedByFinalizer(cumul_var);
+    } else {
+      if (vehicle->free_approach == true) 
+        routing.AddVariableMaximizedByFinalizer(cumul_var);
+      if (vehicle->free_return == true)
+        routing.AddVariableMaximizedByFinalizer(end_cumul_var);
     }
 
     for (int64 i = 0; i < vehicle->capacity.size(); ++i) {
@@ -594,6 +618,17 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
           cumul_var->SetMax(vehicle->capacity[i]);
         }
       }
+    }
+    if (vehicle->free_approach == true) {
+        int64 start_index = routing.Start(v);
+        IntVar *const start_cumul_var = routing.CumulVar(start_index, "fake_time");
+        solver->AddConstraint(solver->MakeGreaterOrEqual(start_cumul_var, solver->MakeDifference(solver->MakeMax(shift_vars), solver->MakeMin(shift_vars))));
+    }
+
+    if (vehicle->free_return == true) {
+        int64 end_index = routing.End(v);
+        IntVar *const end_cumul_var = routing.CumulVar(end_index, "fake_time");
+        solver->AddConstraint(solver->MakeGreaterOrEqual(end_cumul_var, solver->MakeDifference(solver->MakeMax(shift_vars), solver->MakeMin(shift_vars))));
     }
     ++v;
   }

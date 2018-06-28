@@ -66,6 +66,8 @@ message Vehicle {
   float coef_setup = 24;
   int64 additional_service = 25;
   int64 additional_setup = 26;
+  bool free_approach = 27;
+  bool free_return = 28;
 }
 
 message Relation {
