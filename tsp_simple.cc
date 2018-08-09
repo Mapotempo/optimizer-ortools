@@ -476,7 +476,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     zero_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::ReturnZero));
     time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimePlusServiceTime));
     if (vehicle->free_approach == true || vehicle->free_return == true) {
-      fake_time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::FakeTimePlusServiceTime));  
+      fake_time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::FakeTimePlusServiceTime));
     }
     distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::Distance));
     value_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::ValuePlusServiceValue));
@@ -580,7 +580,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         routing.GetMutableDimension("time")->SetEndCumulVarSoftUpperBound(v, vehicle->time_end, coef);
         if (vehicle->shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(end_cumul_var);
-        } 
+        }
       } else {
         end_cumul_var->SetMax(vehicle->time_end);
         if (vehicle->shift_preference == ForceEnd) {
@@ -602,7 +602,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       routing.AddVariableMinimizedByFinalizer(end_cumul_var);
       routing.AddVariableMaximizedByFinalizer(cumul_var);
     } else {
-      if (vehicle->free_approach == true) 
+      if (vehicle->free_approach == true)
         routing.AddVariableMaximizedByFinalizer(cumul_var);
       if (vehicle->free_return == true)
         routing.AddVariableMaximizedByFinalizer(end_cumul_var);
@@ -698,7 +698,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
   if (FLAGS_debug) std::cout << "First solution strategy : ";
   switch (FLAGS_solver_parameter) {
-  case 0: 
+  case 0:
     if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     break;
