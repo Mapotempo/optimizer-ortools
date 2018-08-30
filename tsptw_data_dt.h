@@ -653,7 +653,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            v_i,
                                            q,
                                            s_q,
-                                           service.exclusion_cost(),
+                                           service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000 : -1,
                                            r_q));
         alternative_size_map_[service.problem_index()] += 1;
         ids_map_[(std::string)service.id()] = node_index;
@@ -677,7 +677,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          v_i,
                                          q,
                                          s_q,
-                                         service.exclusion_cost(),
+                                         service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000 : -1,
                                          r_q));
       alternative_size_map_[service.problem_index()] += 1;
       ids_map_[(std::string)service.id()] = node_index;
