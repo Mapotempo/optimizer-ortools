@@ -696,56 +696,56 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
-  if (FLAGS_debug) std::cout << "First solution strategy : ";
+  std::cout << "First solution strategy : ";
   switch (FLAGS_solver_parameter) {
   case 0:
-    if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
+    std::cout << "Path Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     break;
   case 1:
-    if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
+    std::cout << "Global Cheapest Arc" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
     break;
   case 2:
-    if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
+    std::cout << "Local Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
     break;
   case 3:
-    if (FLAGS_debug) std::cout << "Savings" << std::endl;
+    std::cout << "Savings" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
     break;
   case 4:
-    if (FLAGS_debug) std::cout << "Paralell Cheapest Insertion" << std::endl;
+    std::cout << "Paralell Cheapest Insertion" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
     break;
   case 5:
-    if (FLAGS_debug) std::cout << "Default" << std::endl;
+    std::cout << "Default" << std::endl;
     break;
   case 6:
-    if (FLAGS_debug) std::cout << "Christofides" << std::endl;
+    std::cout << "Christofides" << std::endl;
     parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
     break;
   default:
     if (has_overall_duration) {
-      if (FLAGS_debug) std::cout << "Christofides" << std::endl;
+      std::cout << "Christofides" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
     } else if (shift_preference == ForceStart) {
-      if (FLAGS_debug) std::cout << "Path Cheapest Arc" << std::endl;
+      std::cout << "Path Cheapest Arc" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     } else if (loop_route && unique_configuration && (has_route_duration && size_vehicles == 1 || ((float)size_mtws)/size_missions > 0.2 && size_rest == 0)) {
-      if (FLAGS_debug) std::cout << "Global Cheapest Arc" << std::endl;
+      std::cout << "Global Cheapest Arc" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
     } else if (size_rest > 0 && size_vehicles == 1 || data.DeliveriesCounter() > 0 || size_mtws > 0) {
-      if (FLAGS_debug) std::cout << "Local Cheapest Insertion" << std::endl;
+      std::cout << "Local Cheapest Insertion" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_INSERTION);
     } else if (size_rest == 0 && loop_route && unique_configuration && size_vehicles < 10 && !has_route_duration) {
-      if (FLAGS_debug) std::cout << "Savings" << std::endl;
+      std::cout << "Savings" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::SAVINGS);
     } else if (size_rest > 0 || unique_configuration || loop_route) {
-      if (FLAGS_debug) std::cout << "Paralell Cheapest Insertion" << std::endl;
+      std::cout << "Paralell Cheapest Insertion" << std::endl;
       parameters.set_first_solution_strategy(FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
     } else {
-      if (FLAGS_debug) std::cout << "Default" << std::endl;
+      std::cout << "Default" << std::endl;
     }
   }
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ALL_UNPERFORMED);
