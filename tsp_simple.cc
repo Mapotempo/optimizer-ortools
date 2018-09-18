@@ -405,12 +405,12 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
             has_overall_duration = true;
             std::vector<IntVar*> same_vehicle_vars;
             for (int link_index = 0 ; link_index < relation->linked_vehicle_ids->size(); ++link_index) {
-              current_index = data.IdIndex(relation->linked_vehicle_ids->at(link_index));
+              current_index = data.VehicleIdIndex(relation->linked_vehicle_ids->at(link_index));
               int64 start_index = routing.Start(current_index);
               int64 end_index = routing.End(current_index);
               IntVar *const cumul_var = routing.CumulVar(start_index, "time");
               IntVar *const end_cumul_var = routing.CumulVar(end_index, "time");
-              IntVar *const vehicle_time = solver -> MakeDifference(end_cumul_var, cumul_var)->Var();
+              IntVar *const vehicle_time = solver->MakeDifference(end_cumul_var, cumul_var)->Var();
               same_vehicle_vars.push_back(vehicle_time);
             }
             solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(same_vehicle_vars), relation->lapse));

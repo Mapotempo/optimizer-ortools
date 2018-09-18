@@ -140,6 +140,14 @@ public:
       return -1;
   }
 
+  int64 VehicleIdIndex(std::string id) const {
+    std::map<std::string, int64>::const_iterator it = vehicle_ids_map_.find(id);
+    if (it != vehicle_ids_map_.end())
+      return it->second;
+    else
+      return -1;
+  }
+
   int64 DayIndexToVehicleIndex(int64 day_index) const {
     if (day_index_to_vehicle_index_.count(day_index)) {
       return day_index_to_vehicle_index_.at(day_index);
@@ -558,6 +566,7 @@ private:
   int64 deliveries_counter_;
   int64 multiple_tws_counter_;
   std::map<std::string, int64> ids_map_;
+  std::map<std::string, int64> vehicle_ids_map_;
   std::map<int64, int64> day_index_to_vehicle_index_;
 };
 
@@ -795,7 +804,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     max_value_cost_ = std::max(max_value_cost_, v->cost_value_multiplier);
 
     tsptw_vehicles_.push_back(v);
-    ids_map_[(std::string)vehicle.id()] = v_idx;
+    vehicle_ids_map_[(std::string)vehicle.id()] = v_idx;
     if (current_day_index < vehicle.day_index()) {
       do {
         ++current_day_index;
