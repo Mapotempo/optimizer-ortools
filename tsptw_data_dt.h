@@ -879,9 +879,9 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          due_time,
                                          rest.duration(),
                                          0,
-                                         0,
+                                         timewindows.size() > 0 ? (int64)(rest.late_multiplier() * 1000) : 0,
                                          v_i,
-                                         -1,
+                                         rest.exclusion_cost() > 0 ?  rest.exclusion_cost() * 1000 : -1,
                                          true));
       ids_map_[(std::string)rest.id()] = node_index;
       alternative_size_map_[problem_rest_index] += 1;
