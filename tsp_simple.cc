@@ -35,6 +35,7 @@ DEFINE_int64(initial_time_out_no_solution_improvement, -1, "Initial time whitout
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
+DEFINE_bool(only_first_solution, false, "Compute only the first solution");
 DEFINE_bool(balance, false, "Route balancing");
 DEFINE_bool(nearby, false, "Short segment priority");
 DEFINE_bool(debug, false, "debug display");
@@ -561,6 +562,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     used_vehicles.push_back(is_vehicle_used);
     IntVar *const time_difference = solver->MakeDifference(end_cumul_var, cumul_var)->Var();
     shift_vars.push_back(time_difference);
+
     IntVar *const dist_end_cumul_var = routing.CumulVar(end_index, "distance");
     ends_distance_vars.push_back(dist_end_cumul_var);
     // Vehicle maximum distance
@@ -751,14 +753,22 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
 
   // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GREEDY_DESCENT);
-  parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   // parameters.set_guided_local_search_lambda_coefficient(0.5);
   // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::SIMULATED_ANNEALING);
   // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::TABU_SEARCH);
 
+  const Assignment *solution;
   if (FLAGS_time_limit_in_ms > 0) {
     parameters.set_time_limit_ms(FLAGS_time_limit_in_ms);
   }
+
+  if (FLAGS_only_first_solution) {
+    routing.CloseModelWithParameters(parameters);
+    solution = routing.SolveWithParameters(parameters);
+  } else {
+    parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
+  }
+
   routing.CloseModelWithParameters(parameters);
 
   bool build_route = RouteBuilder(data, routing, solver, assignment);
@@ -776,13 +786,13 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     routing.AddSearchMonitor(limit);
   }
 
-  const Assignment *solution;
-  if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
-    solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
-  } else {
-    solution = routing.SolveWithParameters(parameters);
+  if (!FLAGS_only_first_solution) {
+    if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
+      solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
+    } else {
+      solution = routing.SolveWithParameters(parameters);
+    }
   }
-
 
   if (solution != NULL) {
     if (result.routes_size() > 0) result.clear_routes();
