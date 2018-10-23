@@ -469,6 +469,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> fake_time_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> distance_evaluators;
+  std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> fake_distance_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> value_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> time_order_evaluators;
   std::vector<ResultCallback2<long long int, IntType<operations_research::RoutingNodeIndex_tag_, int>, IntType<operations_research::RoutingNodeIndex_tag_, int> >*> distance_order_evaluators;
@@ -477,6 +478,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::TimePlusServiceTime));
     if (vehicle->free_approach == true || vehicle->free_return == true) {
       fake_time_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::FakeTimePlusServiceTime));
+      fake_distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::FakeDistance));
     }
     distance_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::Distance));
     value_evaluators.push_back(NewPermanentCallback(vehicle, &TSPTWDataDT::Vehicle::ValuePlusServiceValue));
@@ -494,6 +496,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   if (free_approach_return == true) {
     routing.AddDimensionWithVehicleTransits(fake_time_evaluators, horizon, horizon, false, "fake_time");
+    routing.AddDimensionWithVehicleTransits(fake_distance_evaluators, horizon, horizon, false, "fake_distance");
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false, "time_without_wait");
   routing.AddDimensionWithVehicleTransits(distance_evaluators, 0,  maximum_route_distance, true, "distance");
@@ -534,12 +537,13 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     }
     if (vehicle->free_approach == true || vehicle->free_return == true) {
       routing.GetMutableDimension("fake_time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+      routing.GetMutableDimension("fake_distance")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_distance_multiplier, v);
     } else {
       routing.GetMutableDimension("time")->SetSpanCostCoefficientForVehicle((int64)vehicle->cost_waiting_time_multiplier, v);
+      routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     }
     vehicle->routing = &routing;
     routing.GetMutableDimension("time_without_wait")->SetSpanCostCoefficientForVehicle((int64)std::max(without_wait_cost, (int64)0), v);
-    routing.GetMutableDimension("distance")->SetSpanCostCoefficientForVehicle(vehicle->cost_distance_multiplier, v);
     routing.GetMutableDimension("value")->SetSpanCostCoefficientForVehicle(vehicle->cost_value_multiplier, v);
     routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
     if (FLAGS_nearby) {
@@ -618,17 +622,6 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
           cumul_var->SetMax(vehicle->capacity[i]);
         }
       }
-    }
-    if (vehicle->free_approach == true) {
-        int64 start_index = routing.Start(v);
-        IntVar *const start_cumul_var = routing.CumulVar(start_index, "fake_time");
-        solver->AddConstraint(solver->MakeGreaterOrEqual(start_cumul_var, solver->MakeDifference(solver->MakeMax(shift_vars), solver->MakeMin(shift_vars))));
-    }
-
-    if (vehicle->free_return == true) {
-        int64 end_index = routing.End(v);
-        IntVar *const end_cumul_var = routing.CumulVar(end_index, "fake_time");
-        solver->AddConstraint(solver->MakeGreaterOrEqual(end_cumul_var, solver->MakeDifference(solver->MakeMax(shift_vars), solver->MakeMin(shift_vars))));
     }
     ++v;
   }

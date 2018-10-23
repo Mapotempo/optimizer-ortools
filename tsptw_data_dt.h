@@ -299,6 +299,24 @@ public:
         RoutingModel::NodeIndex(vehicle_indices[j.value()]));
     }
 
+    int64 FakeDistance(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
+      CheckNodeIsValid(i);
+      CheckNodeIsValid(j);
+      if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 || i == Start() && free_approach || j == Stop() && free_return) return 0;
+      if (j.value() >= data->SizeMissions() && j != Stop()) {
+        IntVar* next_var = routing->NextVar(j.value());
+        if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
+          return Distance(i, routing->IndexToNode(next_var->Value()));
+        } else {
+          return Distance(i, Stop());
+        }
+      }
+      if (i != Start() && j != Stop() && max_ride_distance_ > 0 && data->distances_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()])) > max_ride_distance_) return CUSTOM_MAX_INT;
+      return data->distances_matrices_.at(problem_matrix_index)->Cost(RoutingModel::NodeIndex(vehicle_indices[i.value()]),
+        RoutingModel::NodeIndex(vehicle_indices[j.value()]));
+    }
+
     int64 Time(RoutingModel::NodeIndex i, RoutingModel::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
