@@ -569,7 +569,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       min_start = std::min(min_start, vehicle->time_start);
       cumul_var->SetMin(vehicle->time_start);
       if (vehicle->shift_preference == ForceStart) {
-        cumul_var->SetMax(vehicle->time_start);
+        routing.GetMutableDimension("time")->SetStartCumulVarSoftUpperBound(v, vehicle->time_start, (int64)vehicle->cost_time_multiplier * 100);
         IntVar *const slack_var = routing.SlackVar(start_index, "time");
         routing.AddVariableMinimizedByFinalizer(slack_var);
       }
