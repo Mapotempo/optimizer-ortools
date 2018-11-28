@@ -9,6 +9,7 @@ message Activity {
   int32 start_time = 3;
   string type = 4;
   int32 alternative = 5;
+  int32 current_distance = 6;
 }
 
 message Route {

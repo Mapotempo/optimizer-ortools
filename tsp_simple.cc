@@ -803,6 +803,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         ortools_result::Activity* activity = route->add_activities();
         RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(index);
         activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(index)));
+        activity->set_current_distance(solution->Min(routing.GetMutableDimension("distance")->CumulVar(index)));
         if (previous_index == -1) activity->set_type("start");
         else {
            if (index >= size_missions) {
@@ -824,6 +825,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       RoutingModel::NodeIndex nodeIndex = routing.IndexToNode(routing.End(route_nbr));
       end_activity->set_index(data.ProblemIndex(nodeIndex));
       end_activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(routing.End(route_nbr))));
+      end_activity->set_current_distance(solution->Min(routing.GetMutableDimension("distance")->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
     }
 

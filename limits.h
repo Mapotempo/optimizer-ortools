@@ -214,6 +214,7 @@ class LoggerMonitor : public SearchLimit {
             RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
             activity->set_index(data_.ProblemIndex(nodeIndex));
             activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(index)->Min());
+            activity->set_current_distance(routing_->GetMutableDimension("distance")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
             else {
                if (index >= data_.SizeMissions()) {
@@ -235,6 +236,7 @@ class LoggerMonitor : public SearchLimit {
           RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(routing_->End(route_nbr));
           end_activity->set_index(data_.ProblemIndex(nodeIndex));
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
+          end_activity->set_current_distance(routing_->GetMutableDimension("distance")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
         }
         std::fstream output(filename_, std::ios::out | std::ios::trunc | std::ios::binary);
