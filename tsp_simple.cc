@@ -763,10 +763,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
 
   if (FLAGS_only_first_solution) {
-    routing.CloseModelWithParameters(parameters);
-    solution = routing.SolveWithParameters(parameters);
-  } else {
-    parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
+    parameters.set_solution_limit(1);
   }
 
   routing.CloseModelWithParameters(parameters);
@@ -786,12 +783,10 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     routing.AddSearchMonitor(limit);
   }
 
-  if (!FLAGS_only_first_solution) {
-    if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
-      solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
-    } else {
-      solution = routing.SolveWithParameters(parameters);
-    }
+  if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
+    solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
+  } else {
+    solution = routing.SolveWithParameters(parameters);
   }
 
   if (solution != NULL) {
