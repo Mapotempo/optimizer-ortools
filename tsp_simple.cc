@@ -786,8 +786,10 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   }
 
   if ((data.Routes().size() > 0 && build_route || data.OrderCounter() == 1) && routing.solver()->CheckAssignment(assignment)) {
+    std::cout << "Initial solution used" << std::endl;
     solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
   } else {
+    std::cout << "No initial solution used" << std::endl;
     solution = routing.SolveWithParameters(parameters);
   }
 
