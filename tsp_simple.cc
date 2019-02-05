@@ -764,6 +764,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   if (FLAGS_only_first_solution) {
     parameters.set_solution_limit(1);
+  } else {
+    parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   }
 
   routing.CloseModelWithParameters(parameters);
