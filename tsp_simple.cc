@@ -235,9 +235,6 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           solver->AddConstraint(solver->MakeEquality(solver->MakeProd(isConstraintActive, previous_vehicle_var),
                                                      solver->MakeProd(isConstraintActive, vehicle_var)));
 
-          solver->AddConstraint(
-            solver->MakeLessOrEqual(routing.GetMutableDimension("time")->CumulVar(previous_index),
-                                    routing.GetMutableDimension("time")->CumulVar(current_index)));
           previous_indices.push_back(previous_index);
           previous_index = current_index;
 
