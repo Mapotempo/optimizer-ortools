@@ -80,14 +80,14 @@ class NoImprovementLimit : public SearchLimit {
       }
       best_result_ = objective->Min();
       nbr_solutions_with_no_better_obj_ = 0;
-      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
       if (first_solution_) {
         first_solution_ = false;
       }
       best_result_ = objective->Max();
       nbr_solutions_with_no_better_obj_ = 0;
-      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_ - 1e-6 * (base::GetCurrentTimeNanos() - start_time_), time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
+      if (initial_time_out_ > 0) time_out_ = std::max(initial_time_out_, time_out_coef_ * 1e-6 * (base::GetCurrentTimeNanos() - start_time_));
     }
 
     ++nbr_solutions_with_no_better_obj_;
