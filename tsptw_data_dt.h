@@ -16,7 +16,7 @@
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,30)
 
-enum RelationType { VehicleGroupDuration = 11, ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
+enum RelationType { VehicleTrips = 12, VehicleGroupDuration = 11, ForceLast = 10, ForceFirst = 9, NeverFirst = 8, MaximumDurationLapse = 7, MeetUp = 6, Shipment = 5, MaximumDayLapse = 4, MinimumDayLapse = 3, SameRoute = 2, Order = 1, Sequence = 0 };
 enum ShiftPref { ForceStart = 2, ForceEnd = 1, MinimizeSpan = 0 };
 
 namespace operations_research {
@@ -931,6 +931,7 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     else if (relation.type() == "never_first") type = NeverFirst;
     else if (relation.type() == "force_end") type = ForceLast;
     else if (relation.type() == "vehicle_group_duration") type = VehicleGroupDuration;
+    else if (relation.type() == "vehicle_trips") type = VehicleTrips;
 
     tsptw_relations_.push_back(new Relation(re_index,
                                         type,
