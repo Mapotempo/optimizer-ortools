@@ -415,6 +415,23 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
           }
         }
         break;
+      case VehicleTrips:
+        {
+          if (relation->linked_vehicle_ids->size() > 1) {
+            int current_vehicle_index;
+            int previous_vehicle_index = data.VehicleIdIndex(relation->linked_vehicle_ids->at(0));
+            for (int link_index = 1 ; link_index < relation->linked_vehicle_ids->size(); ++link_index) {
+              current_vehicle_index = data.VehicleIdIndex(relation->linked_vehicle_ids->at(link_index));
+              int64 current_start_index = routing.Start(current_vehicle_index);
+              int64 previous_end_index = routing.End(previous_vehicle_index);
+              IntVar *const current_cumul_var = routing.CumulVar(current_start_index, "time");
+              IntVar *const previous_end_cumul_var = routing.CumulVar(previous_end_index, "time");
+              solver->AddConstraint(solver->MakeLessOrEqual(previous_end_cumul_var, current_cumul_var));
+              previous_vehicle_index = current_vehicle_index;
+            }
+          }
+        }
+        break;
       default:
         break;
     }
