@@ -14,7 +14,7 @@ message TimeWindow {
 
 message Service {
   repeated TimeWindow time_windows = 1;
-  repeated int32 quantities = 2;
+  repeated int64 quantities = 2;
   uint32 duration = 3;
   uint32 priority = 4;
   repeated int32 vehicle_indices = 5;
@@ -38,7 +38,7 @@ message Rest {
 }
 
 message Capacity {
-  int32 limit = 1;
+  int64 limit = 1;
   float overload_multiplier = 2;
   bool counting = 3;
 }
