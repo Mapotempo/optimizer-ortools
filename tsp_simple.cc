@@ -831,7 +831,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         }
         for (int64 q = 0 ; q < data.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
           double exchange = solution->Min(routing.CumulVar(solution->Value(routing.NextVar(index)), "quantity" + std::to_string(q)));
-          activity->add_quantities(exchange/1000.);
+          activity->add_quantities(exchange);
         }
         previous_index = index;
       }

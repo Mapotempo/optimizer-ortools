@@ -17,7 +17,7 @@ message Route {
 }
 
 message Result {
-  int64 cost = 1;
+  float cost = 1;
   float duration = 2;
   int32 iterations = 3;
   repeated Route routes = 4;

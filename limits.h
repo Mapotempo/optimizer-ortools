@@ -206,7 +206,7 @@ class LoggerMonitor : public SearchLimit {
       best_result_ = objective->Min();
       if (intermediate_) {
         if (result_->routes_size() > 0) result_->clear_routes();
-        result_->set_cost((int64)(best_result_ / 1000.0));
+        result_->set_cost(best_result_ / 1000.0);
         result_->set_iterations(iteration_counter_);
         int current_break = 0;
 
@@ -231,7 +231,7 @@ class LoggerMonitor : public SearchLimit {
                 activity->set_alternative(data_.AlternativeIndex(nodeIndex));
                 for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
                   double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
-                  activity->add_quantities(exchange/1000.);
+                  activity->add_quantities(exchange);
                 }
               }
             }
@@ -250,7 +250,7 @@ class LoggerMonitor : public SearchLimit {
           return false;
         }
         output.close();
-        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       }
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
@@ -279,7 +279,7 @@ class LoggerMonitor : public SearchLimit {
               }
               for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
                 double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
-                activity->add_quantities(exchange/1000.);
+                activity->add_quantities(exchange);
               }
             }
             previous_index = index;
@@ -296,7 +296,7 @@ class LoggerMonitor : public SearchLimit {
           return false;
         }
         output.close();
-        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       }
       new_best = true;
     }
@@ -353,7 +353,7 @@ class LoggerMonitor : public SearchLimit {
   }
 
   void GetFinalLog() {
-    std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << (int64)(best_result_ / 1000.0) << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+    std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   }
 
   private:
