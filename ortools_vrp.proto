@@ -1,6 +1,8 @@
 syntax = "proto3";
 package ortools_vrp;
 
+option optimize_for = SPEED;
+
 message Matrix {
   repeated float time = 2 [packed=true];
   repeated float distance = 3 [packed=true];

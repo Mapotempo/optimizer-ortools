@@ -57,7 +57,7 @@ public:
       CreateMatrix(size_);
     }
   }
-  
+
   int32 Size() const {
     return size_;
   }
@@ -82,22 +82,22 @@ public:
     ComputeExtremeDistance();
     ComputeIsSymmetric();
   }
-  
-  int64 Cost(RoutingModel::NodeIndex from,
-                   RoutingModel::NodeIndex to) const {
+
+  int64 Cost(RoutingIndexManager::NodeIndex from,
+                   RoutingIndexManager::NodeIndex to) const {
     return matrix_[MatrixIndex(from, to)];
   }
 
-  int64& Cost(RoutingModel::NodeIndex from,
-                   RoutingModel::NodeIndex to) {
+  int64& Cost(RoutingIndexManager::NodeIndex from,
+                   RoutingIndexManager::NodeIndex to) {
     return matrix_[MatrixIndex(from, to)];
   }
-  
+
   int64 MaxCost() const {
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     return max_cost_;
   }
-  
+
   int64 MinCost() const {
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     return min_cost_;
@@ -108,12 +108,12 @@ public:
     return is_symmetric_;
   }
 
- 
+
   void Print(std::ostream & out, const bool label = false, const int width = FLAGS_width_size) const;
 
 private:
-  int64 MatrixIndex(RoutingModel::NodeIndex from,
-                    RoutingModel::NodeIndex to) const {
+  int64 MatrixIndex(RoutingIndexManager::NodeIndex from,
+                    RoutingIndexManager::NodeIndex to) const {
     return (from * size_ + to).value();
   }
 
@@ -140,18 +140,18 @@ private:
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     min_cost_ = kPostiveInfinityInt64;
     max_cost_ = -1;
-    for (RoutingModel::NodeIndex i(0); i < size_; ++i) {
-      for (RoutingModel::NodeIndex j(0); j < size_; ++j) {
+    for (RoutingIndexManager::NodeIndex i(0); i < size_; ++i) {
+      for (RoutingIndexManager::NodeIndex j(0); j < size_; ++j) {
         if (i == j) {continue;}
         UpdateExtremeDistance(Cost(i,j));
       }
     }
   }
-  
+
   bool ComputeIsSymmetric() {
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
-    for (RoutingModel::NodeIndex i(0); i < Size(); ++i) {
-      for (RoutingModel::NodeIndex j(i + 1); j < Size(); ++j) {
+    for (RoutingIndexManager::NodeIndex i(0); i < Size(); ++i) {
+      for (RoutingIndexManager::NodeIndex j(i + 1); j < Size(); ++j) {
         if (matrix_[MatrixIndex(i,j)] != matrix_[MatrixIndex(j,i)]) {
           return false;
         }
@@ -160,13 +160,13 @@ private:
 
     return true;
   }
-  
+
   int32 size_;
   //scoped_array<int64> matrix_;
   std::unique_ptr<int64[]> matrix_;
-  
-  
-  
+
+
+
   bool is_created_;
   bool is_instanciated_;
   bool is_symmetric_;
@@ -180,19 +180,19 @@ void CompleteGraphArcCost::Print(std::ostream& out, const bool label, const int 
   out.width(width);
   if (label) {
     out << std::left << " ";
-    for (RoutingModel::NodeIndex to = RoutingModel::kFirstNode; to < size_; ++to) {
+    for (RoutingIndexManager::NodeIndex to(0); to < size_; ++to) {
       out.width(width);
       out << std::right << to.value() + 1 ;
     }
     out << std::endl;
   }
   //  fill
-  for (RoutingModel::NodeIndex from = RoutingModel::kFirstNode; from < size_; ++from) {
+  for (RoutingIndexManager::NodeIndex from(0); from < size_; ++from) {
     if (label) {
       out.width(width);
       out << std::right << from.value() + 1;
     }
-    for (RoutingModel::NodeIndex to = RoutingModel::kFirstNode; to < size_; ++to) {
+    for (RoutingIndexManager::NodeIndex to(0); to < size_; ++to) {
       out.width(width);
       out << std::right << matrix_[MatrixIndex(from, to)];
     }

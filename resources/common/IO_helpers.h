@@ -28,7 +28,8 @@ template <typename T>
 class WriteToFile {
 public:
   typedef void (T::*MemberSignature)(std::ostream &) const;
-  WriteToFile(const T * t, const std::string & filename) : t_(t), filename_(filename), member_(NULL) {};
+  WriteToFile(const T * t, const std::string & filename)
+      : t_(t), filename_(filename), member_(NULL) {};
   void SetMember(MemberSignature m) {
     member_ = m;
   }
@@ -50,7 +51,8 @@ template <typename T, typename P1>
 class WriteToFileP1 {
 public:
   typedef void (T::*MemberSignature)(std::ostream &, const P1 &) const;
-  WriteToFileP1(const T * t, const std::string & filename) : t_(t), filename_(filename), member_(NULL) {};
+  WriteToFileP1(const T * t, const std::string & filename)
+      : t_(t), filename_(filename), member_(NULL) {};
   void SetMember(MemberSignature m) {
     member_ = m;
   }
@@ -84,7 +86,7 @@ public:
       line << " on line " << line_number;
     }
     line << std::endl;
-    for (int i = 0; i < streams_.size(); ++i) {
+    for (std::size_t i = 0; i < streams_.size(); ++i) {
       (*streams_[i]) << line.str();
     }
     LOG(FATAL) << msg << ": \"" << wrong_keyword << "\" on line " << line_number;
