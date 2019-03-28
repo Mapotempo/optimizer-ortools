@@ -6,6 +6,9 @@ TUTORIAL=resources
 
 include $(OR_TOOLS_TOP)/Makefile
 
+# For debugging uncomment the next line. -isystem prevents warnings rooted in or-tools library appearing in our compilation
+# CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_SOURCES)/gen -isystem$(OR_TOOLS_TOP)/dependencies/install/include -isystem$(OR_TOOLS_TOP)/dependencies/install/include/coin -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP
+
 .PHONY: all local_clean
 
 all: $(EXE)
@@ -33,8 +36,7 @@ tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(
 	-o tsp_simple
 
 local_clean:
-	rm -f *.pb.cc *.pb.h
-	rm *.o
+	rm -f *.pb.cc *.pb.h *.o
 
 mrproper: local_clean
-	rm tsp_simple
+	rm -f tsp_simple

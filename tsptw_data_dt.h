@@ -5,14 +5,14 @@
 #include <iomanip>
 #include <vector>
 
+#include "ortools_vrp.pb.h"
+
+#include "routing_common/routing_common.h"
+
 #include "ortools/constraint_solver/routing.h"
 #include "ortools/base/filelinereader.h"
 #include "ortools/base/split.h"
 #include "ortools/base/strtoint.h"
-
-
-#include "ortools_vrp.pb.h"
-#include "routing_common/routing_common.h"
 
 #define CUSTOM_MAX_INT (int64)std::pow(2,30)
 

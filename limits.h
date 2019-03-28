@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <vector>
 
+#include "ortools_result.pb.h"
+
+#include "tsptw_data_dt.h"
+
 #include "ortools/base/bitmap.h"
 #include "ortools/base/logging.h"
 #include "ortools/base/file.h"
@@ -19,7 +23,6 @@
 
 #include "ortools/constraint_solver/constraint_solver.h"
 
-#include "ortools_result.pb.h"
 
 namespace operations_research {
 namespace {

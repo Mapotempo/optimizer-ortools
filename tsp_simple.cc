@@ -17,15 +17,13 @@
 //
 #include <iostream>
 
+#include "limits.h"
+
 #include "ortools/base/commandlineflags.h"
 #include "ortools/constraint_solver/routing.h"
 #include "ortools/base/join.h"
 #include "ortools/base/timer.h"
-#include <ortools/base/callback.h>
-
-#include "tsptw_data_dt.h"
-#include "limits.h"
-
+#include "ortools/base/callback.h"
 #include "ortools/constraint_solver/routing.h"
 #include "ortools/constraint_solver/routing_flags.h"
 
@@ -440,7 +438,6 @@ void RelationBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
 }
 
 int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ortools_result::Result result;
 
@@ -867,6 +864,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 } // namespace operations_research
 
 int main(int argc, char **argv) {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   if(FLAGS_time_limit_in_ms > 0 || FLAGS_no_solution_improvement_limit > 0) {
