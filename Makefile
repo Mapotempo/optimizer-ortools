@@ -32,7 +32,7 @@ tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h orto
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
 	$(CCC) $(CFLAGS) -g tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \
-	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lcvrptw_lib -ldimacs -lortools -L $(OR_TOOLS_TOP)/dependencies/install/lib -lprotobuf \
+	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lortools -L $(OR_TOOLS_TOP)/dependencies/install/lib -lprotobuf -lglog -lgflags \
 	-o tsp_simple
 
 local_clean:
