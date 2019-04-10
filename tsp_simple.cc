@@ -27,19 +27,6 @@
 #include "ortools/constraint_solver/routing.h"
 #include "ortools/constraint_solver/routing_flags.h"
 
-DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
-DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
-DEFINE_int64(minimum_duration, -1, "Initial time whitout improvement in ms");
-DEFINE_int64(init_duration, -1, "Maximum duration to find a first solution");
-DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
-DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
-DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
-DEFINE_bool(only_first_solution, false, "Compute only the first solution");
-DEFINE_bool(balance, false, "Route balancing");
-DEFINE_bool(nearby, false, "Short segment priority");
-DEFINE_bool(debug, false, "debug display");
-DEFINE_bool(intermediate_solutions, false, "display intermediate solutions");
-
 
 namespace operations_research {
 
@@ -807,6 +794,9 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
 
   if (solution != NULL) {
     if (result.routes_size() > 0) result.clear_routes();
+
+    double total_time_order_cost(0), total_distance_order_cost(0);
+
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
       ortools_result::Route* route = result.add_routes();
       int previous_index = -1;
@@ -817,7 +807,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
         activity->set_current_distance(solution->Min(routing.GetMutableDimension("distance")->CumulVar(index)));
         if (previous_index == -1) activity->set_type("start");
         else {
-           if (index >= size_missions) {
+          if (index >= size_missions) {
             activity->set_type("break");
             activity->set_index(int64 (nodeIndex.value() - size_missions));
           } else {
@@ -838,10 +828,16 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
       end_activity->set_start_time(solution->Min(routing.GetMutableDimension("time")->CumulVar(routing.End(route_nbr))));
       end_activity->set_current_distance(solution->Min(routing.GetMutableDimension("distance")->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
+      if (FLAGS_nearby) {
+        total_time_order_cost += solution->Min(routing.GetMutableDimension("time_order")->CumulVar(routing.End(route_nbr)))
+                                * routing.GetMutableDimension("time_order")->GetSpanCostCoefficientForVehicle(route_nbr);
+        total_distance_order_cost += solution->Min(routing.GetMutableDimension("distance_order")->CumulVar(routing.End(route_nbr)))
+                                    * routing.GetMutableDimension("distance_order")->GetSpanCostCoefficientForVehicle(route_nbr);
+      }
     }
 
     std::vector<double> scores = logger->GetFinalScore();
-    result.set_cost((int64)scores[0]);
+    result.set_cost(scores[0] - (total_time_order_cost + total_distance_order_cost)/1000.0);
     result.set_duration(scores[1]);
     result.set_iterations(scores[2]);
 
@@ -852,7 +848,7 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     }
     output.close();
 
-    logger->GetFinalLog();
+    std::cout << "Final Iteration : " << result.iterations() << " Cost : " << result.cost() << " Time : " << result.duration() << std::endl;
   } else {
     std::cout << "No solution found..." << std::endl;
   }

@@ -23,6 +23,18 @@
 
 #include "ortools/constraint_solver/constraint_solver.h"
 
+DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
+DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
+DEFINE_int64(minimum_duration, -1, "Initial time whitout improvement in ms");
+DEFINE_int64(init_duration, -1, "Maximum duration to find a first solution");
+DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
+DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
+DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
+DEFINE_bool(only_first_solution, false, "Compute only the first solution");
+DEFINE_bool(balance, false, "Route balancing");
+DEFINE_bool(nearby, false, "Short segment priority");
+DEFINE_bool(debug, false, "debug display");
+DEFINE_bool(intermediate_solutions, false, "display intermediate solutions");
 
 namespace operations_research {
 namespace {
@@ -209,9 +221,10 @@ class LoggerMonitor : public SearchLimit {
       best_result_ = objective->Min();
       if (intermediate_) {
         if (result_->routes_size() > 0) result_->clear_routes();
-        result_->set_cost(best_result_ / 1000.0);
-        result_->set_iterations(iteration_counter_);
+
         int current_break = 0;
+
+        double total_time_order_cost(0), total_distance_order_cost(0);
 
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
           int route_break = 0;
@@ -225,18 +238,18 @@ class LoggerMonitor : public SearchLimit {
             activity->set_current_distance(routing_->GetMutableDimension("distance")->CumulVar(index)->Min());
             if (previous_index == -1) activity->set_type("start");
             else {
-               if (index >= data_.SizeMissions()) {
+              if (index >= data_.SizeMissions()) {
                 activity->set_type("break");
                 activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
               } else {
                 activity->set_type("service");
                 activity->set_index(data_.ProblemIndex(nodeIndex));
                 activity->set_alternative(data_.AlternativeIndex(nodeIndex));
-                for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
-                  double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
-                  activity->add_quantities(exchange);
-                }
               }
+            }
+            for (int64 q = 0 ; q < data_.Quantities(RoutingModel::NodeIndex(0)).size(); ++q) {
+              double exchange = routing_->GetMutableDimension("quantity" + std::to_string(q))->CumulVar(index)->Min();
+              activity->add_quantities(exchange);
             }
             previous_index = index;
           }
@@ -246,14 +259,26 @@ class LoggerMonitor : public SearchLimit {
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_current_distance(routing_->GetMutableDimension("distance")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
+          if (FLAGS_nearby) {
+            total_time_order_cost += routing_->GetMutableDimension("time_order")->CumulVar(routing_->End(route_nbr))->Min()
+                                    * routing_->GetMutableDimension("time_order")->GetSpanCostCoefficientForVehicle(route_nbr);
+            total_distance_order_cost += routing_->GetMutableDimension("distance_order")->CumulVar(routing_->End(route_nbr))->Min()
+                                        * routing_->GetMutableDimension("distance_order")->GetSpanCostCoefficientForVehicle(route_nbr);
+          }
         }
+
+        result_->set_cost((best_result_ - (total_time_order_cost + total_distance_order_cost)) / 1000.0);
+        result_->set_duration(1e-9 * (base::GetCurrentTimeNanos() - start_time_));
+        result_->set_iterations(iteration_counter_);
+
         std::fstream output(filename_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!result_->SerializeToOstream(&output)) {
           std::cout << "Failed to write result." << std::endl;
           return false;
         }
         output.close();
-        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+
+        std::cout << "Iteration : " <<  result_->iterations() << " Cost : " << result_->cost() << " Time : " << result_->duration() << std::endl;
       }
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {
@@ -355,9 +380,9 @@ class LoggerMonitor : public SearchLimit {
     return {(best_result_ / 1000.0), 1e-9 * (base::GetCurrentTimeNanos() - start_time_), (double)iteration_counter_};
   }
 
-  void GetFinalLog() {
-    std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
-  }
+  // void GetFinalLog() {
+  //   std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+  // }
 
   private:
     const TSPTWDataDT &data_;
