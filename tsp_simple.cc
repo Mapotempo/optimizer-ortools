@@ -32,6 +32,7 @@
 DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
 DEFINE_int64(no_solution_improvement_limit, -1,"Iterations whitout improvement");
 DEFINE_int64(minimum_duration, -1, "Initial time whitout improvement in ms");
+DEFINE_int64(init_duration, -1, "Maximum duration to find a first solution");
 DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
@@ -790,8 +791,8 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
-    if (FLAGS_no_solution_improvement_limit > 0 || FLAGS_minimum_duration > 0) {
-      NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, FLAGS_minimum_duration, FLAGS_time_out_multiplier, true);
+    if (FLAGS_no_solution_improvement_limit > 0 || FLAGS_minimum_duration > 0 || FLAGS_init_duration > 0) {
+      NoImprovementLimit * const no_improvement_limit = MakeNoImprovementLimit(routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit, FLAGS_minimum_duration, FLAGS_time_out_multiplier, FLAGS_init_duration, true);
       routing.AddSearchMonitor(no_improvement_limit);
     }
   } else {

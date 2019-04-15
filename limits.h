@@ -27,7 +27,7 @@ namespace {
 //  Don't use this class within a MakeLimit factory method!
 class NoImprovementLimit : public SearchLimit {
   public:
-    NoImprovementLimit(Solver * const solver, IntVar * const objective_var, int64 solution_nbr_tolerance, double time_out, int64 time_out_coef, const bool minimize = true) :
+    NoImprovementLimit(Solver * const solver, IntVar * const objective_var, int64 solution_nbr_tolerance, double time_out, int64 time_out_coef, int64 init_duration, const bool minimize = true) :
     SearchLimit(solver),
       solver_(solver), prototype_(new Assignment(solver_)),
       solution_nbr_tolerance_(solution_nbr_tolerance),
@@ -37,6 +37,7 @@ class NoImprovementLimit : public SearchLimit {
       initial_time_out_(time_out),
       time_out_(time_out),
       time_out_coef_(time_out_coef),
+      init_duration_(init_duration),
       first_solution_(true),
       limit_reached_(false) {
         if (minimize_) {
@@ -62,6 +63,8 @@ class NoImprovementLimit : public SearchLimit {
   //  Returns true if limit is reached, false otherwise.
   virtual bool Check() {
     if (!first_solution_ && (nbr_solutions_with_no_better_obj_ > solution_nbr_tolerance_ && solution_nbr_tolerance_ > 0 || 1e-6 * (base::GetCurrentTimeNanos() - start_time_) > time_out_ && initial_time_out_ > 0)) {
+      limit_reached_ = true;
+    } else if (first_solution_ && init_duration_ > 0 && 1e-6 * (base::GetCurrentTimeNanos() - start_time_) > init_duration_) {
       limit_reached_ = true;
     }
     //VLOG(2) << "NoImprovementLimit's limit reached? " << limit_reached_;
@@ -107,6 +110,7 @@ class NoImprovementLimit : public SearchLimit {
     limit_reached_ = copy_limit->limit_reached_;
     first_solution_ = copy_limit->first_solution_;
     time_out_coef_ = copy_limit->time_out_coef_;
+    init_duration_ = copy_limit->init_duration_;
     start_time_ = copy_limit->start_time_;
     nbr_solutions_with_no_better_obj_ = copy_limit->nbr_solutions_with_no_better_obj_;
   }
@@ -132,6 +136,7 @@ class NoImprovementLimit : public SearchLimit {
     double initial_time_out_;
     double time_out_;
     int64 time_out_coef_;
+    int64 init_duration_;
     int64 nbr_solutions_with_no_better_obj_;
     std::unique_ptr<Assignment> prototype_;
 };
@@ -139,8 +144,8 @@ class NoImprovementLimit : public SearchLimit {
 } // namespace
 
 
-NoImprovementLimit * MakeNoImprovementLimit(Solver * const solver, IntVar * const objective_var, const int64 solution_nbr_tolerance, const double time_out, const int64 time_out_coef, const bool minimize = true) {
-  return solver->RevAlloc(new NoImprovementLimit(solver, objective_var, solution_nbr_tolerance, time_out, time_out_coef, minimize));
+NoImprovementLimit * MakeNoImprovementLimit(Solver * const solver, IntVar * const objective_var, const int64 solution_nbr_tolerance, const double time_out, const int64 time_out_coef, const int64 init_duration, const bool minimize = true) {
+  return solver->RevAlloc(new NoImprovementLimit(solver, objective_var, solution_nbr_tolerance, time_out, time_out_coef, init_duration, minimize));
 }
 
 namespace {
