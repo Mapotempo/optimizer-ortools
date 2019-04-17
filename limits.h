@@ -267,7 +267,7 @@ class LoggerMonitor : public SearchLimit {
           }
         }
 
-        result_->set_cost((best_result_ - (total_time_order_cost + total_distance_order_cost)) / 1000.0);
+        result_->set_cost((best_result_ - (total_time_order_cost + total_distance_order_cost)) / 1000000.0);
         result_->set_duration(1e-9 * (base::GetCurrentTimeNanos() - start_time_));
         result_->set_iterations(iteration_counter_);
 
@@ -324,7 +324,7 @@ class LoggerMonitor : public SearchLimit {
           return false;
         }
         output.close();
-        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+        std::cout << "Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
       }
       new_best = true;
     }
@@ -377,11 +377,11 @@ class LoggerMonitor : public SearchLimit {
   }
 
   std::vector<double> GetFinalScore() {
-    return {(best_result_ / 1000.0), 1e-9 * (base::GetCurrentTimeNanos() - start_time_), (double)iteration_counter_};
+    return {(best_result_ / 1000000.0), 1e-9 * (base::GetCurrentTimeNanos() - start_time_), (double)iteration_counter_};
   }
 
   // void GetFinalLog() {
-  //   std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
+  //   std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " << best_result_ / 1000000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   // }
 
   private:

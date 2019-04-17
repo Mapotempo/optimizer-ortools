@@ -676,11 +676,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                            service.additional_value(),
                                            service.setup_duration(),
                                            service.priority(),
-                                           timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
+                                           timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000000) : 0,
                                            v_i,
                                            q,
                                            s_q,
-                                           service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000 : -1,
+                                           service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000000 : -1,
                                            r_q));
         alternative_size_map_[service.problem_index()] += 1;
         ids_map_[(std::string)service.id()] = node_index;
@@ -700,11 +700,11 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          service.additional_value(),
                                          service.setup_duration(),
                                          service.priority(),
-                                         timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000) : 0,
+                                         timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000000) : 0,
                                          v_i,
                                          q,
                                          s_q,
-                                         service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000 : -1,
+                                         service.exclusion_cost() > 0 ?  service.exclusion_cost() * 1000000 : -1,
                                          r_q));
       alternative_size_map_[service.problem_index()] += 1;
       ids_map_[(std::string)service.id()] = node_index;
@@ -792,12 +792,12 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
     v->vehicle_indices = vehicle_indices;
     v->time_start = vehicle.time_window().start() > -CUSTOM_MAX_INT ? vehicle.time_window().start() : -CUSTOM_MAX_INT;
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT ? vehicle.time_window().end() : CUSTOM_MAX_INT;
-    v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * 1000);
-    v->cost_fixed = (int64)(vehicle.cost_fixed() * 1000);
-    v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000);
-    v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000);
-    v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000);
-    v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000);
+    v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * 1000000);
+    v->cost_fixed = (int64)(vehicle.cost_fixed() * 1000000);
+    v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000000);
+    v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * 1000000);
+    v->cost_waiting_time_multiplier = (int64)(vehicle.cost_waiting_time_multiplier() * 1000000);
+    v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000000);
     v->coef_service = vehicle.coef_service();
     v->additional_service = vehicle.additional_service();
     v->coef_setup = vehicle.coef_setup();
@@ -879,9 +879,9 @@ void TSPTWDataDT::LoadInstance(const std::string & filename) {
                                          due_time,
                                          rest.duration(),
                                          0,
-                                         timewindows.size() > 0 ? (int64)(rest.late_multiplier() * 1000) : 0,
+                                         timewindows.size() > 0 ? (int64)(rest.late_multiplier() * 1000000) : 0,
                                          v_i,
-                                         rest.exclusion_cost() > 0 ?  rest.exclusion_cost() * 1000 : -1,
+                                         rest.exclusion_cost() > 0 ?  rest.exclusion_cost() * 1000000 : -1,
                                          true));
       ids_map_[(std::string)rest.id()] = node_index;
       alternative_size_map_[problem_rest_index] += 1;
