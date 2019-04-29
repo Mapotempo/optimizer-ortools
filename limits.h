@@ -33,7 +33,11 @@ DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
 DEFINE_bool(only_first_solution, false, "Compute only the first solution");
 DEFINE_bool(balance, false, "Route balancing");
 DEFINE_bool(nearby, false, "Short segment priority");
+#ifdef DEBUG
+DEFINE_bool(debug, true, "debug display");
+#else
 DEFINE_bool(debug, false, "debug display");
+#endif
 DEFINE_bool(intermediate_solutions, false, "display intermediate solutions");
 
 namespace operations_research {
@@ -211,6 +215,14 @@ class LoggerMonitor : public SearchLimit {
     return false;
   }
 
+  inline double GetSpanCostForVehicleForDimension(int vehicle, const std::string& dimension_name) {
+    if (routing_->GetMutableDimension(dimension_name) == nullptr)
+      return 0;
+    return (routing_->GetMutableDimension(dimension_name)->CumulVar(routing_->End(vehicle))->Min() - routing_->GetMutableDimension(dimension_name)->CumulVar(routing_->Start(vehicle))->Max())
+           * routing_->GetMutableDimension(dimension_name)->GetSpanCostCoefficientForVehicle(vehicle)
+           / 1000000.0;
+  }
+
   virtual bool AtSolution() {
 
     prototype_->Store();
@@ -224,12 +236,26 @@ class LoggerMonitor : public SearchLimit {
 
         int current_break = 0;
 
-        double total_time_order_cost(0), total_distance_order_cost(0);
+        double total_fake_time_cost(0.0),
+               total_fake_distance_cost(0.0),
+               total_time_cost(0.0),
+               total_distance_cost(0.0),
+               total_time_balance_cost(0.0),
+               total_distance_balance_cost(0.0),
+               total_time_without_wait_cost(0.0),
+               total_value_cost(0.0),
+               total_vehicle_fixed_cost(0.0),
+               total_time_order_cost(0.0),
+               total_distance_order_cost(0.0);
+
+        int nbr_routes(0),
+            nbr_services_served(0);
 
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
           int route_break = 0;
           ortools_result::Route* route = result_->add_routes();
           int previous_index = -1;
+          bool vehicle_used = false;
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index); index = routing_->NextVar(index)->Value()) {
             ortools_result::Activity* activity = route->add_activities();
             RoutingModel::NodeIndex nodeIndex = routing_->IndexToNode(index);
@@ -242,6 +268,8 @@ class LoggerMonitor : public SearchLimit {
                 activity->set_type("break");
                 activity->set_index(int64 (nodeIndex.value() - data_.SizeMissions()));
               } else {
+                ++nbr_services_served;
+                vehicle_used = true;
                 activity->set_type("service");
                 activity->set_index(data_.ProblemIndex(nodeIndex));
                 activity->set_alternative(data_.AlternativeIndex(nodeIndex));
@@ -259,15 +287,29 @@ class LoggerMonitor : public SearchLimit {
           end_activity->set_start_time(routing_->GetMutableDimension("time")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_current_distance(routing_->GetMutableDimension("distance")->CumulVar(routing_->End(route_nbr))->Min());
           end_activity->set_type("end");
+
           if (FLAGS_nearby) {
-            total_time_order_cost += routing_->GetMutableDimension("time_order")->CumulVar(routing_->End(route_nbr))->Min()
-                                    * routing_->GetMutableDimension("time_order")->GetSpanCostCoefficientForVehicle(route_nbr);
-            total_distance_order_cost += routing_->GetMutableDimension("distance_order")->CumulVar(routing_->End(route_nbr))->Min()
-                                        * routing_->GetMutableDimension("distance_order")->GetSpanCostCoefficientForVehicle(route_nbr);
+            total_time_order_cost += GetSpanCostForVehicleForDimension(route_nbr, "time_order");
+            total_distance_order_cost += GetSpanCostForVehicleForDimension(route_nbr, "distance_order");
+          }
+
+          if (FLAGS_debug) {
+            if (vehicle_used) {
+              ++nbr_routes;
+              total_vehicle_fixed_cost += routing_->GetFixedCostOfVehicle(route_nbr) / 1000000.0;
+            }
+            total_time_cost += GetSpanCostForVehicleForDimension(route_nbr, "time");
+            total_distance_cost += GetSpanCostForVehicleForDimension(route_nbr, "distance");
+            total_time_balance_cost += GetSpanCostForVehicleForDimension(route_nbr, "time_balance");
+            total_distance_balance_cost += GetSpanCostForVehicleForDimension(route_nbr, "distance_balance");
+            total_fake_time_cost += GetSpanCostForVehicleForDimension(route_nbr, "fake_time");
+            total_fake_distance_cost += GetSpanCostForVehicleForDimension(route_nbr, "fake_distance");
+            total_time_without_wait_cost += GetSpanCostForVehicleForDimension(route_nbr, "time_without_wait");
+            total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, "value");
           }
         }
 
-        result_->set_cost((best_result_ - (total_time_order_cost + total_distance_order_cost)) / 1000000.0);
+        result_->set_cost(best_result_ / 1000000.0 - (total_time_order_cost + total_distance_order_cost));
         result_->set_duration(1e-9 * (base::GetCurrentTimeNanos() - start_time_));
         result_->set_iterations(iteration_counter_);
 
@@ -279,6 +321,28 @@ class LoggerMonitor : public SearchLimit {
         output.close();
 
         std::cout << "Iteration : " <<  result_->iterations() << " Cost : " << result_->cost() << " Time : " << result_->duration() << std::endl;
+
+        if (FLAGS_debug) {
+          std::cout.precision(15);
+          std::cout
+            << "Cost breakdown:"
+            << "\n nbr_services_served: " << nbr_services_served
+            << "\n nbr_routes: " << nbr_routes
+            << "\n total_vehicle_fixed_cost:     " << total_vehicle_fixed_cost
+            << "\n total_time_cost:              " << total_time_cost
+            << "\n total_distance_cost:          " << total_distance_cost
+            << "\n total_time_balance_cost:      " << total_time_balance_cost
+            << "\n total_distance_balance_cost:  " << total_distance_balance_cost
+            << "\n total_fake_time_cost:         " << total_fake_time_cost
+            << "\n total_fake_distance_cost:     " << total_fake_distance_cost
+            << "\n total_time_without_wait_cost: " << total_time_without_wait_cost
+            << "\n total_value_cost:             " << total_value_cost
+            << "\n Cost substracted from the results but used in optimization (due to nearby flag):"
+            << "\n total_time_order_cost:        " << total_time_order_cost
+            << "\n total_distance_order_cost:    " << total_distance_order_cost
+            << std::endl;
+        }
+
       }
       new_best = true;
     } else if (!minimize_ && objective->Max() * 0.99 > best_result_) {

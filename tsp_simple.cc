@@ -792,6 +792,15 @@ int TSPTWSolver(const TSPTWDataDT &data, std::string filename) {
     solution = routing.SolveWithParameters(parameters);
   }
 
+  if (FLAGS_debug) {
+    std::cout << std::endl;
+    std::cout << "Solutions: " << solver->solutions() << std::endl;
+    std::cout << "Failures: " << solver->failures() << std::endl;
+    std::cout << "Branches: " << solver->branches() << std::endl;
+    std::cout << "Wall time: " << solver->wall_time() << "ms" << std::endl;
+    std::cout << std::endl;
+  }
+
   if (solution != NULL) {
     if (result.routes_size() > 0) result.clear_routes();
 
