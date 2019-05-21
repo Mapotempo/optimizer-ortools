@@ -115,6 +115,13 @@ void MissionsBuilder(const TSPTWDataDT &data, RoutingModel &routing, Solver *sol
       ++i;
     }
 
+    if (FLAGS_debug) {
+      std::cout
+        << "Activity " << activity
+        << "\t exclusion cost: " <<  exclusion_cost
+        << "\t disjunction cost: " << disjunction_cost * std::pow(2, 4 - priority)
+        << std::endl;
+    }
     // Otherwise this single service is never assigned
     if (size == 1)
       routing.AddDisjunction(*vect);

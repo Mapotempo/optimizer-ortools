@@ -24,7 +24,7 @@ message Service {
   float late_multiplier = 10;
   repeated int32 setup_quantities = 11;
   uint32 additional_value = 12;
-  int32 exclusion_cost = 13;
+  int64 exclusion_cost = 13;
   repeated bool refill_quantities = 14;
   int32 problem_index = 15;
 }
@@ -34,7 +34,7 @@ message Rest {
   uint64 duration = 2;
   string id = 3;
   float late_multiplier = 4;
-  int32 exclusion_cost = 5;
+  int64 exclusion_cost = 5;
 }
 
 message Capacity {
