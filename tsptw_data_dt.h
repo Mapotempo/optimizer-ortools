@@ -285,7 +285,7 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1) return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop()) {
+      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
         IntVar* next_var = routing->NextVar(j.value());
         if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
           return Distance(i, routing->IndexToNode(next_var->Value()));
@@ -303,7 +303,7 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 || i == Start() && free_approach || j == Stop() && free_return) return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop()) {
+      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
         IntVar* next_var = routing->NextVar(j.value());
         if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
           return Distance(i, routing->IndexToNode(next_var->Value()));
@@ -321,7 +321,7 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1) return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop()) {
+      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
         IntVar* next_var = routing->NextVar(j.value());
         if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
           return Time(i, routing->IndexToNode(next_var->Value()));
@@ -339,7 +339,7 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 || i == Start() && free_approach || j == Stop() && free_return) return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop()) {
+      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
         IntVar* next_var = routing->NextVar(j.value());
         if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
           return Time(i, routing->IndexToNode(next_var->Value()));
@@ -357,7 +357,7 @@ public:
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1) return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop()) {
+      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
         IntVar* next_var = routing->NextVar(j.value());
         if (next_var->Bound() && next_var->Value() != j.value() && next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
           return Value(i, routing->IndexToNode(next_var->Value()));
