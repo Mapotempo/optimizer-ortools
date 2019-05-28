@@ -4,12 +4,12 @@ package ortools_result;
 option optimize_for = SPEED;
 
 message Activity {
-  int32 index = 1;
+  int32 index               = 1;
   repeated float quantities = 2;
-  int32 start_time = 3;
-  string type = 4;
-  int32 alternative = 5;
-  int32 current_distance = 6;
+  int32 start_time          = 3;
+  string type               = 4;
+  int32 alternative         = 5;
+  int32 current_distance    = 6;
 }
 
 message Route {
@@ -17,8 +17,8 @@ message Route {
 }
 
 message Result {
-  float cost = 1;
-  float duration = 2;
-  int32 iterations = 3;
+  float cost            = 1;
+  float duration        = 2;
+  int32 iterations      = 3;
   repeated Route routes = 4;
 }

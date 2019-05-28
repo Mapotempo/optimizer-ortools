@@ -1,0 +1,8 @@
+BasedOnStyle: LLVM
+
+AlignConsecutiveAssignments: true
+BreakConstructorInitializers: BeforeComma
+ColumnLimit: 90
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+PointerAlignment: Left
