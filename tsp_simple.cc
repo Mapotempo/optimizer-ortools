@@ -44,7 +44,6 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                      RoutingIndexManager& manager, int64 size, int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
   // const int size_matrix = data.SizeMatrix();
-  const int size_rests   = data.SizeRest();
   const int size_problem = data.SizeProblem();
 
   int64 max_time     = (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
@@ -62,7 +61,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   int64 disjunction_cost =
       !overflow_danger && !CheckOverflow(data_verif, size) ? data_verif : std::pow(2, 52);
 
-  for (int activity = 0; activity <= size_problem + size_rests; ++activity) {
+  for (int activity = 0; activity <= size_problem; ++activity) {
     std::vector<int64>* vect = new std::vector<int64>();
     int32 alternative_size   = data.AlternativeSize(activity);
 
@@ -189,6 +188,28 @@ bool RouteBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     }
   }
   return routing.RoutesToAssignment(routes, true, false, assignment);
+}
+
+std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data, RoutingModel& routing,
+                     RoutingIndexManager& manager, Solver* solver) {
+  std::vector<std::vector<IntervalVar*>> stored_rests;
+  for (int vehicle_index = 0; vehicle_index < data.Vehicles().size(); ++vehicle_index) {
+    std::vector<IntervalVar*> rest_array;
+    for (TSPTWDataDT::Rest rest : data.Vehicles().at(vehicle_index)->rests) {
+      IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
+          std::max(rest.ready_time[0], data.Vehicles().at(vehicle_index)->time_start),
+          std::min(rest.due_time[0], data.Vehicles().at(vehicle_index)->time_end - rest.service_time),
+          rest.service_time, // Currently only one timewindow
+          false,
+          absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
+      rest_array.push_back(rest_interval);
+      routing.AddIntervalToAssignment(rest_interval);
+    }
+    routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(rest_array, vehicle_index,
+                                               data.ServiceTimes());
+    stored_rests.push_back(rest_array);
+  }
+  return stored_rests;
 }
 
 void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
@@ -882,6 +903,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   // Setting visit time windows
   MissionsBuilder(data, routing, manager, size - 2, min_start);
+  std::vector<std::vector<IntervalVar*>> stored_rests = RestBuilder(data, routing, manager, solver);
   RelationBuilder(data, routing, manager, solver, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
@@ -974,7 +996,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   LoggerMonitor* const logger =
       MakeLoggerMonitor(data, &routing, &manager, min_start, size_matrix, FLAGS_debug,
-                        FLAGS_intermediate_solutions, &result, filename, true);
+                        FLAGS_intermediate_solutions, &result, stored_rests, filename, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
@@ -1015,10 +1037,35 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
     double total_time_order_cost(0), total_distance_order_cost(0);
 
     for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+      std::vector<IntervalVar*> rests = stored_rests.at(route_nbr);
       ortools_result::Route* route = result.add_routes();
       int previous_index           = -1;
+      int previous_start_time      = 0;
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index);
            index       = solution->Value(routing.NextVar(index))) {
+        for (std::vector<IntervalVar*>::iterator it=rests.begin(); it!=rests.end();) {
+          int64 rest_start_time = solution->StartValue(*it);
+          if (solution->PerformedValue(*it) && previous_index != -1 && previous_start_time >= rest_start_time &&
+          rest_start_time <= solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index))) {
+            std::stringstream ss((*it)->name());
+            std::string item;
+            std::vector<std::string> parsed_name;
+            while (std::getline(ss, item, '/'))
+            {
+               parsed_name.push_back(item);
+            }
+
+            ortools_result::Activity* rest       = route->add_activities();
+            rest->set_type("break");
+            rest->set_id(parsed_name[1]);
+            rest->set_start_time(rest_start_time);
+            it = rests.erase(it);
+          }
+          else {
+            ++it;
+          }
+        }
+
         ortools_result::Activity* activity       = route->add_activities();
         RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
         activity->set_start_time(
@@ -1028,14 +1075,10 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
         if (previous_index == -1)
           activity->set_type("start");
         else {
-          if (index >= size_missions) {
-            activity->set_type("break");
-            activity->set_index(int64(nodeIndex.value() - size_missions));
-          } else {
-            activity->set_type("service");
-            activity->set_index(data.ProblemIndex(nodeIndex));
-            activity->set_alternative(data.AlternativeIndex(nodeIndex));
-          }
+          activity->set_type("service");
+          activity->set_id(data.ServiceId(nodeIndex));
+          activity->set_index(data.ProblemIndex(nodeIndex));
+          activity->set_alternative(data.AlternativeIndex(nodeIndex));
         }
         for (std::size_t q = 0;
              q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -1045,6 +1088,24 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
           activity->add_quantities(exchange);
         }
         previous_index = index;
+        previous_start_time = solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
+      }
+
+      for (std::vector<IntervalVar*>::iterator it=rests.begin(); it!=rests.end();++it) {
+        int64 rest_start_time = solution->StartValue(*it);
+        if (solution->PerformedValue(*it)) {
+          ortools_result::Activity* rest       = route->add_activities();
+            std::stringstream ss((*it)->name());
+            std::string item;
+            std::vector<std::string> parsed_name;
+            while (std::getline(ss, item, '/'))
+            {
+               parsed_name.push_back(item);
+            }
+          rest->set_type("break");
+          rest->set_id(parsed_name[1]);
+          rest->set_start_time(rest_start_time);
+        }
       }
       ortools_result::Activity* end_activity = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex =

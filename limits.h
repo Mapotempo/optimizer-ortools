@@ -189,13 +189,14 @@ MakeNoImprovementLimit(Solver* const solver, IntVar* const objective_var,
 namespace {
 
 //  Don't use this class within a MakeLimit factory method!
-class LoggerMonitor : public SearchLimit {
+class LoggerMonitor : public SearchMonitor {
 public:
   LoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
                 RoutingIndexManager* manager, int64 min_start, int64 size_matrix,
                 bool debug, bool intermediate, ortools_result::Result* result,
+                std::vector<std::vector<IntervalVar*>> stored_rests,
                 std::string filename, const bool minimize = true)
-      : SearchLimit(routing->solver())
+      : SearchMonitor(routing->solver())
       , data_(data)
       , routing_(routing)
       , manager_(manager)
@@ -211,7 +212,8 @@ public:
       , iteration_counter_(0)
       , prototype_(new Assignment(solver_))
       , filename_(filename)
-      , result_(result) {
+      , result_(result)
+      , stored_rests_(stored_rests) {
     if (minimize_) {
       best_result_ = kint64max;
     } else {
@@ -265,8 +267,6 @@ public:
         if (result_->routes_size() > 0)
           result_->clear_routes();
 
-        // int current_break = 0;
-
         double total_fake_time_cost(0.0), total_fake_distance_cost(0.0),
             total_time_cost(0.0), total_distance_cost(0.0), total_time_balance_cost(0.0),
             total_distance_balance_cost(0.0), total_time_without_wait_cost(0.0),
@@ -276,12 +276,36 @@ public:
         int nbr_routes(0), nbr_services_served(0);
 
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-          // int route_break = 0;
+          std::vector<IntervalVar*> rests = stored_rests_.at(route_nbr);
           ortools_result::Route* route = result_->add_routes();
           int previous_index           = -1;
+          int64 previous_start_time    = 0;
           bool vehicle_used            = false;
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index);
                index       = routing_->NextVar(index)->Value()) {
+
+            for (std::vector<IntervalVar*>::iterator it=rests.begin(); it!=rests.end();) {
+              int64 rest_start_time = (*it)->StartMin();
+              if ((*it)->StartMin() == (*it)->StartMax() && previous_index != -1 && previous_start_time >= rest_start_time &&
+              rest_start_time <= routing_->GetMutableDimension(kTime)->CumulVar(index)->Min()) {
+                std::stringstream ss((*it)->name());
+                std::string item;
+                std::vector<std::string> parsed_name;
+                while (std::getline(ss, item, '/'))
+                {
+                   parsed_name.push_back(item);
+                }
+
+                ortools_result::Activity* rest       = route->add_activities();
+                rest->set_type("break");
+                rest->set_id(parsed_name[1]);
+                rest->set_start_time(rest_start_time);
+                it = rests.erase(it);
+              }
+              else {
+                 ++it;
+              }
+            }
             ortools_result::Activity* activity       = route->add_activities();
             RoutingIndexManager::NodeIndex nodeIndex = manager_->IndexToNode(index);
             activity->set_index(data_.ProblemIndex(nodeIndex));
@@ -292,16 +316,11 @@ public:
             if (previous_index == -1)
               activity->set_type("start");
             else {
-              if (index >= data_.SizeMissions()) {
-                activity->set_type("break");
-                activity->set_index(int64(nodeIndex.value() - data_.SizeMissions()));
-              } else {
-                ++nbr_services_served;
-                vehicle_used = true;
-                activity->set_type("service");
-                activity->set_index(data_.ProblemIndex(nodeIndex));
-                activity->set_alternative(data_.AlternativeIndex(nodeIndex));
-              }
+              ++nbr_services_served;
+              vehicle_used = true;
+              activity->set_type("service");
+              activity->set_index(data_.ProblemIndex(nodeIndex));
+              activity->set_alternative(data_.AlternativeIndex(nodeIndex));
             }
             for (std::size_t q = 0;
                  q < data_.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -313,6 +332,26 @@ public:
             }
             previous_index = index;
           }
+
+
+          for (std::vector<IntervalVar*>::iterator it=rests.begin(); it!=rests.end(); ++it) {
+            int64 rest_start_time = (*it)->StartMin();
+            if ((*it)->StartMin() == (*it)->StartMax() ) {
+              std::stringstream ss((*it)->name());
+              std::string item;
+              std::vector<std::string> parsed_name;
+              while (std::getline(ss, item, '/'))
+              {
+                 parsed_name.push_back(item);
+              }
+
+              ortools_result::Activity* rest       = route->add_activities();
+              rest->set_type("break");
+              rest->set_id(parsed_name[1]);
+              rest->set_start_time(rest_start_time);
+            }
+          }
+
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingIndexManager::NodeIndex nodeIndex =
               manager_->IndexToNode(routing_->End(route_nbr));
@@ -434,16 +473,18 @@ public:
     start_time_        = copy_limit->start_time_;
     size_matrix_       = copy_limit->size_matrix_;
     result_            = copy_limit->result_;
+    stored_rests_            = copy_limit->stored_rests_;
+
     minimize_          = copy_limit->minimize_;
     limit_reached_     = copy_limit->limit_reached_;
   }
 
   // Allocates a clone of the limit
-  virtual SearchLimit* MakeClone() const {
+  virtual SearchMonitor* MakeClone() const {
     // we don't to copy the variables
     return solver_->RevAlloc(new LoggerMonitor(data_, routing_, manager_, min_start_,
                                                size_matrix_, debug_, intermediate_,
-                                               result_, filename_, minimize_));
+                                               result_, stored_rests_, filename_, minimize_));
   }
 
   virtual std::string DebugString() const {
@@ -480,6 +521,7 @@ private:
   std::unique_ptr<Assignment> prototype_;
   std::string filename_;
   ortools_result::Result* result_;
+  std::vector<std::vector<IntervalVar*>> stored_rests_;
 };
 
 } // namespace
@@ -487,11 +529,11 @@ private:
 LoggerMonitor* MakeLoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
                                  RoutingIndexManager* manager, int64 min_start,
                                  int64 size_matrix, bool debug, bool intermediate,
-                                 ortools_result::Result* result, std::string filename,
+                                 ortools_result::Result* result, std::vector<std::vector<IntervalVar*>> stored_rests, std::string filename,
                                  const bool minimize = true) {
   return routing->solver()->RevAlloc(new LoggerMonitor(data, routing, manager, min_start,
                                                        size_matrix, debug, intermediate,
-                                                       result, filename, minimize));
+                                                       result, stored_rests, filename, minimize));
 }
 } //  namespace operations_research
 

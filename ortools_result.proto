@@ -10,6 +10,7 @@ message Activity {
   string type               = 4;
   int32 alternative         = 5;
   int32 current_distance    = 6;
+  string id                 = 7;
 }
 
 message Route {
