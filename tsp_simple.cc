@@ -650,7 +650,9 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   if (free_approach_return == true) {
     routing.AddDimensionWithVehicleTransits(fake_time_evaluators, horizon, horizon, false,
                                             "fake_time");
-    routing.AddDimensionWithVehicleTransits(fake_distance_evaluators, horizon, horizon,
+    // distance horizon shoudl be great enough. Is currenlty equivalent to the maximum distance reachable
+    // at a speed of 360 km/h within the given time horizon
+    routing.AddDimensionWithVehicleTransits(fake_distance_evaluators, 100 * horizon, 100 * horizon,
                                             false, "fake_distance");
   }
   routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false,
