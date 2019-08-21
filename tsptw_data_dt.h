@@ -324,15 +324,6 @@ public:
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1)
         return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
-        IntVar* next_var = routing->NextVar(j.value());
-        if (next_var->Bound() && next_var->Value() != j.value() &&
-            next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
-          return Distance(i, (RoutingIndexManager::NodeIndex)next_var->Value());
-        } else {
-          return Distance(i, Stop());
-        }
-      }
       if (i != Start() && j != Stop() && max_ride_distance_ > 0 &&
           data->distances_matrices_.at(problem_matrix_index)
                   ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
@@ -351,15 +342,6 @@ public:
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 ||
           (i == Start() && free_approach) || (j == Stop() && free_return))
         return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
-        IntVar* next_var = routing->NextVar(j.value());
-        if (next_var->Bound() && next_var->Value() != j.value() &&
-            next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
-          return Distance(i, (RoutingIndexManager::NodeIndex)next_var->Value());
-        } else {
-          return Distance(i, Stop());
-        }
-      }
       if (i != Start() && j != Stop() && max_ride_distance_ > 0 &&
           data->distances_matrices_.at(problem_matrix_index)
                   ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
@@ -376,15 +358,6 @@ public:
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1)
         return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
-        IntVar* next_var = routing->NextVar(j.value());
-        if (next_var->Bound() && next_var->Value() != j.value() &&
-            next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
-          return Time(i, (RoutingIndexManager::NodeIndex)next_var->Value());
-        } else {
-          return Time(i, Stop());
-        }
-      }
       if (i != Start() && j != Stop() && max_ride_time_ > 0 &&
           data->times_matrices_.at(problem_matrix_index)
                   ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
@@ -403,15 +376,6 @@ public:
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1 ||
           (i == Start() && free_approach) || (j == Stop() && free_return))
         return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
-        IntVar* next_var = routing->NextVar(j.value());
-        if (next_var->Bound() && next_var->Value() != j.value() &&
-            next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
-          return Time(i, (RoutingIndexManager::NodeIndex)next_var->Value());
-        } else {
-          return Time(i, Stop());
-        }
-      }
       if (i != Start() && j != Stop() && max_ride_time_ > 0 &&
           data->times_matrices_.at(problem_matrix_index)
                   ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
@@ -429,15 +393,6 @@ public:
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1)
         return 0;
-      if (j.value() >= data->SizeMissions() && j != Stop() && j != Start()) {
-        IntVar* next_var = routing->NextVar(j.value());
-        if (next_var->Bound() && next_var->Value() != j.value() &&
-            next_var->Value() != i.value() && next_var->Value() < data->SizeMissions()) {
-          return Value(i, (RoutingIndexManager::NodeIndex)next_var->Value());
-        } else {
-          return Value(i, Stop());
-        }
-      }
       return data->values_matrices_.at(value_matrix_index)
           ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
                  RoutingIndexManager::NodeIndex(vehicle_indices[j.value()]));
