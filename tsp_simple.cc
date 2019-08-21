@@ -194,6 +194,8 @@ std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data, Rout
                      RoutingIndexManager& manager, Solver* solver) {
   std::vector<std::vector<IntervalVar*>> stored_rests;
   for (int vehicle_index = 0; vehicle_index < data.Vehicles().size(); ++vehicle_index) {
+    IntVar* const cumul_var = routing.GetDimensionOrDie(kTime).CumulVar(routing.Start(vehicle_index));
+    IntVar* const cumul_var_end = routing.GetDimensionOrDie(kTime).CumulVar(routing.End(vehicle_index));
     std::vector<IntervalVar*> rest_array;
     for (TSPTWDataDT::Rest rest : data.Vehicles().at(vehicle_index)->rests) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
@@ -203,6 +205,8 @@ std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data, Rout
           false,
           absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
+      solver->AddConstraint(solver->MakeGreaterOrEqual(rest_interval->SafeStartExpr(0), cumul_var));
+      solver->AddConstraint(solver->MakeLessOrEqual(rest_interval->SafeEndExpr(0), cumul_var_end));
       routing.AddIntervalToAssignment(rest_interval);
     }
     routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(rest_array, vehicle_index,
