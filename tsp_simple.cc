@@ -926,7 +926,6 @@ void SetFirstSolutionStrategy(const TSPTWDataDT &data,
   const int size_mtws = data.TwiceTWsCounter();
   const int size_vehicles = data.Vehicles().size();
   const int size_rest = data.SizeRest();
-  std::cout << "First solution strategy : ";
   switch (FLAGS_solver_parameter) {
   case 0:
     parameters.set_first_solution_strategy(
@@ -988,9 +987,6 @@ void SetFirstSolutionStrategy(const TSPTWDataDT &data,
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_ARC);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
-  std::cout << FirstSolutionStrategy::Value_Name(
-                   parameters.first_solution_strategy())
-            << std::endl;
 }
 
 int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
@@ -1179,10 +1175,12 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   if (((data.Routes().size() > 0 && build_route) || data.OrderCounter() == 1) &&
       routing.solver()->CheckAssignment(assignment)) {
-    std::cout << "Initial solution used" << std::endl;
+    std::cout << "Using initial solution provided." << std::endl;
     solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
   } else {
-    std::cout << "No initial solution used" << std::endl;
+    std::cout << "First solution strategy : "
+              << FirstSolutionStrategy::Value_Name(parameters.first_solution_strategy())
+              << std::endl;
     solution = routing.SolveWithParameters(parameters);
   }
 
