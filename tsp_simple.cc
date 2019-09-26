@@ -190,8 +190,8 @@ bool RouteBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   return routing.RoutesToAssignment(routes, true, false, assignment);
 }
 
-std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data, RoutingModel &routing,
-                     Solver* solver) {
+std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data, RoutingModel &routing) {
+  Solver* solver = routing.solver();
   const int size_vehicles   = data.Vehicles().size();
   std::vector<std::vector<IntervalVar*>> stored_rests;
   for (int vehicle_index = 0; vehicle_index < size_vehicles; ++vehicle_index) {
@@ -235,10 +235,16 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   //   return data.VehicleDayAlt(index);
   // };
 
+  std::vector<IntVar*> next_vars;
+  for(int i = 0; i < data.SizeMissions(); ++i) {
+    next_vars.push_back(routing.NextVar(i));
+  }
+
   for (TSPTWDataDT::Relation* relation : data.Relations()) {
     int64 previous_index;
     int64 current_index;
     std::vector<int64> previous_indices;
+    std::vector<std::pair<int, int>> pairs;
     switch (relation->type) {
     case Sequence:
       // int64 new_current_index;
@@ -269,10 +275,12 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case Order:
       previous_index = data.IdIndex(relation->linked_ids->at(0));
+      previous_indices.push_back(previous_index);
       for (std::size_t link_index = 1; link_index < relation->linked_ids->size();
            ++link_index) {
         current_index = data.IdIndex(relation->linked_ids->at(link_index));
-        routing.AddPickupAndDelivery(previous_index, current_index);
+        pairs.push_back(std::make_pair(previous_index, current_index));
+        // routing.AddPickupAndDelivery(previous_index, current_index);
         IntVar* const previous_active_var = routing.ActiveVar(previous_index);
         IntVar* const active_var          = routing.ActiveVar(current_index);
 
@@ -283,14 +291,14 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
         IntExpr* const isConstraintActive =
             solver->MakeProd(previous_active_var, active_var);
-
         solver->AddConstraint(solver->MakeEquality(
             solver->MakeProd(isConstraintActive, previous_vehicle_var),
             solver->MakeProd(isConstraintActive, vehicle_var)));
-
-        previous_indices.push_back(previous_index);
+        previous_indices.push_back(current_index);
         previous_index = current_index;
       }
+      if (relation->linked_ids->size() > 1)
+        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case SameRoute:
       previous_index = data.IdIndex(relation->linked_ids->at(0));
@@ -1039,8 +1047,6 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   AddTimeDimensions(data, routing, manager, horizon, free_approach_return);
   AddValueDimensions(data, routing, manager);
 
-
-
   Solver* solver         = routing.solver();
   Assignment* assignment = routing.solver()->MakeAssignment();
 
@@ -1119,7 +1125,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   // Setting visit time windows
   MissionsBuilder(data, routing, manager, size - 2, min_start);
   std::vector<std::vector<IntervalVar *>> stored_rests =
-      RestBuilder(data, routing, solver);
+      RestBuilder(data, routing);
   RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
