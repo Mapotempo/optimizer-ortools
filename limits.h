@@ -45,8 +45,19 @@ DEFINE_string(routing_search_parameters,
               "Text proto RoutingSearchParameters (possibly partial) that will "
               "override the DefaultRoutingSearchParameters()");
 
-const char* kTime     = "time";
-const char* kDistance = "distance";
+const char *kDistance         = "distance";
+const char *kDistanceBalance  = "distance_balance";
+const char *kDistanceOrder    = "distance_order";
+const char *kFakeDistance     = "fake_distance";
+
+const char *kFakeTime         = "fake_time";
+const char *kFakeTimeNoWait   = "fake_time_without_wait";
+const char *kTime             = "time";
+const char *kTimeBalance      = "time_balance";
+const char *kTimeNoWait       = "time_without_wait";
+const char *kTimeOrder        = "time_order";
+
+const char *kValue            = "value";
 
 namespace operations_research {
 namespace {
@@ -366,9 +377,9 @@ public:
 
           if (FLAGS_nearby) {
             total_time_order_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "time_order");
+                GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
             total_distance_order_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "distance_order");
+                GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
           }
 
           if (FLAGS_debug) {
@@ -377,20 +388,23 @@ public:
               total_vehicle_fixed_cost +=
                   routing_->GetFixedCostOfVehicle(route_nbr) / 1000000.0;
             }
-            total_time_cost += GetSpanCostForVehicleForDimension(route_nbr, "time");
+            total_time_cost += GetSpanCostForVehicleForDimension(route_nbr, kTime);
             total_distance_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "distance");
-            total_time_balance_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "time_balance");
-            total_distance_balance_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "distance_balance");
-            total_fake_time_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "fake_time");
-            total_fake_distance_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "fake_distance");
+                GetSpanCostForVehicleForDimension(route_nbr, kDistance);
+            // total_fake_time_cost +=
+            //     GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
+            // total_fake_distance_cost +=
+            //     GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
+
+            if (FLAGS_balance) {
+              total_time_balance_cost +=
+                  GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
+              total_distance_balance_cost +=
+                  GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
+            }
             total_time_without_wait_cost +=
-                GetSpanCostForVehicleForDimension(route_nbr, "time_without_wait");
-            total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, "value");
+                GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
+            total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, kValue);
           }
         }
 

@@ -974,7 +974,6 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     tsptw_routes_.push_back(r);
   }
 
-  int v_index              = 0;
   int re_index             = 0;
   // Setting start
   for (Vehicle* v : tsptw_vehicles_) {
