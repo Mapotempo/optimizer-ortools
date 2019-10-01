@@ -806,6 +806,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
   size_rest_ = 0;
   for (const ortools_vrp::Vehicle& vehicle : problem.vehicles()) {
+    service_times_.push_back(0);
+    service_times_.push_back(0);
     size_rest_ += vehicle.rests().size();
   }
   size_matrix_ = matrix_index + 2;
