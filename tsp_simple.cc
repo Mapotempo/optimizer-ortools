@@ -817,8 +817,11 @@ void AddVehicleTimeConstraints(const TSPTWDataDT &data, RoutingModel &routing,
     IntVar *const time_cumul_var_end = time_dimension.CumulVar(end_index);
 
     // Vehicle time windows
-    if (vehicle->time_start > -CUSTOM_MAX_INT) {
+    if (vehicle->time_start >= 0) {
+    // Timewindow Start is always hard
       time_cumul_var->SetMin(vehicle->time_start);
+      // In case of Force Start a penalty is applied for every time unit
+      // away from the opening
       if (vehicle->shift_preference == ForceStart) {
         routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
             start_index, vehicle->time_start,
@@ -833,12 +836,14 @@ void AddVehicleTimeConstraints(const TSPTWDataDT &data, RoutingModel &routing,
     if (vehicle->time_end < CUSTOM_MAX_INT) {
       int64 coef = vehicle->late_multiplier;
       if (coef > 0) {
+      // Timewindow end may be soft
         routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
             end_index, vehicle->time_end, coef);
         if (vehicle->shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
         }
       } else {
+        // Or hard
         time_cumul_var_end->SetMax(vehicle->time_end);
         if (vehicle->shift_preference == ForceEnd) {
           time_cumul_var_end->SetMin(vehicle->time_end);
@@ -848,6 +853,8 @@ void AddVehicleTimeConstraints(const TSPTWDataDT &data, RoutingModel &routing,
         }
       }
     }
+
+    // Route duration may be limited
     if (vehicle->duration >= 0 &&
         vehicle->time_end - vehicle->time_start > vehicle->duration) {
       has_route_duration = true;
@@ -876,15 +883,13 @@ void AddVehicleDistanceConstraints(const TSPTWDataDT &data,
                                    RoutingModel &routing) {
   Solver *solver = routing.solver();
   int v = 0;
+  const operations_research::RoutingDimension &distance_dimension =
+      routing.GetDimensionOrDie(kDistance);
   for (TSPTWDataDT::Vehicle *vehicle : data.Vehicles()) {
-    const operations_research::RoutingDimension &distance_dimension =
-        routing.GetDimensionOrDie(kDistance);
-
-    int64 end_index = routing.End(v);
-
-    // Vehicle maximum distance
-    IntVar *const dist_end_cumul_var = distance_dimension.CumulVar(end_index);
     if (vehicle->distance > 0) {
+      int64 end_index = routing.End(v);
+      // Vehicle maximum distance
+      IntVar *const dist_end_cumul_var = distance_dimension.CumulVar(end_index);
       solver->AddConstraint(
           solver->MakeLessOrEqual(dist_end_cumul_var, vehicle->distance));
     }
@@ -899,18 +904,11 @@ void AddVehicleCapacityConstraints(const TSPTWDataDT &data,
     int64 end_index = routing.End(v);
     for (std::size_t i = 0; i < vehicle->capacity.size(); ++i) {
       int64 coef = vehicle->overload_multiplier[i];
-      if (vehicle->capacity[i] >= 0) {
+      // Capacity is already limited by the dimension horizon
+      if (vehicle->capacity[i] >= 0 && coef > 0) {
         std::string kQuantity = ("quantity" + std::to_string(i)).c_str();
-        if (coef > 0) {
-          routing.GetMutableDimension(kQuantity)->SetCumulVarSoftUpperBound(
-              end_index, vehicle->capacity[i], coef);
-        } else {
-          const operations_research::RoutingDimension &quantity_i_dimension =
-              routing.GetDimensionOrDie(kQuantity);
-          IntVar *const quantity_cumul_var =
-              quantity_i_dimension.CumulVar(end_index);
-          quantity_cumul_var->SetMax(vehicle->capacity[i]);
-        }
+        routing.GetMutableDimension(kQuantity)->SetCumulVarSoftUpperBound(
+            end_index, vehicle->capacity[i], coef);
       }
     }
     ++v;
@@ -1054,31 +1052,34 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   AddVehicleDistanceConstraints(data, routing);
   AddVehicleCapacityConstraints(data, routing);
 
-  v               = 0;
+  v = 0;
   int64 min_start = CUSTOM_MAX_INT;
-  std::vector<IntVar*> used_vehicles;
 
   for (TSPTWDataDT::Vehicle* vehicle : data.Vehicles()) {
     routing.SetFixedCostOfVehicle(vehicle->cost_fixed, v);
-
     min_start = std::min(min_start, vehicle->time_start);
-    int64 start_index                = routing.Start(v);
-    int64 end_index                  = routing.End(v);
-
-    IntVar* const is_vehicle_used =
-        solver
-            ->MakeConditionalExpression(
-                solver->MakeIsDifferentCstVar(routing.NextVar(start_index), end_index),
-                solver->MakeIntConst(1), 0)
-            ->Var();
-    used_vehicles.push_back(is_vehicle_used);
-
     ++v;
   }
 
+  std::vector<IntVar *> used_vehicles;
   if (FLAGS_vehicle_limit > 0) {
-    solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles),
-                                                  (int64)FLAGS_vehicle_limit));
+    v = 0;
+    for (TSPTWDataDT::Vehicle *vehicle : data.Vehicles()) {
+      int64 start_index = routing.Start(v);
+      int64 end_index = routing.End(v);
+      IntVar *const is_vehicle_used =
+          solver
+              ->MakeConditionalExpression(
+                  solver->MakeIsDifferentCstVar(routing.NextVar(start_index),
+                                                end_index),
+                  solver->MakeIntConst(1), 0)
+              ->Var();
+      used_vehicles.push_back(is_vehicle_used);
+      ++v;
+    }
+
+    solver->AddConstraint(solver->MakeLessOrEqual(
+        solver->MakeSum(used_vehicles), (int64)FLAGS_vehicle_limit));
   }
 
   // Setting solve parameters indicators
