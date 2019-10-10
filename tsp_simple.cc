@@ -1034,11 +1034,11 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   const int64 horizon =
       data.Horizon() * (has_lateness && !CheckOverflow(data.Horizon(), 2) ? 2 : 1);
 
-  AddBalanceDimensions(data, routing, manager, horizon);
-  AddCapacityDimensions(data, routing, manager);
+  AddTimeDimensions(data, routing, manager, horizon, free_approach_return);
   AddDistanceDimensions(data, routing, manager, maximum_route_distance,
                         free_approach_return);
-  AddTimeDimensions(data, routing, manager, horizon, free_approach_return);
+  AddBalanceDimensions(data, routing, manager, horizon);
+  AddCapacityDimensions(data, routing, manager);
   AddValueDimensions(data, routing, manager);
 
   Solver* solver         = routing.solver();
