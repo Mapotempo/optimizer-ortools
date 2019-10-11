@@ -1293,8 +1293,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
     }
 
     std::vector<double> scores = logger->GetFinalScore();
-    result.set_cost(scores[0] -
-                    (total_time_order_cost + total_distance_order_cost) / 1000000.0);
+    result.set_cost((solution->ObjectiveValue() -
+                    total_time_order_cost + total_distance_order_cost) / 1000000.0);
     result.set_duration(scores[1]);
     result.set_iterations(scores[2]);
 
