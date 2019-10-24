@@ -1253,14 +1253,21 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
       end_activity->set_current_distance(solution->Min(
           routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
+
       if (FLAGS_nearby) {
-        total_time_order_cost += solution->Min(routing.GetMutableDimension(kTimeOrder)
-                                                   ->CumulVar(routing.End(route_nbr))) *
-                                 routing.GetMutableDimension(kTimeOrder)
-                                     ->GetSpanCostCoefficientForVehicle(route_nbr);
+        total_time_order_cost +=
+            (solution->Min(routing.GetMutableDimension(kTimeOrder)
+                              ->CumulVar(routing.End(route_nbr))) -
+            solution->Max(routing.GetMutableDimension(kTimeOrder)
+                              ->CumulVar(routing.Start(route_nbr))) ) *
+            routing.GetMutableDimension(kTimeOrder)
+                ->GetSpanCostCoefficientForVehicle(route_nbr);
+
         total_distance_order_cost +=
-            solution->Min(routing.GetMutableDimension(kDistanceOrder)
-                              ->CumulVar(routing.End(route_nbr))) *
+            (solution->Min(routing.GetMutableDimension(kDistanceOrder)
+                              ->CumulVar(routing.End(route_nbr))) -
+            solution->Max(routing.GetMutableDimension(kDistanceOrder)
+                              ->CumulVar(routing.Start(route_nbr))) ) *
             routing.GetMutableDimension(kDistanceOrder)
                 ->GetSpanCostCoefficientForVehicle(route_nbr);
       }
@@ -1268,7 +1275,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
     std::vector<double> scores = logger->GetFinalScore();
     result.set_cost(
-        (solution->ObjectiveValue() - total_time_order_cost + total_distance_order_cost) /
+        (solution->ObjectiveValue() - total_time_order_cost - total_distance_order_cost) /
         1000000.0);
     result.set_duration(scores[1]);
     result.set_iterations(scores[2]);
