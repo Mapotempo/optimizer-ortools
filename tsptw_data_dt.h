@@ -208,9 +208,7 @@ public:
     return tsptw_clients_[i.value()].service_time;
   }
 
-  std::vector<int64> ServiceTimes() const {
-    return service_times_;
-  }
+  std::vector<int64> ServiceTimes() const { return service_times_; }
 
   int64 ServiceValue(RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].service_value;
@@ -274,11 +272,8 @@ public:
   }
 
   struct Rest {
-    Rest(std::string id, std::vector<int64> r_t, std::vector<int64> d_t, int64 s_t) :
-      rest_id(id),
-      ready_time(r_t),
-      due_time(d_t),
-      service_time(s_t) {}
+    Rest(std::string id, std::vector<int64> r_t, std::vector<int64> d_t, int64 s_t)
+        : rest_id(id), ready_time(r_t), due_time(d_t), service_time(s_t) {}
     std::string rest_id;
     std::vector<int64> ready_time;
     std::vector<int64> due_time;
@@ -951,12 +946,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         multiple_tws_counter_ += 1;
 
       v->rests.push_back(
-        Rest(
-          (std::string)rest.id(),
-          ready_time, due_time,
-          rest.duration()
-        )
-      );
+          Rest((std::string)rest.id(), ready_time, due_time, rest.duration()));
     }
 
     v_idx++;
@@ -974,7 +964,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     tsptw_routes_.push_back(r);
   }
 
-  int re_index             = 0;
+  int re_index = 0;
   // Setting start
   for (Vehicle* v : tsptw_vehicles_) {
     v->start = RoutingIndexManager::NodeIndex(node_index);
