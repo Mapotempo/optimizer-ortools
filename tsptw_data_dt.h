@@ -17,6 +17,8 @@
 
 #define CUSTOM_MAX_INT (int64) std::pow(2, 30)
 
+#define CUSTOM_BIGNUM 1000000.0
+
 enum RelationType {
   VehicleTrips         = 12,
   VehicleGroupDuration = 11,
@@ -770,9 +772,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
             alternative_size_map_[service.problem_index()], start, end,
             service.duration(), service.additional_value(), service.setup_duration(),
             service.priority(),
-            timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000000) : 0,
+            timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM) : 0,
             v_i, q, s_q,
-            service.exclusion_cost() > 0 ? service.exclusion_cost() * 1000000 : -1, r_q));
+            service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM : -1, r_q));
 
         service_times_.push_back(service.duration());
         alternative_size_map_[service.problem_index()] += 1;
@@ -788,8 +790,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           alternative_size_map_[service.problem_index()], ready_time, due_time,
           service.duration(), service.additional_value(), service.setup_duration(),
           service.priority(),
-          timewindows.size() > 0 ? (int64)(service.late_multiplier() * 1000000) : 0, v_i,
-          q, s_q, service.exclusion_cost() > 0 ? service.exclusion_cost() * 1000000 : -1,
+          timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM) : 0, v_i,
+          q, s_q, service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM : -1,
           r_q));
       service_times_.push_back(service.duration());
       alternative_size_map_[service.problem_index()] += 1;
@@ -884,13 +886,13 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT
                       ? vehicle.time_window().end()
                       : CUSTOM_MAX_INT;
-    v->late_multiplier          = (int64)(vehicle.cost_late_multiplier() * 1000000);
-    v->cost_fixed               = (int64)(vehicle.cost_fixed() * 1000000);
-    v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * 1000000);
-    v->cost_time_multiplier     = (int64)(vehicle.cost_time_multiplier() * 1000000);
+    v->late_multiplier          = (int64)(vehicle.cost_late_multiplier() * CUSTOM_BIGNUM);
+    v->cost_fixed               = (int64)(vehicle.cost_fixed() * CUSTOM_BIGNUM);
+    v->cost_distance_multiplier = (int64)(vehicle.cost_distance_multiplier() * CUSTOM_BIGNUM);
+    v->cost_time_multiplier     = (int64)(vehicle.cost_time_multiplier() * CUSTOM_BIGNUM);
     v->cost_waiting_time_multiplier =
-        (int64)(vehicle.cost_waiting_time_multiplier() * 1000000);
-    v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * 1000000);
+        (int64)(vehicle.cost_waiting_time_multiplier() * CUSTOM_BIGNUM);
+    v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * CUSTOM_BIGNUM);
     v->coef_service          = vehicle.coef_service();
     v->additional_service    = vehicle.additional_service();
     v->coef_setup            = vehicle.coef_setup();

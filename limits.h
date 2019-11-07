@@ -264,7 +264,7 @@ public:
                 ->Max()) *
            routing_->GetMutableDimension(dimension_name)
                ->GetSpanCostCoefficientForVehicle(vehicle) /
-           1000000.0;
+           CUSTOM_BIGNUM;
   }
 
   virtual bool AtSolution() {
@@ -385,7 +385,7 @@ public:
             if (vehicle_used) {
               ++nbr_routes;
               total_vehicle_fixed_cost +=
-                  routing_->GetFixedCostOfVehicle(route_nbr) / 1000000.0;
+                  routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
             }
             total_time_cost += GetSpanCostForVehicleForDimension(route_nbr, kTime);
             total_distance_cost +=
@@ -407,7 +407,7 @@ public:
           }
         }
 
-        result_->set_cost(best_result_ / 1000000.0 -
+        result_->set_cost(best_result_ / CUSTOM_BIGNUM -
                           (total_time_order_cost + total_distance_order_cost));
         result_->set_duration(1e-9 * (absl::GetCurrentTimeNanos() - start_time_));
         result_->set_iterations(iteration_counter_);
@@ -505,14 +505,14 @@ public:
   }
 
   std::vector<double> GetFinalScore() {
-    return {(best_result_ / 1000000.0),
+    return {(best_result_ / CUSTOM_BIGNUM),
             1e-9 * (absl::GetCurrentTimeNanos() - start_time_),
             (double)iteration_counter_};
   }
 
   // void GetFinalLog() {
   //   std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " <<
-  //   best_result_ / 1000000.0 << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() -
+  //   best_result_ / CUSTOM_BIGNUM << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() -
   //   start_time_) << std::endl;
   // }
 
