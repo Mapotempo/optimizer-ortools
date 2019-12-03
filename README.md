@@ -36,4 +36,4 @@ Compile the C++ optimizer
 Test
 ====
 
-LD_LIBRARY_PATH=../or-tools/dependencies/install/lib/:../or-tools/lib/ ../optimizer-ortools/tsp_simple  -time_limit_in_ms 239994 -initial_time_out_no_solution_improvement 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file 'data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output20180612-5826-8ji7pc'
+LD_LIBRARY_PATH=../or-tools/dependencies/install/lib/:../or-tools/lib/ ../optimizer-ortools/tsp_simple  -time_limit_in_ms 239994 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file 'data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output20180612-5826-8ji7pc'
