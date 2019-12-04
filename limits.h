@@ -471,7 +471,15 @@ public:
 
     ++iteration_counter_;
     if (iteration_counter_ >= std::pow(2, pow_)) {
-      std::cout << "Iteration : " << iteration_counter_ << std::endl;
+      std::cout << "Iteration : " << iteration_counter_;
+
+      if (intermediate_ == false)
+        std::cout << " \tInternal cost : " << best_result_ / CUSTOM_BIGNUM; // The `c` of cost needs to stay lowercase
+
+      std::cout
+        << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
+        << std::endl;
+
       ++pow_;
     }
     return true;
