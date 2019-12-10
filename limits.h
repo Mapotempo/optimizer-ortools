@@ -298,7 +298,7 @@ public:
                  it != rests.end();) {
               int64 rest_start_time = (*it)->StartMin();
               if ((*it)->StartMin() == (*it)->StartMax() && previous_index != -1 &&
-                  previous_start_time >= rest_start_time &&
+                  rest_start_time >= previous_start_time &&
                   rest_start_time <=
                       routing_->GetMutableDimension(kTime)->CumulVar(index)->Min()) {
                 std::stringstream ss((*it)->name());

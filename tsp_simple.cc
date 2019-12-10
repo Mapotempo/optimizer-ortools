@@ -1182,7 +1182,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
         for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();) {
           int64 rest_start_time = solution->StartValue(*it);
           if (solution->PerformedValue(*it) && previous_index != -1 &&
-              previous_start_time >= rest_start_time &&
+              rest_start_time >= previous_start_time &&
               rest_start_time <=
                   solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index))) {
             std::stringstream ss((*it)->name());
