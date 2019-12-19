@@ -1309,7 +1309,8 @@ int main(int argc, char** argv) {
     operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
     return operations_research::TSPTWSolver(tsptw_data, FLAGS_solution_file);
   } else {
-    std::cout << "No Stop condition" << std::endl;
+    std::cout << "No stopping condition" << std::endl;
+    return -1;
   }
 
   return 0;
