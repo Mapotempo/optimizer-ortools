@@ -849,8 +849,8 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
         routing.AddVariableMinimizedByFinalizer(time_cumul_var);
       else
         routing.AddVariableMaximizedByFinalizer(time_cumul_var);
-      solver->AddConstraint(solver->MakeGreaterOrEqual(
-          solver->MakeSum(time_cumul_var, vehicle->duration), time_cumul_var_end));
+
+      routing.GetMutableDimension(kTime)->SetSpanUpperBoundForVehicle(vehicle->duration, v);
     } else if (FLAGS_balance) {
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
       routing.AddVariableMaximizedByFinalizer(time_cumul_var);
