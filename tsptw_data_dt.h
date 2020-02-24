@@ -20,6 +20,7 @@
 #define CUSTOM_BIGNUM 1000000.0
 
 enum RelationType {
+  NeverLast            = 13,
   VehicleTrips         = 12,
   VehicleGroupDuration = 11,
   ForceLast            = 10,
@@ -1015,6 +1016,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       relType = ForceFirst;
     else if (relation.type() == "never_first")
       relType = NeverFirst;
+    else if (relation.type() == "never_last")
+      relType = NeverLast;
     else if (relation.type() == "force_end")
       relType = ForceLast;
     else if (relation.type() == "vehicle_group_duration")

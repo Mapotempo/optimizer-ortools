@@ -483,6 +483,16 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         values.pop_back();
       }
     } break;
+    case NeverLast:
+      for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
+           ++link_index) {
+        current_index = data.IdIndex(relation->linked_ids->at(link_index));
+        IntVar* const next_var = routing.NextVar(current_index);
+        for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
+          int64 end_index = routing.End(v);
+          next_var->RemoveValue(end_index);
+      }
+    } break;
     case ForceLast: {
       std::vector<int64> values;
       for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
