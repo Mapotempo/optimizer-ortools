@@ -5,6 +5,7 @@ TUTORIAL=resources
 
 
 include $(OR_TOOLS_TOP)/Makefile
+CFLAGS := $(CFLAGS) -DOR_TOOLS_VERSION=\"$(OR_TOOLS_VERSION)\"
 
 # For debugging uncomment the next line. -isystem prevents warnings rooted in or-tools library appearing in our compilation
 # CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_SOURCES)/gen -isystem$(OR_TOOLS_TOP)/dependencies/install/include -isystem$(OR_TOOLS_TOP)/dependencies/install/include/coin -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP

@@ -1302,6 +1302,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 } // namespace operations_research
 
 int main(int argc, char** argv) {
+  std::cout << "OR-Tools v" << OR_TOOLS_VERSION << std::endl;
+
   GOOGLE_PROTOBUF_VERIFY_VERSION;
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
