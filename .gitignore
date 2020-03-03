@@ -11,5 +11,9 @@
 *.la
 *.a
 
+# Compiled protobuf files
+*.pb.cc
+*.pb.h
+
 # Binary files
 tsp_simple
