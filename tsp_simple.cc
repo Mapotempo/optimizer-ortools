@@ -687,7 +687,7 @@ void AddDistanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                                             kDistanceOrder);
   }
   if (free_approach_return == true) {
-    routing.AddDimensionWithVehicleTransits(distance_evaluators, 0,
+    routing.AddDimensionWithVehicleTransits(fake_distance_evaluators, 0,
                                             maximum_route_distance, true, kFakeDistance);
   }
 
