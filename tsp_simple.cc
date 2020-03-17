@@ -937,8 +937,7 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
         FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
     break;
   case 5:
-    // FIXME: This is not correct on the optimizer-api side
-    // std::cout << "Default" << std::endl;
+    parameters.set_first_solution_strategy(FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE);
     break;
   case 6:
     parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
@@ -971,7 +970,6 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::BEST_INSERTION);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::ROUTING_BEST_INSERTION);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::LOCAL_CHEAPEST_ARC);
-  // parameters.set_first_solution_strategy(FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE);
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
 }
 
