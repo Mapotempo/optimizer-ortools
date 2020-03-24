@@ -255,10 +255,12 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       for (std::size_t link_index = 1; link_index < relation->linked_ids->size();
            ++link_index) {
         current_index = data.IdIndex(relation->linked_ids->at(link_index));
+        pairs.push_back(std::make_pair(previous_index, current_index));
+
         IntVar* const previous_active_var = routing.ActiveVar(previous_index);
         IntVar* const active_var          = routing.ActiveVar(current_index);
         solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        routing.AddPickupAndDelivery(previous_index, current_index);
+        // routing.AddPickupAndDelivery(previous_index, current_index);
 
         IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
         IntVar* const vehicle_var          = routing.VehicleVar(current_index);
@@ -273,8 +275,10 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
             solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
             solver->MakeProd(isConstraintActive, current_index)));
         previous_indices.push_back(previous_index);
-        previous_index = data.IdIndex(relation->linked_ids->at(link_index));
+        previous_index = current_index;
       }
+      if (relation->linked_ids->size() > 1)
+        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case Order:
       previous_index = data.IdIndex(relation->linked_ids->at(0));
