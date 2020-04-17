@@ -1,9 +1,8 @@
-ARG ORTOOLS_VERSION=${ORTOOLS_VERSION:-latest}
+ARG ORTOOLS_VERSION=${ORTOOLS_VERSION}
 ARG REGISTRY=${REGISTRY:-registry.mapotempo.com/}
 
 # Install ORTools
 FROM ${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION} as optimizer-ortools
-ARG OPTIMIZER_ORTOOLS_VERSION
 
 # Build wrapper
 RUN apt-get update > /dev/null && \
