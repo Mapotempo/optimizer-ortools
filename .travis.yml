@@ -2,12 +2,37 @@ services:
   - docker
 
 env:
-  - BRANCH=${BRANCH:-ce} OPTIMIZER_ORTOOLS_VERSION=dev ORTOOLS_VERSION=v7.0
+  - ORTOOLS_VERSION=v7.0
 
-script:
-  - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
-  - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
-  - export IMAGE_NAME=${REGISTRY}mapotempo-${BRANCH}/optimizer-ortools:${OWNER:-latest}
-  - sudo apt-get -y install git wget pkg-config build-essential cmake autoconf libtool zlib1g-dev lsb-release > /dev/null
-  - docker build --build-arg OPTIMIZER_ORTOOLS_VERSION=${OPTIMIZER_ORTOOLS_VERSION} --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} --build-arg BRANCH=${BRANCH} -f ./Dockerfile -t ${IMAGE_NAME} .
-  - docker push ${IMAGE_NAME}
+install: skip
+
+jobs:
+  include:
+    - # Build Dev specific image
+      if: branch = dev
+      script:
+        - echo "> Building image for dev perpose with or-tools ${ORTOOLS_VERSION}"
+        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
+        - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
+        - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-latest}
+        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker push ${IMAGE_NAME}
+
+    - # Build only OR-Tools
+      if: branch = ortools
+      script:
+        - echo "> Building ortools image ${ORTOOLS_VERSION}"
+        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
+        - export IMAGE_NAME=${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION}
+        - cd docker/ortools
+        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker push ${IMAGE_NAME}
+
+    - # Build tag image
+      if: tag ~= /^v.*/
+      script:
+        - echo "> Building tag image with or-tools ${ORTOOLS_VERSION}"
+        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
+        - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${TRAVIS_TAG}
+        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker push ${IMAGE_NAME}

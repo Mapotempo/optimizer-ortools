@@ -1,8 +1,7 @@
 # Install ORTools
 FROM debian:latest as ortools
 
-ARG ORTOOLS_VERSION=latest
-ENV ORTOOLS_VERSION ${ORTOOLS_VERSION}
+ARG ORTOOLS_VERSION=${ORTOOLS_VERSION}
 
 RUN apt-get update > /dev/null && \
   apt-get -y install git wget pkg-config build-essential cmake autoconf libtool zlib1g-dev lsb-release > /dev/null && \
