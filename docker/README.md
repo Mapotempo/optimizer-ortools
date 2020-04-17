@@ -19,8 +19,7 @@ docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} \
 ## Build
 ```
 export ORTOOLS_VERSION=v7.0
-export BRANCH=${BRANCH:-beta}
+export BRANCH=${BRANCH:-ce}
 docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} \
-  --build-arg BRANCH=${BRANCH} \
   -f ./Dockerfile -t ${REGISTRY}mapotempo-${BRANCH}/optimizer-ortools:latest .
 ```
