@@ -6,7 +6,7 @@ optimizer-ortools
 Compute an optimized solution to the Vehicle Routing Problem with Time Windows and various constraints using OR-Tools.
 This wrapper is designed to be called through [Optimizer-API](https://github.com/Mapotempo/optimizer-api) and has been tested on Ubuntu 17.10, 18.04. Linux Mint 18, Debian 8.
 
-This version is using OR-Tools v7.0
+This version is using OR-Tools v7.1
 
 To build OR-Tools image, modify *.travis.yml* `ORTOOLS_VERSION` variable and push on branch ortools.
 
