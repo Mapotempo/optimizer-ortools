@@ -2,7 +2,7 @@ services:
   - docker
 
 env:
-  - ORTOOLS_VERSION=v7.1
+  - ORTOOLS_VERSION=v7.4
 
 install: skip
 
