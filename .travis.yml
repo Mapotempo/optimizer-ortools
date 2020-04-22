@@ -16,6 +16,8 @@ jobs:
         - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
         - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-latest}
         - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker run -d --name optimizer -t ${IMAGE_NAME}
+        - docker exec -i optimizer bash -c "LD_LIBRARY_PATH=/srv/or-tools/dependencies/install/lib/:/srv/or-tools/lib/ /srv/optimizer-ortools/tsp_simple -time_limit_in_ms 500 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file '/srv/optimizer-ortools/data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'"
         - docker push ${IMAGE_NAME}
 
     - # Build only OR-Tools
@@ -35,4 +37,6 @@ jobs:
         - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
         - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${TRAVIS_TAG}
         - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker run -d --name optimizer -t ${IMAGE_NAME}
+        - docker exec -i optimizer bash -c "LD_LIBRARY_PATH=/srv/or-tools/dependencies/install/lib/:/srv/or-tools/lib/ /srv/optimizer-ortools/tsp_simple -time_limit_in_ms 500 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file '/srv/optimizer-ortools/data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'"
         - docker push ${IMAGE_NAME}

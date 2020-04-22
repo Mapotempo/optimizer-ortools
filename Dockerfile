@@ -2,7 +2,7 @@ ARG ORTOOLS_VERSION=${ORTOOLS_VERSION}
 ARG REGISTRY=${REGISTRY:-registry.mapotempo.com/}
 
 # Install ORTools
-FROM ${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION} as optimizer-ortools
+FROM ${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION} as ortools
 
 # Build wrapper
 RUN apt-get update > /dev/null && \
@@ -18,6 +18,6 @@ FROM debian:latest
 
 LABEL maintainer="Mapotempo <tech@mapotempo.com>"
 
-COPY --from=optimizer-ortools /srv/optimizer-ortools /srv/optimizer-ortools
-
-WORKDIR /srv/optimizer-ortools
+COPY --from=ortools /srv/optimizer-ortools /srv/optimizer-ortools
+COPY --from=ortools /srv/or-tools srv/or-tools
+COPY --from=ortools /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
