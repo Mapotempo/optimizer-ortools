@@ -24,3 +24,4 @@ COPY --from=ortools /srv/or-tools/makefiles srv/or-tools/makefiles
 COPY --from=ortools /srv/or-tools/lib srv/or-tools/lib
 COPY --from=ortools /srv/or-tools/ortools srv/or-tools/ortools
 COPY --from=ortools /srv/or-tools/dependencies srv/or-tools/dependencies
+COPY --from=ortools /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
