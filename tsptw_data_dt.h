@@ -20,6 +20,7 @@
 #define CUSTOM_BIGNUM 1000000.0
 
 enum RelationType {
+  VehicleGroupNumber   = 14,
   NeverLast            = 13,
   VehicleTrips         = 12,
   VehicleGroupDuration = 11,
@@ -1024,6 +1025,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       relType = VehicleGroupDuration;
     else if (relation.type() == "vehicle_trips")
       relType = VehicleTrips;
+    else if (relation.type() == "vehicle_group_number")
+      relType = VehicleGroupNumber;
     else
       throw "Unknown relation type";
 
