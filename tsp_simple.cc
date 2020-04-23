@@ -562,6 +562,29 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         }
       }
     } break;
+    case VehicleGroupNumber: {
+      if (relation->linked_vehicle_ids->size() > 1) {
+        std::vector<IntVar*> used_vehicles;
+        for (std::size_t link_index = 0;
+             link_index < relation->linked_vehicle_ids->size(); ++link_index) {
+          int vehicle_index =
+              data.VehicleIdIndex(relation->linked_vehicle_ids->at(link_index));
+          int64 start_index = routing.Start(vehicle_index);
+          int64 end_index   = routing.End(vehicle_index);
+          IntVar* const is_vehicle_used =
+              solver
+                  ->MakeConditionalExpression(
+                      solver->MakeIsDifferentCstVar(routing.NextVar(start_index), end_index),
+                      solver->MakeIntConst(1), 0)
+                  ->Var();
+          used_vehicles.push_back(is_vehicle_used);
+        }
+
+        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles),
+                                                      relation->lapse));
+      }
+
+    } break;
     default:
       break;
     }
