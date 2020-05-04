@@ -522,6 +522,8 @@ public:
 
   std::vector<Vehicle*> Vehicles() const { return tsptw_vehicles_; }
 
+  Vehicle* Vehicles(int64 index) const { return tsptw_vehicles_.at(index); }
+
   struct Route {
     Route(std::string v_id) : vehicle_id(v_id), vehicle_index(-1) {}
     Route(std::string v_id, int v_int, std::vector<std::string> s_ids)
@@ -584,11 +586,6 @@ public:
     return vehicles_day_.at(index);
   }
 
-  /*
-    Vehicle VehicleGet(int64 v) const {
-      return tsptw_vehicles_.at(v);
-    }
-  */
 private:
   void ProcessNewLine(char* const line);
 

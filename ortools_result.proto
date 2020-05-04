@@ -13,8 +13,23 @@ message Activity {
   string id                 = 7;
 }
 
+message Costs {
+  float fixed = 1;
+  float distance = 2;
+  float distance_balance = 3;
+  float distance_fake = 4;
+  float distance_order = 5;
+  float time = 6;
+  float time_balance = 7;
+  float time_fake = 8;
+  float time_order = 9;
+  float time_without_wait = 10;
+  float value = 11;
+}
+
 message Route {
   repeated Activity activities = 1;
+  Costs costs = 2;
 }
 
 message Result {

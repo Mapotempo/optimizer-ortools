@@ -374,36 +374,70 @@ public:
                                                  ->Min());
           end_activity->set_type("end");
 
+          ortools_result::Costs* route_costs = ortools_result::Costs().New();
+
           if (FLAGS_nearby) {
-            total_time_order_cost +=
+            double time_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
-            total_distance_order_cost +=
+            total_time_order_cost += time_order_cost;
+            route_costs->set_time_order(time_order_cost);
+
+            double distance_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
+            total_distance_order_cost += distance_order_cost;
+            route_costs->set_distance_order(distance_order_cost);
           }
 
-          if (FLAGS_debug) {
-            if (vehicle_used) {
-              ++nbr_routes;
-              total_vehicle_fixed_cost +=
-                  routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
-            }
-            total_time_cost += GetSpanCostForVehicleForDimension(route_nbr, kTime);
-            total_distance_cost +=
+          if (vehicle_used) {
+            double fixed_cost =
+                routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
+            route_costs->set_fixed(fixed_cost);
+
+            double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
+            route_costs->set_time(time_cost);
+
+            double distance_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kDistance);
-            // total_fake_time_cost +=
-            //     GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
-            // total_fake_distance_cost +=
-            //     GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
+            route_costs->set_distance(distance_cost);
+
+            if (FLAGS_debug) {
+              ++nbr_routes;
+              total_vehicle_fixed_cost += fixed_cost;
+              total_time_cost += time_cost;
+              total_distance_cost += distance_cost;
+            }
+
+            if (data_.Vehicles(route_nbr)->free_approach == true ||
+                data_.Vehicles(route_nbr)->free_return == true) {
+              double fake_time_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
+              total_fake_time_cost += fake_time_cost;
+              route_costs->set_time_fake(fake_time_cost);
+
+              double fake_distance_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
+              total_fake_distance_cost += fake_distance_cost;
+              route_costs->set_distance_fake(fake_distance_cost);
+            }
 
             if (FLAGS_balance) {
-              total_time_balance_cost +=
+              double time_balance_cost =
                   GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
-              total_distance_balance_cost +=
+              total_time_balance_cost += time_balance_cost;
+              route_costs->set_time_balance(time_balance_cost);
+
+              double distance_balance_cost =
                   GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
+              total_distance_balance_cost += distance_balance_cost;
+              route_costs->set_distance_balance(distance_balance_cost);
             }
-            total_time_without_wait_cost +=
+            double time_without_wait_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
+            total_time_without_wait_cost += time_without_wait_cost;
+            route_costs->set_time_without_wait(time_without_wait_cost);
+
             total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, kValue);
+            route->set_allocated_costs(route_costs);
           }
         }
 
