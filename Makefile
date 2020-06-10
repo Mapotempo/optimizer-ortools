@@ -1,16 +1,11 @@
 OR_TOOLS_TOP=../or-tools
-OR_TOOLS_SOURCES=$(OR_TOOLS_TOP)/include/ortools
 
 TUTORIAL=resources
 
-
-include $(OR_TOOLS_TOP)/Makefile
-# Build does not pass when using default $(CXXFLAGS)
-#CXXFLAGS := $(CXXFLAGS) -DOR_TOOLS_VERSION=\"$(OR_TOOLS_VERSION)\"
 CXXFLAGS := -I $(OR_TOOLS_TOP)/include
 
 # For debugging uncomment the next line. -isystem prevents warnings rooted in or-tools library appearing in our compilation
-# CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_SOURCES)/gen -isystem$(OR_TOOLS_TOP)/dependencies/install/include -isystem$(OR_TOOLS_TOP)/dependencies/install/include/coin -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP
+# CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP
 
 .PHONY: all local_clean
 
@@ -26,7 +21,7 @@ ortools_vrp.pb.h: ortools_vrp.pb.cc
 
 ortools_result.pb.h: ortools_result.pb.cc
 
-tsp_simple.o: tsp_simple.cc $(OR_TOOLS_SOURCES)/constraint_solver/routing.h ortools_vrp.pb.h \
+tsp_simple.o: tsp_simple.cc ortools_vrp.pb.h \
 	ortools_result.pb.h \
 	$(TUTORIAL)/routing_common/routing_common.h \
 	tsptw_data_dt.h \
