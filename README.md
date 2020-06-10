@@ -6,9 +6,7 @@ optimizer-ortools
 Compute an optimized solution to the Vehicle Routing Problem with Time Windows and various constraints using OR-Tools.
 This wrapper is designed to be called through [Optimizer-API](https://github.com/Mapotempo/optimizer-api) and has been tested on Ubuntu 17.10, 18.04. Linux Mint 18, Debian 8.
 
-This version is using OR-Tools v7.0
-
-To build OR-Tools image, modify *.travis.yml* `ORTOOLS_VERSION` variable and push on branch ortools.
+The current implementation has been tested with the version 7.5 of OR-Tools
 
 Installation
 ============
@@ -16,21 +14,11 @@ Installation
 
 Require OR-Tools for the C++ part. Fetch source code at [https://github.com/google/or-tools](https://github.com/google/or-tools).
 
-The current implementation has been tested with the version 7.0 of OR-Tools
+Download OR-Tools here : https://github.com/google/or-tools/releases/tag/v7.5
 
-    git clone git@github.com:google/or-tools.git
-    git fetch
-    git checkout tags/v7.1 -b v7.1
-
-    sudo apt-get install git bison flex python-setuptools python-dev autoconf \
-    libtool zlib1g-dev texinfo help2man gawk g++ curl texlive cmake subversion
-
-    make third_party
-
-    make cc
+- Recommended Asset : [or-tools_debian-10_v7.5.7466.tar.gz](https://github.com/google/or-tools/releases/download/v7.5/or-tools_debian-10_v7.5.7466.tar.gz)
 
 More details on [Google Optimization Tools Documentation](https://developers.google.com/optimization/introduction/installing)
-
 
 ## Optimizer
 
@@ -49,4 +37,6 @@ Dev
 
 After dev the code shall be formatted according to the style file of the project with the following command:
 
-clang-format -i *.cc *.h
+    clang-format -i *.cc *.h
+
+To build OR-Tools image, modify *.travis.yml* `ORTOOLS_VERSION` variable and push on branch ortools.
