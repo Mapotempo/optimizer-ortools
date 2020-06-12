@@ -9,12 +9,26 @@ install: skip
 jobs:
   include:
     - # Build Dev specific image
-      if: branch = dev
+      if: type NOT IN (pull_request) AND branch = dev
       script:
         - echo "> Building image for dev purpose with or-tools ${ORTOOLS_VERSION}"
         - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
         - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
         - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-latest}
+        - source ci-utils/ortools/asset_url.sh
+        - echo "Download asset at ${ORTOOLS_URL}"
+        - docker build --build-arg ORTOOLS_URL=${ORTOOLS_URL} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker run -d --name optimizer -t ${IMAGE_NAME}
+        - docker exec -i optimizer bash -c "LD_LIBRARY_PATH=/srv/or-tools/lib/ /srv/optimizer-ortools/tsp_simple -time_limit_in_ms 500 -intermediate_solutions -instance_file '/srv/optimizer-ortools/data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'"
+        - docker push ${IMAGE_NAME}
+
+    - # Build PR specific image
+      if: type IN (pull_request)
+      script:
+        - echo "> Building image for dev purpose with or-tools ${ORTOOLS_VERSION}"
+        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
+        - export OWNER=$(echo ${TRAVIS_PULL_REQUEST_SLUG} | sed "s/\/.*//")
+        - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-$TRAVIS_PULL_REQUEST_BRANCH}
         - source ci-utils/ortools/asset_url.sh
         - echo "Download asset at ${ORTOOLS_URL}"
         - docker build --build-arg ORTOOLS_URL=${ORTOOLS_URL} -f ./Dockerfile -t ${IMAGE_NAME} .
