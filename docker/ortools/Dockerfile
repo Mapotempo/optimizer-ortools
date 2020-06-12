@@ -1,19 +1,9 @@
 # Install ORTools
 FROM debian:latest as ortools
 
-ARG ORTOOLS_VERSION=${ORTOOLS_VERSION}
+ARG ORTOOLS_LINK=${ORTOOLS_LINK}
 
-RUN apt-get update > /dev/null && \
-  apt-get -y install git wget pkg-config build-essential cmake autoconf libtool zlib1g-dev lsb-release > /dev/null && \
-  git clone https://github.com/google/or-tools.git --branch ${ORTOOLS_VERSION} /srv/or-tools
-
-# Build
-RUN cd /srv/or-tools && \
-  make third_party && \
-  make cc
-
-RUN find /srv/or-tools/dependencies -name '.git' -exec rm -rf {} + && \
-  find /srv/or-tools/dependencies -name 'cmake' -exec rm -rf {} +
+RUN wget ${ORTOOLS_LINK} /srv/or-tools
 
 FROM debian:latest
 LABEL maintainer="Mapotempo <contact@mapotempo.com>"
