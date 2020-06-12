@@ -6,37 +6,32 @@ env:
 
 install: skip
 
+before_script:
+  - chmod +x ci-utils/ortools/asset_url.sh
+
 jobs:
   include:
     - # Build Dev specific image
       if: branch = dev
       script:
-        - echo "> Building image for dev perpose with or-tools ${ORTOOLS_VERSION}"
+        - source ci-utils/ortools/asset_url.sh
+        - echo "> Building image for dev purpose with or-tools ${ORTOOLS_VERSION}"
         - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
         - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
         - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-latest}
-        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker build --build-arg ORTOOLS_URL=${ORTOOLS_URL} -f ./Dockerfile -t ${IMAGE_NAME} .
         - docker run -d --name optimizer -t ${IMAGE_NAME}
         - docker exec -i optimizer bash -c "LD_LIBRARY_PATH=/srv/or-tools/dependencies/install/lib/:/srv/or-tools/lib/ /srv/optimizer-ortools/tsp_simple -time_limit_in_ms 500 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file '/srv/optimizer-ortools/data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'"
-        - docker push ${IMAGE_NAME}
-
-    - # Build only OR-Tools
-      if: branch = ortools
-      script:
-        - echo "> Building ortools image ${ORTOOLS_VERSION}"
-        - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
-        - export IMAGE_NAME=${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION}
-        - cd docker/ortools
-        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
         - docker push ${IMAGE_NAME}
 
     - # Build tag image
       if: tag ~= /^v.*/
       script:
+        - source docker/ortools/asset_url.sh
         - echo "> Building tag image with or-tools ${ORTOOLS_VERSION}"
         - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
         - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${TRAVIS_TAG}
-        - docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} -f ./Dockerfile -t ${IMAGE_NAME} .
+        - docker build --build-arg ORTOOLS_URL=${ORTOOLS_URL} -f ./Dockerfile -t ${IMAGE_NAME} .
         - docker run -d --name optimizer -t ${IMAGE_NAME}
         - docker exec -i optimizer bash -c "LD_LIBRARY_PATH=/srv/or-tools/dependencies/install/lib/:/srv/or-tools/lib/ /srv/optimizer-ortools/tsp_simple -time_limit_in_ms 500 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file '/srv/optimizer-ortools/data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'"
         - docker push ${IMAGE_NAME}
