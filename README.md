@@ -30,7 +30,7 @@ Compile the C++ optimizer
 Test
 ====
 
-LD_LIBRARY_PATH=../or-tools/dependencies/install/lib/:../or-tools/lib/ ../optimizer-ortools/tsp_simple  -time_limit_in_ms 239994 -init_duration 11926 -time_out_multiplier 2 -intermediate_solutions -instance_file 'data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output20180612-5826-8ji7pc'
+LD_LIBRARY_PATH=../or-tools/lib/ ../optimizer-ortools/tsp_simple -time_limit_in_ms 1000 -intermediate_solutions -instance_file 'data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'
 
 Dev
 ===
@@ -38,5 +38,3 @@ Dev
 After dev the code shall be formatted according to the style file of the project with the following command:
 
     clang-format -i *.cc *.h
-
-To build OR-Tools image, modify *.travis.yml* `ORTOOLS_VERSION` variable and push on branch ortools.
