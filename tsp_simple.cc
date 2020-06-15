@@ -488,18 +488,23 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case ForceFirst: {
       std::vector<int64> values;
+      for (int activity = 0; activity < data.SizeMissions(); ++activity) {
+        values.push_back(activity);
+      }
+
+      std::vector<int64> first_values;
       for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
            ++link_index) {
         current_index = data.IdIndex(relation->linked_ids->at(link_index));
-        values.push_back(current_index);
+        first_values.push_back(current_index);
+
+        std::vector<int64>::iterator it = std::find(values.begin(), values.end(), current_index);
+        values.erase(it);
       }
-      for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
-        int64 start_index      = routing.Start(v);
-        int64 end_index        = routing.End(v);
-        IntVar* const next_var = routing.NextVar(start_index);
-        values.push_back(end_index);
-        next_var->SetValues(values);
-        values.pop_back();
+
+      for (int index : values ) {
+        IntVar* const next_var = routing.NextVar(index);
+        next_var->RemoveValues(first_values);
       }
     } break;
     case NeverLast:
