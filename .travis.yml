@@ -14,7 +14,7 @@ jobs:
         - echo "> Building image for dev purpose with or-tools ${ORTOOLS_VERSION}"
         - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USERNAME" --password-stdin ${REGISTRY}
         - export OWNER=$(echo ${TRAVIS_REPO_SLUG} | sed "s/\/.*//")
-        - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER:-latest}
+        - export IMAGE_NAME=${REGISTRY}mapotempo-ce/optimizer-ortools:${OWNER}
         - source ci-utils/ortools/asset_url.sh
         - echo "Download asset at ${ORTOOLS_URL}"
         - docker build --build-arg ORTOOLS_URL=${ORTOOLS_URL} -f ./Dockerfile -t ${IMAGE_NAME} .
