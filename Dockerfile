@@ -1,23 +1,23 @@
-ARG ORTOOLS_VERSION=${ORTOOLS_VERSION}
+ARG ORTOOLS_URL=${ORTOOLS_URL}
 ARG REGISTRY=${REGISTRY:-registry.mapotempo.com/}
 
-# Install ORTools
-FROM ${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION} as ortools
-
+# Final image
 # Build wrapper
+FROM debian:latest
+ARG ORTOOLS_URL
+
+WORKDIR /srv/
+
 RUN apt-get update > /dev/null && \
   apt-get -y install git wget pkg-config build-essential cmake autoconf libtool zlib1g-dev lsb-release > /dev/null
+
+ADD . /srv/or-tools
+
+RUN wget -qO- $ORTOOLS_URL | tar xz --strip-components=1 -C /srv/or-tools
 
 ADD . /srv/optimizer-ortools
 
 WORKDIR /srv/optimizer-ortools
 RUN make tsp_simple
 
-# Final image
-FROM debian:latest
-
 LABEL maintainer="Mapotempo <tech@mapotempo.com>"
-
-COPY --from=ortools /srv/optimizer-ortools /srv/optimizer-ortools
-COPY --from=ortools /srv/or-tools srv/or-tools
-COPY --from=ortools /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/

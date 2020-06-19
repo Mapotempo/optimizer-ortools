@@ -25,6 +25,7 @@
 
 #include "ortools/base/protoutil.h"
 #include "ortools/base/timer.h"
+#include "ortools/base/version.h"
 
 #include "ortools/constraint_solver/routing.h"
 #include "ortools/constraint_solver/routing_enums.pb.h"
@@ -1390,7 +1391,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 } // namespace operations_research
 
 int main(int argc, char** argv) {
-  std::cout << "OR-Tools v" << OR_TOOLS_VERSION << std::endl;
+  std::cout << "OR-Tools v" << operations_research::OrToolsMajorVersion() << '.'
+            << operations_research::OrToolsMinorVersion() << std::endl;
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
   gflags::ParseCommandLineFlags(&argc, &argv, true);
