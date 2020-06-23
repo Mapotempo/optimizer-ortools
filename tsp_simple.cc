@@ -625,7 +625,9 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       }
       break;
     default:
-      break;
+      std::cout << "ERROR: Relation type (" << relation->type << ") is not implemented"
+                << std::endl;
+      throw -1;
     }
   }
 }
