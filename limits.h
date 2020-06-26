@@ -508,11 +508,11 @@ public:
       std::cout << "Iteration : " << iteration_counter_;
 
       if (intermediate_ == false)
-        std::cout << " \tInternal cost : " << best_result_ / CUSTOM_BIGNUM; // The `c` of cost needs to stay lowercase
+        std::cout << " \tInternal cost : " /* The `c` of cost needs to stay lowercase */
+                  << best_result_ / CUSTOM_BIGNUM;
 
-      std::cout
-        << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
-        << std::endl;
+      std::cout << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
+                << std::endl;
 
       ++pow_;
     }

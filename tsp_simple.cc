@@ -264,6 +264,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     int64 current_index;
     std::vector<int64> previous_indices;
     std::vector<std::pair<int, int>> pairs;
+    std::vector<int64> intermediate_values;
+    std::vector<int64> values;
     switch (relation->type) {
     case Sequence:
       // int64 new_current_index;
@@ -483,7 +485,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         IntVar* const previous_active_var = routing.ActiveVar(previous_index);
         IntVar* const active_var          = routing.ActiveVar(current_index);
 
-        solver->AddConstraint(solver->MakeGreaterOrEqual(previous_active_var, active_var));
+        solver->AddConstraint(
+            solver->MakeGreaterOrEqual(previous_active_var, active_var));
         IntExpr* const isConstraintActive =
             solver->MakeProd(previous_active_var, active_var)->Var();
         IntExpr* const difference = solver->MakeDifference(
@@ -508,45 +511,44 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         }
       }
       break;
-    case ForceFirst: {
-      std::vector<int64> values;
+    case ForceFirst:
       for (int activity = 0; activity < data.SizeMissions(); ++activity) {
         values.push_back(activity);
       }
 
-      std::vector<int64> first_values;
       for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
            ++link_index) {
         current_index = data.IdIndex(relation->linked_ids->at(link_index));
-        first_values.push_back(current_index);
+        intermediate_values.push_back(current_index);
 
-        std::vector<int64>::iterator it = std::find(values.begin(), values.end(), current_index);
+        std::vector<int64>::iterator it =
+            std::find(values.begin(), values.end(), current_index);
         values.erase(it);
       }
 
-      for (int index : values ) {
+      for (int index : values) {
         IntVar* const next_var = routing.NextVar(index);
-        next_var->RemoveValues(first_values);
+        next_var->RemoveValues(intermediate_values);
       }
-    } break;
+      break;
     case NeverLast:
       for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
            ++link_index) {
-        current_index = data.IdIndex(relation->linked_ids->at(link_index));
+        current_index          = data.IdIndex(relation->linked_ids->at(link_index));
         IntVar* const next_var = routing.NextVar(current_index);
         for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
           int64 end_index = routing.End(v);
           next_var->RemoveValue(end_index);
+        }
       }
-    } break;
-    case ForceLast: {
-      std::vector<int64> values;
+      break;
+    case ForceLast:
       for (std::size_t link_index = 0; link_index < relation->linked_ids->size();
            ++link_index) {
         current_index = data.IdIndex(relation->linked_ids->at(link_index));
         values.push_back(current_index);
       }
-      std::vector<int64> intermediate_values(values);
+      intermediate_values.insert(intermediate_values.end(), values.begin(), values.end());
       for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
         int64 end_index = routing.End(v);
         intermediate_values.push_back(end_index);
@@ -555,8 +557,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         IntVar* const next_var = routing.NextVar(index);
         next_var->SetValues(intermediate_values);
       }
-    } break;
-    case VehicleGroupDuration: {
+      break;
+    case VehicleGroupDuration:
       if (relation->lapse > -1) {
         has_overall_duration = true;
         std::vector<IntVar*> same_vehicle_vars;
@@ -577,8 +579,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         solver->AddConstraint(
             solver->MakeLessOrEqual(solver->MakeSum(same_vehicle_vars), relation->lapse));
       }
-    } break;
-    case VehicleTrips: {
+      break;
+    case VehicleTrips:
       if (relation->linked_vehicle_ids->size() > 1) {
         int current_vehicle_index;
         int previous_vehicle_index =
@@ -598,8 +600,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           previous_vehicle_index = current_vehicle_index;
         }
       }
-    } break;
-    case VehicleGroupNumber: {
+      break;
+    case VehicleGroupNumber:
       if (relation->linked_vehicle_ids->size() > 1) {
         std::vector<IntVar*> used_vehicles;
         for (std::size_t link_index = 0;
@@ -611,19 +613,21 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           IntVar* const is_vehicle_used =
               solver
                   ->MakeConditionalExpression(
-                      solver->MakeIsDifferentCstVar(routing.NextVar(start_index), end_index),
+                      solver->MakeIsDifferentCstVar(routing.NextVar(start_index),
+                                                    end_index),
                       solver->MakeIntConst(1), 0)
                   ->Var();
           used_vehicles.push_back(is_vehicle_used);
         }
 
-        solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles),
-                                                      relation->lapse));
+        solver->AddConstraint(
+            solver->MakeLessOrEqual(solver->MakeSum(used_vehicles), relation->lapse));
       }
-
-    } break;
-    default:
       break;
+    default:
+      std::cout << "ERROR: Relation type (" << relation->type << ") is not implemented"
+                << std::endl;
+      throw -1;
     }
   }
 }
@@ -929,7 +933,8 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
       else
         routing.AddVariableMaximizedByFinalizer(time_cumul_var);
 
-      routing.GetMutableDimension(kTime)->SetSpanUpperBoundForVehicle(vehicle->duration, v);
+      routing.GetMutableDimension(kTime)->SetSpanUpperBoundForVehicle(vehicle->duration,
+                                                                      v);
     } else if (FLAGS_balance) {
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
       routing.AddVariableMaximizedByFinalizer(time_cumul_var);
@@ -1006,7 +1011,8 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
         FirstSolutionStrategy::PARALLEL_CHEAPEST_INSERTION);
     break;
   case 5:
-    parameters.set_first_solution_strategy(FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE);
+    parameters.set_first_solution_strategy(
+        FirstSolutionStrategy::FIRST_UNBOUND_MIN_VALUE);
     break;
   case 6:
     parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
