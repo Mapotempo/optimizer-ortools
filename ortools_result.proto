@@ -11,6 +11,7 @@ message Activity {
   int32 alternative         = 5;
   int32 current_distance    = 6;
   string id                 = 7;
+  int64 lateness            = 8;
 }
 
 message Costs {
@@ -25,6 +26,8 @@ message Costs {
   float time_order = 9;
   float time_without_wait = 10;
   float value = 11;
+  float lateness = 12;
+  float overload = 13;
 }
 
 message Route {

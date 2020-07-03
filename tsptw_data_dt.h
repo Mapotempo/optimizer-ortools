@@ -873,7 +873,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
       v->capacity.push_back(capacity.limit());
-      v->overload_multiplier.push_back(capacity.overload_multiplier());
+      v->overload_multiplier.push_back(capacity.overload_multiplier() * CUSTOM_BIGNUM);
       v->counting.push_back(capacity.counting());
     }
 
