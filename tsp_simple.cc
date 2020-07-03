@@ -56,6 +56,21 @@ double GetSpanCostForVehicleForDimension(RoutingModel& routing,
          CUSTOM_BIGNUM;
 }
 
+double GetUpperBoundCostForDimension(RoutingModel& routing, const Assignment* solution,
+                                     int index, const std::string& dimension_name) {
+  if (routing.GetMutableDimension(dimension_name) == nullptr)
+    return 0;
+  int64 start_time =
+      solution->Min(routing.GetMutableDimension(dimension_name)->CumulVar(index));
+  int64 upper_bound =
+      routing.GetMutableDimension(dimension_name)->GetCumulVarSoftUpperBound(index);
+  int64 excess = std::max(start_time - upper_bound, (int64)0);
+  return (double)excess *
+         routing.GetMutableDimension(dimension_name)
+             ->GetCumulVarSoftUpperBoundCoefficient(index) /
+         CUSTOM_BIGNUM;
+}
+
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                      RoutingIndexManager& manager, int64 size, int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
@@ -1260,6 +1275,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
       ortools_result::Route* route    = result.add_routes();
       int previous_index              = -1;
       int previous_start_time         = 0;
+      float lateness_cost             = 0;
+      float overload_cost             = 0;
       bool vehicle_used               = false;
       for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index);
            index       = solution->Value(routing.NextVar(index))) {
@@ -1288,8 +1305,14 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
         ortools_result::Activity* activity       = route->add_activities();
         RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
-        activity->set_start_time(
-            solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index)));
+        int64 start_time =
+            solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
+        activity->set_start_time(start_time);
+        int64 upper_bound =
+            routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
+        int64 lateness = std::max(start_time - upper_bound, (int64)0);
+        activity->set_lateness(lateness);
+        lateness_cost += GetUpperBoundCostForDimension(routing, solution, index, kTime);
         activity->set_current_distance(
             solution->Min(routing.GetMutableDimension(kDistance)->CumulVar(index)));
         if (previous_index == -1)
@@ -1307,6 +1330,9 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
               solution->Min(routing.GetMutableDimension("quantity" + std::to_string(q))
                                 ->CumulVar(solution->Value(routing.NextVar(index))));
           activity->add_quantities(exchange);
+          overload_cost += GetUpperBoundCostForDimension(
+              routing, solution, solution->Value(routing.NextVar(index)),
+              "quantity" + std::to_string(q));
         }
         previous_index = index;
         previous_start_time =
@@ -1332,9 +1358,18 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
       ortools_result::Activity* end_activity = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex =
           manager.IndexToNode(routing.End(route_nbr));
+      int64 end_index = routing.End(route_nbr);
       end_activity->set_index(data.ProblemIndex(nodeIndex));
       end_activity->set_start_time(solution->Min(
           routing.GetMutableDimension(kTime)->CumulVar(routing.End(route_nbr))));
+      int64 start_time =
+          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
+      end_activity->set_start_time(start_time);
+      int64 upper_bound =
+          routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
+      int64 lateness = std::max(start_time - upper_bound, (int64)0);
+      end_activity->set_lateness(lateness);
+      lateness_cost += GetUpperBoundCostForDimension(routing, solution, end_index, kTime);
       end_activity->set_current_distance(solution->Min(
           routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
@@ -1386,6 +1421,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
             routing, solution, route_nbr, kFakeDistance);
         route_costs->set_distance_fake(fake_distance_cost);
       }
+      route_costs->set_overload(overload_cost);
+      route_costs->set_lateness(lateness_cost);
       route->set_allocated_costs(route_costs);
     }
 
