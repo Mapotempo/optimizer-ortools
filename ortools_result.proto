@@ -14,7 +14,7 @@ message Activity {
   int64 lateness            = 8;
 }
 
-message Costs {
+message CostDetails {
   float fixed = 1;
   float distance = 2;
   float distance_balance = 3;
@@ -32,7 +32,7 @@ message Costs {
 
 message Route {
   repeated Activity activities = 1;
-  Costs costs = 2;
+  CostDetails cost_details = 2;
 }
 
 message Result {
