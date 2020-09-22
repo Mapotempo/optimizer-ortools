@@ -2,7 +2,7 @@ OR_TOOLS_TOP=../or-tools
 
 TUTORIAL=resources
 
-CFLAGS := -I $(OR_TOOLS_TOP)/include
+CFLAGS := -std=c++11 -O4 -DNDEBUG -I $(OR_TOOLS_TOP)/include
 
 # For debugging uncomment the next line. -isystem prevents warnings rooted in or-tools library appearing in our compilation
 # CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_TOP)/include -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP
