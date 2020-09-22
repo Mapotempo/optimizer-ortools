@@ -1374,7 +1374,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
           routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
       end_activity->set_type("end");
 
-      ortools_result::Costs* route_costs = ortools_result::Costs().New();
+      ortools_result::CostDetails* route_costs = ortools_result::CostDetails().New();
 
       if (vehicle_used) {
         double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
@@ -1423,7 +1423,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
       }
       route_costs->set_overload(overload_cost);
       route_costs->set_lateness(lateness_cost);
-      route->set_allocated_costs(route_costs);
+      route->set_allocated_cost_details(route_costs);
     }
 
     std::vector<double> scores = logger->GetFinalScore();
