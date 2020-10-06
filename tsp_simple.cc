@@ -1222,6 +1222,11 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
         LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   }
 
+  if (data.Routes().size() > 0){
+    CHECK_OK(util_time::EncodeGoogleApiProto(absl::Milliseconds(1000), // 1.0s
+                                             parameters.mutable_lns_time_limit()));
+  }
+
   routing.CloseModelWithParameters(parameters);
 
   bool build_route = RouteBuilder(data, routing, manager, assignment);
