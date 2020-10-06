@@ -1244,7 +1244,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
     routing.AddSearchMonitor(limit);
   }
 
-  if (((data.Routes().size() > 0 && build_route) || data.OrderCounter() == 1) &&
+  if (data.Routes().size() > 0 && build_route &&
       routing.solver()->CheckAssignment(assignment)) {
     std::cout << "Using initial solution provided." << std::endl;
     solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
