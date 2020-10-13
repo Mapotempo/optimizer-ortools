@@ -243,7 +243,9 @@ std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data,
           solver->MakeGreaterOrEqual(rest_interval->SafeStartExpr(0), cumul_var));
       solver->AddConstraint(
           solver->MakeLessOrEqual(rest_interval->SafeEndExpr(0), cumul_var_end));
-      routing.AddIntervalToAssignment(rest_interval);
+      routing.AddVariableTargetToFinalizer(rest_interval->SafeStartExpr(0)->Var(),
+                                           // set the middle of timewindow as a target
+                                           (rest.ready_time[0] + rest.due_time[0]) / 2);
     }
     routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(
         rest_array, vehicle_index, data.ServiceTimes());
