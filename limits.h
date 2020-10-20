@@ -406,7 +406,7 @@ public:
                                                  ->Min());
           end_activity->set_type("end");
 
-          ortools_result::CostDetails* route_costs = ortools_result::CostDetails().New();
+          auto route_costs = route->mutable_cost_details();
 
           if (FLAGS_nearby) {
             double time_order_cost =
@@ -471,7 +471,6 @@ public:
             total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, kValue);
             route_costs->set_overload(overload_cost);
             route_costs->set_lateness(lateness_cost);
-            route->set_allocated_cost_details(route_costs);
           }
         }
 

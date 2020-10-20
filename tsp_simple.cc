@@ -1177,7 +1177,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
         routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
     end_activity->set_type("end");
 
-    ortools_result::CostDetails* route_costs = ortools_result::CostDetails().New();
+    auto route_costs = route->mutable_cost_details();
 
     if (vehicle_used) {
       double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
@@ -1226,7 +1226,6 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
     }
     route_costs->set_overload(overload_cost);
     route_costs->set_lateness(lateness_cost);
-    route->set_allocated_cost_details(route_costs);
   }
 
   std::vector<double> scores = logger->GetFinalScore();
