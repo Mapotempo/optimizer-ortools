@@ -1064,6 +1064,179 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
 }
 
+void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result& result,
+                             const TSPTWDataDT& data, RoutingModel& routing,
+                             RoutingIndexManager& manager, LoggerMonitor* const logger,
+                             std::vector<std::vector<IntervalVar*>>& stored_rests) {
+  if (result.routes_size() > 0)
+    result.clear_routes();
+
+  double total_time_order_cost(0), total_distance_order_cost(0);
+
+  for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
+    std::vector<IntervalVar*> rests = stored_rests.at(route_nbr);
+    ortools_result::Route* route    = result.add_routes();
+    int previous_index              = -1;
+    int previous_start_time         = 0;
+    float lateness_cost             = 0;
+    float overload_cost             = 0;
+    bool vehicle_used               = false;
+    for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index);
+         index       = solution->Value(routing.NextVar(index))) {
+      for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();) {
+        int64 rest_start_time = solution->StartValue(*it);
+        if (solution->PerformedValue(*it) && previous_index != -1 &&
+            rest_start_time >= previous_start_time &&
+            rest_start_time <=
+                solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index))) {
+          std::stringstream ss((*it)->name());
+          std::string item;
+          std::vector<std::string> parsed_name;
+          while (std::getline(ss, item, '/')) {
+            parsed_name.push_back(item);
+          }
+
+          ortools_result::Activity* rest = route->add_activities();
+          rest->set_type("break");
+          rest->set_id(parsed_name[1]);
+          rest->set_start_time(rest_start_time);
+          it = rests.erase(it);
+        } else {
+          ++it;
+        }
+      }
+
+      ortools_result::Activity* activity       = route->add_activities();
+      RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
+      int64 start_time =
+          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
+      activity->set_start_time(start_time);
+      int64 upper_bound =
+          routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
+      int64 lateness = std::max(start_time - upper_bound, (int64)0);
+      activity->set_lateness(lateness);
+      lateness_cost += GetUpperBoundCostForDimension(routing, solution, index, kTime);
+      activity->set_current_distance(
+          solution->Min(routing.GetMutableDimension(kDistance)->CumulVar(index)));
+      if (previous_index == -1)
+        activity->set_type("start");
+      else {
+        vehicle_used = true;
+        activity->set_type("service");
+        activity->set_id(data.ServiceId(nodeIndex));
+        activity->set_index(data.ProblemIndex(nodeIndex));
+        activity->set_alternative(data.AlternativeIndex(nodeIndex));
+      }
+      for (std::size_t q = 0;
+           q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
+        double exchange =
+            solution->Min(routing.GetMutableDimension("quantity" + std::to_string(q))
+                              ->CumulVar(solution->Value(routing.NextVar(index))));
+        activity->add_quantities(exchange);
+        overload_cost += GetUpperBoundCostForDimension(
+            routing, solution, solution->Value(routing.NextVar(index)),
+            "quantity" + std::to_string(q));
+      }
+      previous_index = index;
+      previous_start_time =
+          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
+    }
+
+    for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();
+         ++it) {
+      int64 rest_start_time = solution->StartValue(*it);
+      if (solution->PerformedValue(*it)) {
+        ortools_result::Activity* rest = route->add_activities();
+        std::stringstream ss((*it)->name());
+        std::string item;
+        std::vector<std::string> parsed_name;
+        while (std::getline(ss, item, '/')) {
+          parsed_name.push_back(item);
+        }
+        rest->set_type("break");
+        rest->set_id(parsed_name[1]);
+        rest->set_start_time(rest_start_time);
+      }
+    }
+    ortools_result::Activity* end_activity = route->add_activities();
+    RoutingIndexManager::NodeIndex nodeIndex =
+        manager.IndexToNode(routing.End(route_nbr));
+    int64 end_index = routing.End(route_nbr);
+    end_activity->set_index(data.ProblemIndex(nodeIndex));
+    end_activity->set_start_time(solution->Min(
+        routing.GetMutableDimension(kTime)->CumulVar(routing.End(route_nbr))));
+    int64 start_time =
+        solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
+    end_activity->set_start_time(start_time);
+    int64 upper_bound =
+        routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
+    int64 lateness = std::max(start_time - upper_bound, (int64)0);
+    end_activity->set_lateness(lateness);
+    lateness_cost += GetUpperBoundCostForDimension(routing, solution, end_index, kTime);
+    end_activity->set_current_distance(solution->Min(
+        routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
+    end_activity->set_type("end");
+
+    ortools_result::CostDetails* route_costs = ortools_result::CostDetails().New();
+
+    if (vehicle_used) {
+      double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
+      route_costs->set_fixed(fixed_cost);
+    }
+
+    double time_cost =
+        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTime);
+    route_costs->set_time(time_cost);
+
+    double distance_cost =
+        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
+    route_costs->set_distance(distance_cost);
+
+    if (FLAGS_nearby) {
+      double time_order_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
+      total_time_order_cost += time_order_cost;
+      route_costs->set_time_order(time_order_cost);
+
+      double distance_order_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistanceOrder);
+      total_distance_order_cost += distance_order_cost;
+      route_costs->set_distance_order(distance_order_cost);
+    }
+
+    if (FLAGS_balance) {
+      double time_balance_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeBalance);
+      route_costs->set_time_balance(time_balance_cost);
+
+      double distance_balance_cost = GetSpanCostForVehicleForDimension(
+          routing, solution, route_nbr, kDistanceBalance);
+      route_costs->set_distance_balance(distance_balance_cost);
+    }
+
+    if (data.Vehicles(route_nbr)->free_approach == true ||
+        data.Vehicles(route_nbr)->free_return == true) {
+      double fake_time_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeTime);
+      route_costs->set_time_fake(fake_time_cost);
+
+      double fake_distance_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeDistance);
+      route_costs->set_distance_fake(fake_distance_cost);
+    }
+    route_costs->set_overload(overload_cost);
+    route_costs->set_lateness(lateness_cost);
+    route->set_allocated_cost_details(route_costs);
+  }
+
+  std::vector<double> scores = logger->GetFinalScore();
+  result.set_cost(
+      (solution->ObjectiveValue() - total_time_order_cost - total_distance_order_cost) /
+      CUSTOM_BIGNUM);
+  result.set_duration(scores[1]);
+  result.set_iterations(scores[2]);
+}
+
 int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   ortools_result::Result result;
 
@@ -1269,173 +1442,8 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
   }
 
   if (solution != NULL) {
-    if (result.routes_size() > 0)
-      result.clear_routes();
-
-    double total_time_order_cost(0), total_distance_order_cost(0);
-
-    for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
-      std::vector<IntervalVar*> rests = stored_rests.at(route_nbr);
-      ortools_result::Route* route    = result.add_routes();
-      int previous_index              = -1;
-      int previous_start_time         = 0;
-      float lateness_cost             = 0;
-      float overload_cost             = 0;
-      bool vehicle_used               = false;
-      for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index);
-           index       = solution->Value(routing.NextVar(index))) {
-        for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();) {
-          int64 rest_start_time = solution->StartValue(*it);
-          if (solution->PerformedValue(*it) && previous_index != -1 &&
-              rest_start_time >= previous_start_time &&
-              rest_start_time <=
-                  solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index))) {
-            std::stringstream ss((*it)->name());
-            std::string item;
-            std::vector<std::string> parsed_name;
-            while (std::getline(ss, item, '/')) {
-              parsed_name.push_back(item);
-            }
-
-            ortools_result::Activity* rest = route->add_activities();
-            rest->set_type("break");
-            rest->set_id(parsed_name[1]);
-            rest->set_start_time(rest_start_time);
-            it = rests.erase(it);
-          } else {
-            ++it;
-          }
-        }
-
-        ortools_result::Activity* activity       = route->add_activities();
-        RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
-        int64 start_time =
-            solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
-        activity->set_start_time(start_time);
-        int64 upper_bound =
-            routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
-        int64 lateness = std::max(start_time - upper_bound, (int64)0);
-        activity->set_lateness(lateness);
-        lateness_cost += GetUpperBoundCostForDimension(routing, solution, index, kTime);
-        activity->set_current_distance(
-            solution->Min(routing.GetMutableDimension(kDistance)->CumulVar(index)));
-        if (previous_index == -1)
-          activity->set_type("start");
-        else {
-          vehicle_used = true;
-          activity->set_type("service");
-          activity->set_id(data.ServiceId(nodeIndex));
-          activity->set_index(data.ProblemIndex(nodeIndex));
-          activity->set_alternative(data.AlternativeIndex(nodeIndex));
-        }
-        for (std::size_t q = 0;
-             q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
-          double exchange =
-              solution->Min(routing.GetMutableDimension("quantity" + std::to_string(q))
-                                ->CumulVar(solution->Value(routing.NextVar(index))));
-          activity->add_quantities(exchange);
-          overload_cost += GetUpperBoundCostForDimension(
-              routing, solution, solution->Value(routing.NextVar(index)),
-              "quantity" + std::to_string(q));
-        }
-        previous_index = index;
-        previous_start_time =
-            solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
-      }
-
-      for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();
-           ++it) {
-        int64 rest_start_time = solution->StartValue(*it);
-        if (solution->PerformedValue(*it)) {
-          ortools_result::Activity* rest = route->add_activities();
-          std::stringstream ss((*it)->name());
-          std::string item;
-          std::vector<std::string> parsed_name;
-          while (std::getline(ss, item, '/')) {
-            parsed_name.push_back(item);
-          }
-          rest->set_type("break");
-          rest->set_id(parsed_name[1]);
-          rest->set_start_time(rest_start_time);
-        }
-      }
-      ortools_result::Activity* end_activity = route->add_activities();
-      RoutingIndexManager::NodeIndex nodeIndex =
-          manager.IndexToNode(routing.End(route_nbr));
-      int64 end_index = routing.End(route_nbr);
-      end_activity->set_index(data.ProblemIndex(nodeIndex));
-      end_activity->set_start_time(solution->Min(
-          routing.GetMutableDimension(kTime)->CumulVar(routing.End(route_nbr))));
-      int64 start_time =
-          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
-      end_activity->set_start_time(start_time);
-      int64 upper_bound =
-          routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
-      int64 lateness = std::max(start_time - upper_bound, (int64)0);
-      end_activity->set_lateness(lateness);
-      lateness_cost += GetUpperBoundCostForDimension(routing, solution, end_index, kTime);
-      end_activity->set_current_distance(solution->Min(
-          routing.GetMutableDimension(kDistance)->CumulVar(routing.End(route_nbr))));
-      end_activity->set_type("end");
-
-      ortools_result::CostDetails* route_costs = ortools_result::CostDetails().New();
-
-      if (vehicle_used) {
-        double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
-        route_costs->set_fixed(fixed_cost);
-      }
-
-      double time_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTime);
-      route_costs->set_time(time_cost);
-
-      double distance_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
-      route_costs->set_distance(distance_cost);
-
-      if (FLAGS_nearby) {
-        double time_order_cost =
-            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
-        total_time_order_cost += time_order_cost;
-        route_costs->set_time_order(time_order_cost);
-
-        double distance_order_cost = GetSpanCostForVehicleForDimension(
-            routing, solution, route_nbr, kDistanceOrder);
-        total_distance_order_cost += distance_order_cost;
-        route_costs->set_distance_order(distance_order_cost);
-      }
-
-      if (FLAGS_balance) {
-        double time_balance_cost =
-            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeBalance);
-        route_costs->set_time_balance(time_balance_cost);
-
-        double distance_balance_cost = GetSpanCostForVehicleForDimension(
-            routing, solution, route_nbr, kDistanceBalance);
-        route_costs->set_distance_balance(distance_balance_cost);
-      }
-
-      if (data.Vehicles(route_nbr)->free_approach == true ||
-          data.Vehicles(route_nbr)->free_return == true) {
-        double fake_time_cost =
-            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeTime);
-        route_costs->set_time_fake(fake_time_cost);
-
-        double fake_distance_cost = GetSpanCostForVehicleForDimension(
-            routing, solution, route_nbr, kFakeDistance);
-        route_costs->set_distance_fake(fake_distance_cost);
-      }
-      route_costs->set_overload(overload_cost);
-      route_costs->set_lateness(lateness_cost);
-      route->set_allocated_cost_details(route_costs);
-    }
-
-    std::vector<double> scores = logger->GetFinalScore();
-    result.set_cost(
-        (solution->ObjectiveValue() - total_time_order_cost - total_distance_order_cost) /
-        CUSTOM_BIGNUM);
-    result.set_duration(scores[1]);
-    result.set_iterations(scores[2]);
+    ParseSolutionIntoResult(solution, result, data, routing, manager, logger,
+                            stored_rests);
 
     std::fstream output(filename, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!result.SerializeToOstream(&output)) {
