@@ -644,7 +644,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     default:
       std::cout << "ERROR: Relation type (" << relation->type << ") is not implemented"
                 << std::endl;
-      throw -1;
+      throw - 1;
     }
   }
 }
@@ -891,8 +891,7 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 
 void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
                                bool& has_route_duration) {
-  Solver* solver = routing.solver();
-  int v          = 0;
+  int v = 0;
   for (TSPTWDataDT::Vehicle* vehicle : data.Vehicles()) {
     const operations_research::RoutingDimension& time_dimension =
         routing.GetDimensionOrDie(kTime);
@@ -1135,10 +1134,9 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   std::vector<IntVar*> used_vehicles;
   if (FLAGS_vehicle_limit > 0) {
-    v = 0;
-    for (TSPTWDataDT::Vehicle* vehicle : data.Vehicles()) {
-      int64 start_index = routing.Start(v);
-      int64 end_index   = routing.End(v);
+    for (int vehicle = 0; vehicle < size_vehicles; ++vehicle) {
+      int64 start_index = routing.Start(vehicle);
+      int64 end_index   = routing.End(vehicle);
       IntVar* const is_vehicle_used =
           solver
               ->MakeConditionalExpression(
@@ -1146,7 +1144,6 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
                   solver->MakeIntConst(1), 0)
               ->Var();
       used_vehicles.push_back(is_vehicle_used);
-      ++v;
     }
 
     solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles),
@@ -1224,7 +1221,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
         LocalSearchMetaheuristic::GUIDED_LOCAL_SEARCH);
   }
 
-  if (data.Routes().size() > 0){
+  if (data.Routes().size() > 0) {
     CHECK_OK(util_time::EncodeGoogleApiProto(absl::Milliseconds(1000), // 1.0s
                                              parameters.mutable_lns_time_limit()));
   }

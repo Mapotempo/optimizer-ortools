@@ -2,10 +2,17 @@ OR_TOOLS_TOP=../or-tools
 
 TUTORIAL=resources
 
-CFLAGS := -std=c++11 -O4 -DNDEBUG -I $(OR_TOOLS_TOP)/include
+CFLAGS := -std=c++11 -I $(OR_TOOLS_TOP)/include
 
-# For debugging uncomment the next line. -isystem prevents warnings rooted in or-tools library appearing in our compilation
-# CFLAGS := $(CFLAGS) -ggdb -Og -DDEBUG -fsanitize=address -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_TOP)/include -DUSE_CBC -DUSE_CLP -DUSE_GLOP -DUSE_BOP
+# During development uncomment the next line to have debug checks and other verifications
+# DEVELOPMENT = true
+ifeq ($(DEVELOPMENT), true)
+	# -isystem prevents warnings rooted in or-tools library appearing in our compilation
+  CFLAGS := $(CFLAGS) -O0 -DDEBUG -ggdb3 -fsanitize=address -fkeep-inline-functions -fno-inline-small-functions -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_TOP)/include
+  CXX := LSAN_OPTION=verbosity=1:log_threads=1 $(CXX)
+else
+  CFLAGS := $(CFLAGS) -O4 -DNDEBUG
+endif
 
 .PHONY: all local_clean
 
@@ -15,7 +22,7 @@ all: $(EXE)
 	$(OR_TOOLS_TOP)/bin/protoc --cpp_out . $<
 
 %.o: %.cc %.h
-	$(CXX) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CFLAGS) -c ./$< -o $@
 
 ortools_vrp.pb.h: ortools_vrp.pb.cc
 

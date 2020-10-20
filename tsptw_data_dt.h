@@ -67,7 +67,7 @@ public:
   void LoadInstance(const std::string& filename);
 
   //  Helper function
-  int64& SetMatrix(int i, int j) {
+  int64& SetDistMatrix(int i, int j) {
     return distances_matrices_.back()->Cost(RoutingIndexManager::NodeIndex(i),
                                             RoutingIndexManager::NodeIndex(j));
   }
@@ -108,7 +108,7 @@ public:
         if (static_cast<int64>(matrix.distance(i * size_matrix + j)) < CUSTOM_MAX_INT)
           max_distance = std::max(
               max_distance, static_cast<int64>(matrix.distance(i * size_matrix + j)));
-        SetMatrix(i, j) = static_cast<int64>(matrix.distance(i * size_matrix + j));
+        SetDistMatrix(i, j) = static_cast<int64>(matrix.distance(i * size_matrix + j));
       }
     }
     return max_distance;
@@ -420,13 +420,6 @@ public:
                  data->distances_matrices_.at(problem_matrix_index)
                      ->Cost(RoutingIndexManager::NodeIndex(vehicle_indices[i.value()]),
                             RoutingIndexManager::NodeIndex(vehicle_indices[j.value()])));
-    }
-
-    //  Transit quantity at a node "from"
-    //  This is the quantity added after visiting node "from"
-    int64 DistancePlusServiceTime(RoutingIndexManager::NodeIndex from,
-                                  RoutingIndexManager::NodeIndex to) const {
-      return Distance(from, to) + data->ServiceTime(from);
     }
 
     //  Transit quantity at a node "from"
@@ -839,7 +832,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     for (int64 i = 0; i < std::max(problem_size, 3); ++i) {
       for (int64 j = 0; j < std::max(problem_size, 3); ++j) {
         SetTimeMatrix(i, j)  = 0;
-        SetMatrix(i, j)      = 0;
+        SetDistMatrix(i, j)  = 0;
         SetValueMatrix(i, j) = 0;
       }
     }
