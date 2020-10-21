@@ -286,17 +286,18 @@ public:
     bool new_best = false;
 
     const IntVar* objective = prototype_->Objective();
-    if (minimize_ && objective->Min() * 1.01 < best_result_) {
+    if (minimize_ && (objective->Min() * 1.01 < best_result_ ||
+                      (DEBUG_MODE && objective->Min() < best_result_))) {
       best_result_ = objective->Min();
       if (intermediate_) {
-        if (result_->routes_size() > 0)
-          result_->clear_routes();
+        result_->clear_routes();
 
         double total_fake_time_cost(0.0), total_fake_distance_cost(0.0),
             total_time_cost(0.0), total_distance_cost(0.0), total_time_balance_cost(0.0),
             total_distance_balance_cost(0.0), total_time_without_wait_cost(0.0),
             total_value_cost(0.0), total_vehicle_fixed_cost(0.0),
-            total_time_order_cost(0.0), total_distance_order_cost(0.0);
+            total_time_order_cost(0.0), total_distance_order_cost(0.0),
+            total_lateness_cost(0.0), total_overload_cost(0.0);
 
         int nbr_routes(0), nbr_services_served(0);
 
@@ -333,6 +334,7 @@ public:
                 ++it;
               }
             }
+
             ortools_result::Activity* activity       = route->add_activities();
             RoutingIndexManager::NodeIndex nodeIndex = manager_->IndexToNode(index);
             activity->set_index(data_.ProblemIndex(nodeIndex));
@@ -352,7 +354,7 @@ public:
               ++nbr_services_served;
               vehicle_used = true;
               activity->set_type("service");
-              activity->set_index(data_.ProblemIndex(nodeIndex));
+              activity->set_id(data_.ServiceId(nodeIndex));
               activity->set_alternative(data_.AlternativeIndex(nodeIndex));
             }
             for (std::size_t q = 0;
@@ -374,14 +376,13 @@ public:
                ++it) {
             int64 rest_start_time = (*it)->StartMin();
             if ((*it)->StartMin() == (*it)->StartMax()) {
+              ortools_result::Activity* rest = route->add_activities();
               std::stringstream ss((*it)->name());
               std::string item;
               std::vector<std::string> parsed_name;
               while (std::getline(ss, item, '/')) {
                 parsed_name.push_back(item);
               }
-
-              ortools_result::Activity* rest = route->add_activities();
               rest->set_type("break");
               rest->set_id(parsed_name[1]);
               rest->set_start_time(rest_start_time);
@@ -392,6 +393,7 @@ public:
           RoutingIndexManager::NodeIndex nodeIndex =
               manager_->IndexToNode(routing_->End(route_nbr));
           int64 end_index = routing_->End(route_nbr);
+          end_activity->set_index(data_.ProblemIndex(nodeIndex));
 
           int64 start_time =
               routing_->GetMutableDimension(kTime)->CumulVar(end_index)->Min();
@@ -401,14 +403,28 @@ public:
           int64 lateness = std::max(start_time - upper_bound, (int64)0);
           end_activity->set_lateness(lateness);
           lateness_cost += GetUpperBoundCostForDimension(end_index, kTime);
-
-          end_activity->set_index(data_.ProblemIndex(nodeIndex));
           end_activity->set_current_distance(routing_->GetMutableDimension(kDistance)
                                                  ->CumulVar(routing_->End(route_nbr))
                                                  ->Min());
           end_activity->set_type("end");
 
           auto route_costs = route->mutable_cost_details();
+
+          if (vehicle_used) {
+            double fixed_cost =
+                routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
+            route_costs->set_fixed(fixed_cost);
+            total_vehicle_fixed_cost += fixed_cost;
+            ++nbr_routes;
+          }
+
+          double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
+          route_costs->set_time(time_cost);
+          total_time_cost += time_cost;
+
+          double distance_cost = GetSpanCostForVehicleForDimension(route_nbr, kDistance);
+          route_costs->set_distance(distance_cost);
+          total_distance_cost += distance_cost;
 
           if (FLAGS_nearby) {
             double time_order_cost =
@@ -422,58 +438,45 @@ public:
             route_costs->set_distance_order(distance_order_cost);
           }
 
-          if (vehicle_used) {
-            double fixed_cost =
-                routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
-            route_costs->set_fixed(fixed_cost);
+          if (FLAGS_balance) {
+            double time_balance_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
+            route_costs->set_time_balance(time_balance_cost);
+            total_time_balance_cost += time_balance_cost;
 
-            double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
-            route_costs->set_time(time_cost);
-
-            double distance_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kDistance);
-            route_costs->set_distance(distance_cost);
-
-            if (FLAGS_debug) {
-              ++nbr_routes;
-              total_vehicle_fixed_cost += fixed_cost;
-              total_time_cost += time_cost;
-              total_distance_cost += distance_cost;
-            }
-
-            if (data_.Vehicles(route_nbr)->free_approach == true ||
-                data_.Vehicles(route_nbr)->free_return == true) {
-              double fake_time_cost =
-                  GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
-              total_fake_time_cost += fake_time_cost;
-              route_costs->set_time_fake(fake_time_cost);
-
-              double fake_distance_cost =
-                  GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
-              total_fake_distance_cost += fake_distance_cost;
-              route_costs->set_distance_fake(fake_distance_cost);
-            }
-
-            if (FLAGS_balance) {
-              double time_balance_cost =
-                  GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
-              total_time_balance_cost += time_balance_cost;
-              route_costs->set_time_balance(time_balance_cost);
-
-              double distance_balance_cost =
-                  GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
-              total_distance_balance_cost += distance_balance_cost;
-              route_costs->set_distance_balance(distance_balance_cost);
-            }
-            double time_without_wait_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
-            total_time_without_wait_cost += time_without_wait_cost;
-            route_costs->set_time_without_wait(time_without_wait_cost);
-
-            total_value_cost += GetSpanCostForVehicleForDimension(route_nbr, kValue);
-            route_costs->set_overload(overload_cost);
-            route_costs->set_lateness(lateness_cost);
+            double distance_balance_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
+            route_costs->set_distance_balance(distance_balance_cost);
+            total_distance_balance_cost += distance_balance_cost;
           }
+
+          if (data_.Vehicles(route_nbr)->free_approach == true ||
+              data_.Vehicles(route_nbr)->free_return == true) {
+            double fake_time_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
+            route_costs->set_time_fake(fake_time_cost);
+            total_fake_time_cost += fake_time_cost;
+
+            double fake_distance_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
+            route_costs->set_distance_fake(fake_distance_cost);
+            total_fake_distance_cost += fake_distance_cost;
+          }
+
+          double time_without_wait_cost =
+              GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
+          route_costs->set_time_without_wait(time_without_wait_cost);
+          total_time_without_wait_cost += time_without_wait_cost;
+
+          double value_cost = GetSpanCostForVehicleForDimension(route_nbr, kValue);
+          route_costs->set_value(value_cost);
+          total_value_cost += value_cost;
+
+          route_costs->set_overload(overload_cost);
+          total_overload_cost += overload_cost;
+
+          route_costs->set_lateness(lateness_cost);
+          total_lateness_cost += lateness_cost;
         }
 
         result_->set_cost(best_result_ / CUSTOM_BIGNUM -
@@ -507,6 +510,8 @@ public:
                     << "\n total_fake_distance_cost:     " << total_fake_distance_cost
                     << "\n total_time_without_wait_cost: " << total_time_without_wait_cost
                     << "\n total_value_cost:             " << total_value_cost
+                    << "\n total_overload_cost:          " << total_overload_cost
+                    << "\n total_lateness_cost:          " << total_lateness_cost
                     << "\n Cost substracted from the results but used in optimization "
                        "(due to nearby flag):"
                     << "\n total_time_order_cost:        " << total_time_order_cost

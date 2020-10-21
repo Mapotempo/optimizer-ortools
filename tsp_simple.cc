@@ -1064,18 +1064,17 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
 }
 
-void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result& result,
+void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result* result,
                              const TSPTWDataDT& data, RoutingModel& routing,
                              RoutingIndexManager& manager, LoggerMonitor* const logger,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
-  if (result.routes_size() > 0)
-    result.clear_routes();
+  result->clear_routes();
 
   double total_time_order_cost(0), total_distance_order_cost(0);
 
   for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
     std::vector<IntervalVar*> rests = stored_rests.at(route_nbr);
-    ortools_result::Route* route    = result.add_routes();
+    ortools_result::Route* route    = result->add_routes();
     int previous_index              = -1;
     int previous_start_time         = 0;
     float lateness_cost             = 0;
@@ -1108,6 +1107,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
 
       ortools_result::Activity* activity       = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
+      activity->set_index(data.ProblemIndex(nodeIndex));
       int64 start_time =
           solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
       activity->set_start_time(start_time);
@@ -1124,7 +1124,6 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
         vehicle_used = true;
         activity->set_type("service");
         activity->set_id(data.ServiceId(nodeIndex));
-        activity->set_index(data.ProblemIndex(nodeIndex));
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
       }
       for (std::size_t q = 0;
@@ -1158,13 +1157,13 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
         rest->set_start_time(rest_start_time);
       }
     }
+
     ortools_result::Activity* end_activity = route->add_activities();
     RoutingIndexManager::NodeIndex nodeIndex =
         manager.IndexToNode(routing.End(route_nbr));
     int64 end_index = routing.End(route_nbr);
     end_activity->set_index(data.ProblemIndex(nodeIndex));
-    end_activity->set_start_time(solution->Min(
-        routing.GetMutableDimension(kTime)->CumulVar(routing.End(route_nbr))));
+
     int64 start_time =
         solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
     end_activity->set_start_time(start_time);
@@ -1224,19 +1223,28 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeDistance);
       route_costs->set_distance_fake(fake_distance_cost);
     }
+
+    double time_without_wait_cost =
+        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeNoWait);
+    route_costs->set_time_without_wait(time_without_wait_cost);
+
+    double value_cost =
+        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kValue);
+    route_costs->set_value(value_cost);
+
     route_costs->set_overload(overload_cost);
     route_costs->set_lateness(lateness_cost);
   }
 
   std::vector<double> scores = logger->GetFinalScore();
-  result.set_cost(solution->ObjectiveValue() / CUSTOM_BIGNUM -
-                  (total_time_order_cost + total_distance_order_cost));
-  result.set_duration(scores[1]);
-  result.set_iterations(scores[2]);
+  result->set_cost(solution->ObjectiveValue() / CUSTOM_BIGNUM -
+                   (total_time_order_cost + total_distance_order_cost));
+  result->set_duration(scores[1]);
+  result->set_iterations(scores[2]);
 }
 
 int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
-  ortools_result::Result result;
+  ortools_result::Result* result = new ortools_result::Result;
 
   const int size_vehicles   = data.Vehicles().size();
   const int size            = data.Size();
@@ -1403,7 +1411,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   LoggerMonitor* const logger = MakeLoggerMonitor(
       data, &routing, &manager, min_start, size_matrix, FLAGS_debug,
-      FLAGS_intermediate_solutions, &result, stored_rests, filename, true);
+      FLAGS_intermediate_solutions, result, stored_rests, filename, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
@@ -1444,14 +1452,14 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
                             stored_rests);
 
     std::fstream output(filename, std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!result.SerializeToOstream(&output)) {
+    if (!result->SerializeToOstream(&output)) {
       std::cout << "Failed to write result." << std::endl;
       return -1;
     }
     output.close();
 
-    std::cout << "Final Iteration : " << result.iterations()
-              << " Cost : " << result.cost() << " Time : " << result.duration()
+    std::cout << "Final Iteration : " << result->iterations()
+              << " Cost : " << result->cost() << " Time : " << result->duration()
               << std::endl;
   } else {
     std::cout << "No solution found..." << std::endl;
@@ -1459,6 +1467,7 @@ int TSPTWSolver(const TSPTWDataDT& data, std::string filename) {
 
   google::protobuf::ShutdownProtobufLibrary();
   delete start_ends;
+  delete result;
   return 0;
 }
 
