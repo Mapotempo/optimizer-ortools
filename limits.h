@@ -366,6 +366,8 @@ public:
                   routing_->NextVar(index)->Value(), "quantity" + std::to_string(q));
             }
             previous_index = index;
+            previous_start_time =
+                routing_->GetMutableDimension(kTime)->CumulVar(index)->Min();
           }
 
           for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();
