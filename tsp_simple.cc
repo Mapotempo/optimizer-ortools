@@ -1229,9 +1229,8 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result&
   }
 
   std::vector<double> scores = logger->GetFinalScore();
-  result.set_cost(
-      (solution->ObjectiveValue() - total_time_order_cost - total_distance_order_cost) /
-      CUSTOM_BIGNUM);
+  result.set_cost(solution->ObjectiveValue() / CUSTOM_BIGNUM -
+                  (total_time_order_cost + total_distance_order_cost));
   result.set_duration(scores[1]);
   result.set_iterations(scores[2]);
 }
