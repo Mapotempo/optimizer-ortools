@@ -87,7 +87,7 @@ public:
       best_result_ = kint64min;
     }
 
-    CHECK_NOTNULL(objective_var);
+    DCHECK_NOTNULL(objective_var);
     prototype_->AddObjective(objective_var);
   }
 
@@ -231,7 +231,7 @@ public:
       best_result_ = kint64min;
     }
 
-    CHECK_NOTNULL(routing->CostVar());
+    DCHECK_NOTNULL(routing->CostVar());
     prototype_->AddObjective(routing->CostVar());
   }
 
@@ -252,8 +252,9 @@ public:
     return false;
   }
 
-  inline double GetSpanCostForVehicleForDimension(int vehicle,
-                                                  const std::string& dimension_name) {
+  inline double
+  GetSpanCostForVehicleForDimension(const int vehicle,
+                                    const std::string& dimension_name) const {
     if (routing_->GetMutableDimension(dimension_name) == nullptr)
       return 0;
     return (routing_->GetMutableDimension(dimension_name)
@@ -266,8 +267,9 @@ public:
                ->GetSpanCostCoefficientForVehicle(vehicle) /
            CUSTOM_BIGNUM;
   }
-  inline double GetUpperBoundCostForDimension(int index,
-                                              const std::string& dimension_name) {
+
+  inline double GetUpperBoundCostForDimension(const int index,
+                                              const std::string& dimension_name) const {
     if (routing_->GetMutableDimension(dimension_name) == nullptr)
       return 0;
     int64 start_time =
@@ -302,7 +304,7 @@ public:
         int nbr_routes(0), nbr_services_served(0);
 
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-          std::vector<IntervalVar*> rests = stored_rests_.at(route_nbr);
+          std::vector<IntervalVar*> rests = stored_rests_[route_nbr];
           ortools_result::Route* route    = result_->add_routes();
           int previous_index              = -1;
           int64 previous_start_time       = 0;
@@ -313,7 +315,7 @@ public:
                index       = routing_->NextVar(index)->Value()) {
             for (std::vector<IntervalVar*>::iterator it = rests.begin();
                  it != rests.end();) {
-              int64 rest_start_time = (*it)->StartMin();
+              const int64 rest_start_time = (*it)->StartMin();
               if ((*it)->StartMin() == (*it)->StartMax() && previous_index != -1 &&
                   rest_start_time >= previous_start_time &&
                   rest_start_time <=
@@ -338,12 +340,12 @@ public:
             ortools_result::Activity* activity       = route->add_activities();
             RoutingIndexManager::NodeIndex nodeIndex = manager_->IndexToNode(index);
             activity->set_index(data_.ProblemIndex(nodeIndex));
-            int64 start_time =
+            const int64 start_time =
                 routing_->GetMutableDimension(kTime)->CumulVar(index)->Min();
             activity->set_start_time(start_time);
-            int64 upper_bound =
+            const int64 upper_bound =
                 routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
-            int64 lateness = std::max(start_time - upper_bound, (int64)0);
+            const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
             activity->set_lateness(lateness);
             lateness_cost += GetUpperBoundCostForDimension(index, kTime);
             activity->set_current_distance(
@@ -359,7 +361,7 @@ public:
             }
             for (std::size_t q = 0;
                  q < data_.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
-              double exchange =
+              const double exchange =
                   routing_->GetMutableDimension("quantity" + std::to_string(q))
                       ->CumulVar(routing_->NextVar(index)->Value())
                       ->Min();
@@ -374,7 +376,7 @@ public:
 
           for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();
                ++it) {
-            int64 rest_start_time = (*it)->StartMin();
+            const int64 rest_start_time = (*it)->StartMin();
             if ((*it)->StartMin() == (*it)->StartMax()) {
               ortools_result::Activity* rest = route->add_activities();
               std::stringstream ss((*it)->name());
@@ -392,15 +394,15 @@ public:
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingIndexManager::NodeIndex nodeIndex =
               manager_->IndexToNode(routing_->End(route_nbr));
-          int64 end_index = routing_->End(route_nbr);
+          const int64 end_index = routing_->End(route_nbr);
           end_activity->set_index(data_.ProblemIndex(nodeIndex));
 
-          int64 start_time =
+          const int64 start_time =
               routing_->GetMutableDimension(kTime)->CumulVar(end_index)->Min();
           end_activity->set_start_time(start_time);
-          int64 upper_bound =
+          const int64 upper_bound =
               routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
-          int64 lateness = std::max(start_time - upper_bound, (int64)0);
+          const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
           end_activity->set_lateness(lateness);
           lateness_cost += GetUpperBoundCostForDimension(end_index, kTime);
           end_activity->set_current_distance(routing_->GetMutableDimension(kDistance)
@@ -411,64 +413,65 @@ public:
           auto route_costs = route->mutable_cost_details();
 
           if (vehicle_used) {
-            double fixed_cost =
+            const double fixed_cost =
                 routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
             route_costs->set_fixed(fixed_cost);
             total_vehicle_fixed_cost += fixed_cost;
             ++nbr_routes;
           }
 
-          double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
+          const double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
           route_costs->set_time(time_cost);
           total_time_cost += time_cost;
 
-          double distance_cost = GetSpanCostForVehicleForDimension(route_nbr, kDistance);
+          const double distance_cost =
+              GetSpanCostForVehicleForDimension(route_nbr, kDistance);
           route_costs->set_distance(distance_cost);
           total_distance_cost += distance_cost;
 
           if (FLAGS_nearby) {
-            double time_order_cost =
+            const double time_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
             total_time_order_cost += time_order_cost;
             route_costs->set_time_order(time_order_cost);
 
-            double distance_order_cost =
+            const double distance_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
             total_distance_order_cost += distance_order_cost;
             route_costs->set_distance_order(distance_order_cost);
           }
 
           if (FLAGS_balance) {
-            double time_balance_cost =
+            const double time_balance_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
             route_costs->set_time_balance(time_balance_cost);
             total_time_balance_cost += time_balance_cost;
 
-            double distance_balance_cost =
+            const double distance_balance_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
             route_costs->set_distance_balance(distance_balance_cost);
             total_distance_balance_cost += distance_balance_cost;
           }
 
-          if (data_.Vehicles(route_nbr)->free_approach == true ||
-              data_.Vehicles(route_nbr)->free_return == true) {
-            double fake_time_cost =
+          if (data_.Vehicles(route_nbr).free_approach == true ||
+              data_.Vehicles(route_nbr).free_return == true) {
+            const double fake_time_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
             route_costs->set_time_fake(fake_time_cost);
             total_fake_time_cost += fake_time_cost;
 
-            double fake_distance_cost =
+            const double fake_distance_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
             route_costs->set_distance_fake(fake_distance_cost);
             total_fake_distance_cost += fake_distance_cost;
           }
 
-          double time_without_wait_cost =
+          const double time_without_wait_cost =
               GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
           route_costs->set_time_without_wait(time_without_wait_cost);
           total_time_without_wait_cost += time_without_wait_cost;
 
-          double value_cost = GetSpanCostForVehicleForDimension(route_nbr, kValue);
+          const double value_cost = GetSpanCostForVehicleForDimension(route_nbr, kValue);
           route_costs->set_value(value_cost);
           total_value_cost += value_cost;
 
@@ -527,11 +530,12 @@ public:
     if (debug_ && new_best) {
       std::cout << "min start : " << min_start_ << std::endl;
       for (RoutingIndexManager::NodeIndex i(0); i < data_.SizeMatrix() - 1; ++i) {
-        int64 index         = manager_->NodeToIndex(i);
-        IntVar* cumul_var   = routing_->GetMutableDimension(kTime)->CumulVar(index);
-        IntVar* transit_var = routing_->GetMutableDimension(kTime)->TransitVar(index);
-        IntVar* slack_var   = routing_->GetMutableDimension(kTime)->SlackVar(index);
-        IntVar* const vehicle_var = routing_->VehicleVar(index);
+        const int64 index       = manager_->NodeToIndex(i);
+        const IntVar* cumul_var = routing_->GetMutableDimension(kTime)->CumulVar(index);
+        const IntVar* transit_var =
+            routing_->GetMutableDimension(kTime)->TransitVar(index);
+        const IntVar* slack_var   = routing_->GetMutableDimension(kTime)->SlackVar(index);
+        const IntVar* vehicle_var = routing_->VehicleVar(index);
         if (vehicle_var->Bound() && cumul_var->Bound() && transit_var->Bound() &&
             slack_var->Bound()) {
           std::cout << "Node " << i << " index " << index << " [" << vehicle_var->Value()

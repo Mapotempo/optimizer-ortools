@@ -85,12 +85,12 @@ public:
 
   int64 Cost(RoutingIndexManager::NodeIndex from,
                    RoutingIndexManager::NodeIndex to) const {
-    return matrix_[MatrixIndex(from, to)];
+    return matrix_.get()[MatrixIndex(from, to)];
   }
 
   int64& Cost(RoutingIndexManager::NodeIndex from,
                    RoutingIndexManager::NodeIndex to) {
-    return matrix_[MatrixIndex(from, to)];
+    return matrix_.get()[MatrixIndex(from, to)];
   }
 
   int64 MaxCost() const {
@@ -152,7 +152,7 @@ private:
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     for (RoutingIndexManager::NodeIndex i(0); i < Size(); ++i) {
       for (RoutingIndexManager::NodeIndex j(i + 1); j < Size(); ++j) {
-        if (matrix_[MatrixIndex(i,j)] != matrix_[MatrixIndex(j,i)]) {
+        if (matrix_.get()[MatrixIndex(i,j)] != matrix_.get()[MatrixIndex(j,i)]) {
           return false;
         }
       }
@@ -163,7 +163,7 @@ private:
 
   int32 size_;
   //scoped_array<int64> matrix_;
-  std::unique_ptr<int64[]> matrix_;
+  std::shared_ptr<int64[]> matrix_;
 
 
 
@@ -194,7 +194,7 @@ void CompleteGraphArcCost::Print(std::ostream& out, const bool label, const int 
     }
     for (RoutingIndexManager::NodeIndex to(0); to < size_; ++to) {
       out.width(width);
-      out << std::right << matrix_[MatrixIndex(from, to)];
+      out << std::right << matrix_.get()[MatrixIndex(from, to)];
     }
     out << std::endl;
   }
