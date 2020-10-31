@@ -212,6 +212,10 @@ public:
     return tsptw_clients_[i.value()].vehicle_indices;
   }
 
+  void SetVehicleIndices(const int64 i, std::vector<int64>&& vehicle_indices) {
+    tsptw_clients_[i].vehicle_indices = std::move(vehicle_indices);
+  }
+
   int32 TimeWindowsSize(const int i) const { return tws_size_[i]; }
 
   int32 Size() const { return size_; }
@@ -272,6 +276,9 @@ public:
         , capacity(0)
         , overload_multiplier(0)
         , break_size(0)
+        , max_interval_between_breaks(0)
+        , max_interval_between_breaks_UB(0)
+        , max_interval_between_breaks_LB(0)
         , time_start(0)
         , time_end(0)
         , late_multiplier(0) {}
@@ -464,6 +471,9 @@ public:
     std::vector<int64> overload_multiplier;
     std::vector<Rest> rests;
     int32 break_size;
+    int64 max_interval_between_breaks;
+    int64 max_interval_between_breaks_UB;
+    int64 max_interval_between_breaks_LB;
     int64 time_start;
     int64 time_end;
     int64 late_multiplier;
@@ -490,6 +500,32 @@ public:
 
   const Vehicle& Vehicles(const int64 index) const { return tsptw_vehicles_[index]; }
 
+  int64 MaxBreakDistOfVehicle(const int64 index) const {
+    return tsptw_vehicles_[index].max_interval_between_breaks;
+  }
+
+  int64 MaxBreakDistUBOfVehicle(const int64 index) const {
+    return tsptw_vehicles_[index].max_interval_between_breaks_UB;
+  }
+
+  int64 MaxBreakDistLBOfVehicle(const int64 index) const {
+    return tsptw_vehicles_[index].max_interval_between_breaks_LB;
+  }
+
+  void SetMaxBreakDistOfVehicle(const int64 index, const int64 max_interval) {
+    tsptw_vehicles_[index].max_interval_between_breaks = max_interval;
+  }
+
+  void SetMaxBreakDistUBOfVehicle(const int64 index,
+                                  const int64 max_interval_upperbound) {
+    tsptw_vehicles_[index].max_interval_between_breaks_UB = max_interval_upperbound;
+  }
+
+  void SetMaxBreakDistLBOfVehicle(const int64 index,
+                                  const int64 max_interval_lowerbound) {
+    tsptw_vehicles_[index].max_interval_between_breaks_LB = max_interval_lowerbound;
+  }
+
   struct Route {
     Route(std::string v_id) : vehicle_id(v_id), vehicle_index(-1) {}
     Route(std::string v_id, int v_int, std::vector<std::string> s_ids)
@@ -500,6 +536,8 @@ public:
   };
 
   const std::vector<Route>& Routes() const { return tsptw_routes_; }
+
+  std::vector<Route>* Routes() { return &tsptw_routes_; }
 
   struct Relation {
     Relation(int relation_no)
@@ -651,7 +689,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
   {
     std::fstream input(filename, std::ios::in | std::ios::binary);
     if (!problem.ParseFromIstream(&input)) {
-      VLOG(0) << "Failed to parse pbf." << std::endl;
+      LOG(FATAL) << "Failed to parse pbf.";
     }
   }
 

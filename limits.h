@@ -27,6 +27,7 @@ DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
 DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
 DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
 DEFINE_bool(only_first_solution, false, "Compute only the first solution");
+DEFINE_bool(verification_only, false, "Only verify the suplied initial solution");
 DEFINE_bool(balance, false, "Route balancing");
 DEFINE_bool(nearby, false, "Short segment priority");
 #ifdef DEBUG
@@ -548,7 +549,8 @@ public:
     }
 
     ++iteration_counter_;
-    if (iteration_counter_ >= std::pow(2, pow_)) {
+    if ((!FLAGS_verification_only || FLAGS_debug) &&
+        iteration_counter_ >= std::pow(2, pow_)) {
       std::cout << "Iteration : " << iteration_counter_;
 
       if (intermediate_ == false)
