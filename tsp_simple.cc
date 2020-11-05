@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include "./limits.h"
+#include "./values.h"
 
 #include "ortools/base/logging.h"
 
@@ -84,8 +85,8 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
 }
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
-                     RoutingIndexManager& manager, const int64 size,
-                     const int64 min_start) {
+                     RoutingValues* routing_values, RoutingIndexManager& manager,
+                     Assignment* assignment, const int64 size, const int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
   // const int size_matrix = data.SizeMatrix();
   const int size_problem = data.SizeProblem();
@@ -118,6 +119,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       const int64 index               = manager.NodeToIndex(i);
       const std::vector<int64>& ready = data.ReadyTime(i);
       const std::vector<int64>& due   = data.DueTime(i);
+      int64 initial_value             = routing_values->NodeValues(i).initial_time_value;
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
@@ -135,8 +137,16 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         }
         if (due.back() < CUSTOM_MAX_INT) {
           if (late_multiplier > 0) {
-            routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
-                index, due.back(), late_multiplier);
+            if (initial_value >= 0) {
+              assignment->Add(cumul_var);
+              if (initial_value > due.back())
+                assignment->SetMax(cumul_var, initial_value);
+              else
+                assignment->SetMax(cumul_var, due.back());
+            } else {
+              routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
+                  index, due.back(), late_multiplier);
+            }
           } else {
             cumul_var->SetMax(due.back());
             if (due.size() > 1) {
@@ -907,6 +917,7 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 }
 
 void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
+                               RoutingValues* routing_values, Assignment* assignment,
                                bool& has_route_duration) {
   int v = 0;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
@@ -935,12 +946,23 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
         routing.AddVariableMinimizedByFinalizer(slack_var);
       }
     }
+
+    int64 end_value = routing_values->RouteEndValues(v).initial_time_value;
+
     if (vehicle.time_end < CUSTOM_MAX_INT) {
       const int64 coef = vehicle.late_multiplier;
       if (coef > 0) {
         // Timewindow end may be soft
-        routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
-            end_index, vehicle.time_end, coef);
+        if (end_value >= 0) {
+          assignment->Add(time_cumul_var_end);
+          if (end_value > vehicle.time_end)
+            assignment->SetMax(time_cumul_var_end, end_value);
+          else
+            assignment->SetMax(time_cumul_var_end, vehicle.time_end);
+        } else {
+          routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
+              end_index, vehicle.time_end, coef);
+        }
         if (vehicle.shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
         }
@@ -1083,7 +1105,8 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
 
 void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result* result,
                              const TSPTWDataDT& data, RoutingModel& routing,
-                             RoutingIndexManager& manager, LoggerMonitor* const logger,
+                             RoutingValues* routing_values, RoutingIndexManager& manager,
+                             LoggerMonitor* const logger,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
@@ -1142,6 +1165,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
         activity->set_type("service");
         activity->set_id(data.ServiceId(nodeIndex));
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
+        routing_values->NodeValues(nodeIndex).initial_time_value = start_time;
       }
       for (std::size_t q = 0;
            q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -1324,6 +1348,7 @@ int64 LowerBoundOnTheIntervalBetweenBreaksOfVehicle(const TSPTWDataDT& data,
 }
 
 const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
+                                          RoutingValues* routing_values,
                                           const std::string& filename) {
   ortools_result::Result* result = new ortools_result::Result;
 
@@ -1378,7 +1403,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   Solver* solver         = routing.solver();
   Assignment* assignment = routing.solver()->MakeAssignment();
 
-  AddVehicleTimeConstraints(data, routing, has_route_duration);
+  AddVehicleTimeConstraints(data, routing, routing_values, assignment,
+                            has_route_duration);
   AddVehicleDistanceConstraints(data, routing);
   AddVehicleCapacityConstraints(data, routing);
 
@@ -1451,7 +1477,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   }
 
   // Setting visit time windows
-  MissionsBuilder(data, routing, manager, size - 2, min_start);
+  MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2,
+                  min_start);
   std::vector<std::vector<IntervalVar*>> stored_rests = RestBuilder(data, routing);
   RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
@@ -1539,8 +1566,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   delete start_ends;
 
   if (solution != nullptr) {
-    ParseSolutionIntoResult(solution, result, data, routing, manager, logger,
-                            stored_rests);
+    ParseSolutionIntoResult(solution, result, data, routing, routing_values, manager,
+                            logger, stored_rests);
 
     if (!FLAGS_verification_only || FLAGS_debug)
       std::cout << "Final Iteration : " << result->iterations()
@@ -1555,7 +1582,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 }
 
 void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWDataDT& data,
-                          const std::string& filename) {
+                          RoutingValues* routing_values, const std::string& filename) {
   if (FLAGS_only_first_solution) // no need to bother if first solution only
     return;
 
@@ -1662,7 +1689,7 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
 
         // and check if the solution stays valid
         const ortools_result::Result* local_result =
-            TSPTWSolver(local_data, absl::StrCat(filename, v));
+            TSPTWSolver(local_data, routing_values, absl::StrCat(filename, v));
 
         // if the cost didn't increase update the UB
         // if the cost increased update the LB
@@ -1717,12 +1744,15 @@ int main(int argc, char** argv) {
   }
 
   operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
+  operations_research::RoutingValues* routing_values =
+      new operations_research::RoutingValues(tsptw_data);
 
   const ortools_result::Result* result =
-      operations_research::TSPTWSolver(tsptw_data, FLAGS_solution_file);
+      operations_research::TSPTWSolver(tsptw_data, routing_values, FLAGS_solution_file);
 
   if (result != nullptr) {
-    operations_research::PushRestsToTheMiddle(result, tsptw_data, FLAGS_solution_file);
+    operations_research::PushRestsToTheMiddle(result, tsptw_data, routing_values,
+                                              FLAGS_solution_file);
 
     std::ofstream output(FLAGS_solution_file, std::ios::trunc | std::ios::binary);
     if (!result->SerializeToOstream(&output)) {

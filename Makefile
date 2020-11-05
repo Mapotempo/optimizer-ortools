@@ -32,7 +32,8 @@ tsp_simple.o: tsp_simple.cc ortools_vrp.pb.h \
 	ortools_result.pb.h \
 	$(TUTORIAL)/routing_common/routing_common.h \
 	tsptw_data_dt.h \
-	limits.h
+	limits.h \
+	values.h
 	$(CXX) $(CFLAGS) -I $(TUTORIAL) -c ./tsp_simple.cc -o tsp_simple.o
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
