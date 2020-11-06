@@ -1122,12 +1122,12 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
     bool vehicle_used               = false;
     for (int64 index = routing.Start(route_nbr); !routing.IsEnd(index);
          index       = solution->Value(routing.NextVar(index))) {
+      const int64 start_time =
+          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
       for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();) {
         const int64 rest_start_time = solution->StartValue(*it);
         if (solution->PerformedValue(*it) && previous_index != -1 &&
-            rest_start_time >= previous_start_time &&
-            rest_start_time <=
-                solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index))) {
+            rest_start_time >= previous_start_time && rest_start_time < start_time) {
           std::stringstream ss((*it)->name());
           std::string item;
           std::vector<std::string> parsed_name;
@@ -1148,8 +1148,6 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
       ortools_result::Activity* activity       = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
       activity->set_index(data.ProblemIndex(nodeIndex));
-      const int64 start_time =
-          solution->Min(routing.GetMutableDimension(kTime)->CumulVar(index));
       activity->set_start_time(start_time);
       const int64 upper_bound =
           routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
