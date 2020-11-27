@@ -119,7 +119,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       const int64 index               = manager.NodeToIndex(i);
       const std::vector<int64>& ready = data.ReadyTime(i);
       const std::vector<int64>& due   = data.DueTime(i);
-      int64 initial_value             = routing_values->NodeValues(i).initial_time_value;
+      const int64 initial_value       = routing_values->NodeValues(i).initial_time_value;
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
@@ -136,17 +136,15 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           cumul_var->SetMin(ready[0]);
         }
         if (due.back() < CUSTOM_MAX_INT) {
+          if (initial_value >= 0) {
+            assignment->Add(cumul_var);
+            DLOG(INFO) << "cumul_var:" << cumul_var << "\t value: " << initial_value
+                       << std::endl;
+            assignment->SetValue(cumul_var, initial_value);
+          }
           if (late_multiplier > 0) {
-            if (initial_value >= 0) {
-              assignment->Add(cumul_var);
-              if (initial_value > due.back())
-                assignment->SetMax(cumul_var, initial_value);
-              else
-                assignment->SetMax(cumul_var, due.back());
-            } else {
-              routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
-                  index, due.back(), late_multiplier);
-            }
+            routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
+                index, due.back(), late_multiplier);
           } else {
             cumul_var->SetMax(due.back());
             if (due.size() > 1) {
@@ -947,22 +945,27 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
       }
     }
 
-    int64 end_value = routing_values->RouteEndValues(v).initial_time_value;
+    const int64 end_value(routing_values->RouteEndValues(v).initial_time_value);
+    const int64 start_value(routing_values->RouteStartValues(v).initial_time_value);
 
     if (vehicle.time_end < CUSTOM_MAX_INT) {
       const int64 coef = vehicle.late_multiplier;
+      if (end_value >= 0) {
+        assignment->Add(time_cumul_var_end);
+        DLOG(INFO) << "time_cumul_var_end:" << time_cumul_var_end
+                   << "\t value: " << end_value << std::endl;
+        assignment->SetValue(time_cumul_var_end, end_value);
+      }
+      if (start_value >= 0) {
+        assignment->Add(time_cumul_var);
+        DLOG(INFO) << "time_cumul_var:" << time_cumul_var << "\t value: " << start_value
+                   << std::endl;
+        assignment->SetValue(time_cumul_var, start_value);
+      }
       if (coef > 0) {
         // Timewindow end may be soft
-        if (end_value >= 0) {
-          assignment->Add(time_cumul_var_end);
-          if (end_value > vehicle.time_end)
-            assignment->SetMax(time_cumul_var_end, end_value);
-          else
-            assignment->SetMax(time_cumul_var_end, vehicle.time_end);
-        } else {
-          routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
-              end_index, vehicle.time_end, coef);
-        }
+        routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
+            end_index, vehicle.time_end, coef);
         if (vehicle.shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
         }
@@ -1156,9 +1159,12 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
       lateness_cost += GetUpperBoundCostForDimension(routing, solution, index, kTime);
       activity->set_current_distance(
           solution->Min(routing.GetMutableDimension(kDistance)->CumulVar(index)));
-      if (previous_index == -1)
+      if (previous_index == -1) {
         activity->set_type("start");
-      else {
+        DLOG(INFO) << "RouteStartValues:" << route_nbr << "\t start_time: " << start_time
+                   << std::endl;
+        routing_values->RouteStartValues(route_nbr).initial_time_value = start_time;
+      } else {
         vehicle_used = true;
         activity->set_type("service");
         activity->set_id(data.ServiceId(nodeIndex));
@@ -1220,6 +1226,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
     if (vehicle_used) {
       const double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
       route_costs->set_fixed(fixed_cost);
+      routing_values->RouteEndValues(route_nbr).initial_time_value = start_time;
     }
 
     const double time_cost =
