@@ -1592,6 +1592,11 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 
 void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWDataDT& data,
                           RoutingValues& routing_values, const std::string& filename) {
+  // It was used to push the pauses to the middle of the routes by exploiting the
+  // SetMaxBreakDistUBOfVehicle function of or-tools and re-optimising until we can't
+  // improve the pause location.
+  // This function is not in use at the moment.
+  // The pauses are pushed towards the end of route instead.
   if (absl::GetFlag(FLAGS_only_first_solution))
     return; // no need to bother if first solution only
 
@@ -1654,9 +1659,11 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
     DLOG(INFO) << "Launch optimisations with sticky_vehicles and initial_routes to "
                   "improve the pause location w/o increasing the cost";
 
-    const int64 rounding_step = 120; // in seconds. Because of rounding up, it acts as if
-                                     // it is double the amount, so don't increase it too
-                                     // much. Binary search is very fast.
+    // Because of rounding up, rounding_step acts as if
+    // it is double the amount, so don't increase it too
+    // much. Binary search is very fast.
+    const int64 rounding_step = DEBUG_MODE ? 1 : 120; // in seconds
+
     absl::SetFlag(&FLAGS_verification_only, true);
     absl::SetFlag(&FLAGS_intermediate_solutions, DEBUG_MODE);
 
@@ -1682,13 +1689,18 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
       while (true) {
         // re-set the max_interval_limit to the middle
         const int64 new_max_interval_limit =
-            RoundUp((local_data.MaxBreakDistUBOfVehicle(v) +
-                     local_data.MaxBreakDistLBOfVehicle(v)) /
-                        2,
+            RoundUp(std::ceil((local_data.MaxBreakDistUBOfVehicle(v) +
+                               local_data.MaxBreakDistLBOfVehicle(v)) /
+                              2.0),
                     rounding_step);
-        // convergence logic depends on rounding up
-        if (new_max_interval_limit >= local_data.MaxBreakDistUBOfVehicle(v))
+        // convergence logic depends on ceil and RoundUp
+        if (new_max_interval_limit >= local_data.MaxBreakDistUBOfVehicle(v)) {
+          DLOG(INFO) << "Converged: "
+                     << "new_max_interval_limit >= local_data.MaxBreakDistUBOfVehicle(v)"
+                     << "( " << new_max_interval_limit
+                     << " >= " << local_data.MaxBreakDistUBOfVehicle(v) << " )";
           break; // converged
+        }
 
         local_data.SetMaxBreakDistOfVehicle(v, new_max_interval_limit);
 
@@ -1762,9 +1774,6 @@ int main(int argc, char** argv) {
       tsptw_data, routing_values, absl::GetFlag(FLAGS_solution_file));
 
   if (result != nullptr) {
-    operations_research::PushRestsToTheMiddle(result, tsptw_data, routing_values,
-                                              absl::GetFlag(FLAGS_solution_file));
-
     std::ofstream output(absl::GetFlag(FLAGS_solution_file),
                          std::ios::trunc | std::ios::binary);
     if (!result->SerializeToOstream(&output)) {
