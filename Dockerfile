@@ -3,7 +3,7 @@ ARG REGISTRY=${REGISTRY:-registry.mapotempo.com/}
 
 # Final image
 # Build wrapper
-FROM debian:latest
+FROM phusion/passenger-ruby25
 ARG ORTOOLS_URL
 
 WORKDIR /srv/
