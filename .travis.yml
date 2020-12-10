@@ -2,7 +2,7 @@ services:
   - docker
 
 before_install:
-  - export ORTOOLS_VERSION=${ORTOOLS_VERSION:-v7.5}
+  - export ORTOOLS_VERSION=${ORTOOLS_VERSION:-v7.8}
 
 install: skip
 

@@ -10,8 +10,8 @@ case $ORTOOLS_VERSION in
   'v7.5')
     export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.5/or-tools_debian-10_v7.5.7466.tar.gz"
     ;;
-  'v7.6')
-    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.6/or-tools_debian-10_v7.6.7691.tar.gz"
+  'v7.8')
+    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.8/or-tools_debian-10_v7.8.7959.tar.gz"
     ;;
   *)
     echo "Unknown OR-Tools version"

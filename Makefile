@@ -2,7 +2,7 @@ OR_TOOLS_TOP=../or-tools
 
 TUTORIAL=resources
 
-CFLAGS := -std=c++11 -I $(OR_TOOLS_TOP)/include
+CFLAGS := -std=c++14 -I $(OR_TOOLS_TOP)/include
 
 # During development uncomment the next line to have debug checks and other verifications
 # DEVELOPMENT = true
