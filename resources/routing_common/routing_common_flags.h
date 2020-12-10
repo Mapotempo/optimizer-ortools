@@ -21,38 +21,38 @@
 
 #include "common/constants.h"
 
-DEFINE_int32(instance_size, 10, "Number of nodes, including the depot.");
-DEFINE_string(instance_name, "Dummy instance", "Instance name.");
+ABSL_FLAG(int, instance_size, 10, "Number of nodes, including the depot.");
+ABSL_FLAG(std::string, instance_name, "Dummy instance", "Instance name.");
 
-DEFINE_int32(instance_depot, 0, "Depot for instance.");
+ABSL_FLAG(int, instance_depot, 0, "Depot for instance.");
 
-DEFINE_string(instance_file, "", "TSPLIB instance file.");
-DEFINE_string(solution_file, "", "TSPLIB solution file.");
+ABSL_FLAG(std::string, instance_file, "", "TSPLIB instance file.");
+ABSL_FLAG(std::string, solution_file, "", "TSPLIB solution file.");
 
-DEFINE_string(distance_file, "", "TSP matrix distance file.");
-
-
-DEFINE_int32(edge_min, 1, "Minimum edge value.");
-DEFINE_int32(edge_max, 100, "Maximum edge value.");
+ABSL_FLAG(std::string, distance_file, "", "TSP matrix distance file.");
 
 
-DEFINE_int32(instance_edges_percent, 20, "Percent of edges in the graph.");
-
-DEFINE_int32(x_max, 100, "Maximum x coordinate.");
-DEFINE_int32(y_max, 100, "Maximum y coordinate.");
+ABSL_FLAG(int, edge_min, 1, "Minimum edge value.");
+ABSL_FLAG(int, edge_max, 100, "Maximum edge value.");
 
 
-DEFINE_int32(width_size, 6, "Width size of fields in output.");
+ABSL_FLAG(int, instance_edges_percent, 20, "Percent of edges in the graph.");
 
-DEFINE_int32(epix_width, 10, "Width of the pictures in cm.");
-DEFINE_int32(epix_height, 10, "Height  of the pictures in cm.");
+ABSL_FLAG(int, x_max, 100, "Maximum x coordinate.");
+ABSL_FLAG(int, y_max, 100, "Maximum y coordinate.");
 
-DEFINE_double(epix_radius, 0.3, "Radius of circles.");
 
-DEFINE_bool(epix_node_labels, false, "Print node labels?");
+ABSL_FLAG(int, width_size, 6, "Width size of fields in output.");
 
-DEFINE_int32(percentage_forbidden_arcs_max, 94, "Maximum percentage of arcs to forbid.");
-DEFINE_int64(M, operations_research::kPostiveInfinityInt64, "Big m value to represent infinity.");
+ABSL_FLAG(int, epix_width, 10, "Width of the pictures in cm.");
+ABSL_FLAG(int, epix_height, 10, "Height  of the pictures in cm.");
+
+ABSL_FLAG(double, epix_radius, 0.3, "Radius of circles.");
+
+ABSL_FLAG(bool, epix_node_labels, false, "Print node labels?");
+
+ABSL_FLAG(int, percentage_forbidden_arcs_max, 94, "Maximum percentage of arcs to forbid.");
+ABSL_FLAG(int64_t, M, operations_research::kPostiveInfinityInt64, "Big m value to represent infinity.");
 
 
 #endif //  OR_TOOLS_TUTORIALS_CPLUSPLUS_ROUTING_COMMON_FLAGS_H

@@ -9,7 +9,7 @@ public:
 
   struct NodeValue {
     NodeValue() : initial_time_value(-1) {}
-    int64 initial_time_value;
+    int64_t initial_time_value;
   };
 
   std::vector<NodeValue>& NodeValues() { return node_values; }

@@ -19,32 +19,32 @@
 
 #include "ortools/constraint_solver/constraint_solver.h"
 
-DEFINE_int64(time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
-DEFINE_int64(no_solution_improvement_limit, -1, "Iterations whitout improvement");
-DEFINE_int64(minimum_duration, -1, "Initial time whitout improvement in ms");
-DEFINE_int64(init_duration, -1, "Maximum duration to find a first solution");
-DEFINE_int64(time_out_multiplier, 2, "Multiplier for the nexts time out");
-DEFINE_int64(vehicle_limit, 0, "Define the maximum number of vehicle");
-DEFINE_int64(solver_parameter, -1, "Force a particular behavior");
-DEFINE_bool(only_first_solution, false, "Compute only the first solution");
-DEFINE_bool(verification_only, false, "Only verify the suplied initial solution");
-DEFINE_bool(balance, false, "Route balancing");
-DEFINE_bool(nearby, false, "Short segment priority");
+ABSL_FLAG(int64_t, time_limit_in_ms, 0, "Time limit in ms, no option means no limit.");
+ABSL_FLAG(int64_t, no_solution_improvement_limit, -1, "Iterations whitout improvement");
+ABSL_FLAG(int64_t, minimum_duration, -1, "Initial time whitout improvement in ms");
+ABSL_FLAG(int64_t, init_duration, -1, "Maximum duration to find a first solution");
+ABSL_FLAG(int64_t, time_out_multiplier, 2, "Multiplier for the nexts time out");
+ABSL_FLAG(int64_t, vehicle_limit, 0, "Define the maximum number of vehicle");
+ABSL_FLAG(int64_t, solver_parameter, -1, "Force a particular behavior");
+ABSL_FLAG(bool, only_first_solution, false, "Compute only the first solution");
+ABSL_FLAG(bool, verification_only, false, "Only verify the suplied initial solution");
+ABSL_FLAG(bool, balance, false, "Route balancing");
+ABSL_FLAG(bool, nearby, false, "Short segment priority");
 #ifdef DEBUG
-DEFINE_bool(debug, true, "debug display");
+ABSL_FLAG(bool, debug, true, "debug display");
 #else
-DEFINE_bool(debug, false, "debug display");
+ABSL_FLAG(bool, debug, false, "debug display");
 #endif
-DEFINE_bool(intermediate_solutions, false, "display intermediate solutions");
-DEFINE_string(routing_search_parameters,
-              "", /* An example of how we can override the default settings */
-              // "first_solution_strategy:ALL_UNPERFORMED"
-              // "local_search_operators {"
-              // "  use_path_lns:BOOL_TRUE"
-              // "  use_inactive_lns:BOOL_TRUE"
-              // "}",
-              "Text proto RoutingSearchParameters (possibly partial) that will "
-              "override the DefaultRoutingSearchParameters()");
+ABSL_FLAG(bool, intermediate_solutions, false, "display intermediate solutions");
+ABSL_FLAG(std::string, routing_search_parameters,
+          "", /* An example of how we can override the default settings */
+          // "first_solution_strategy:ALL_UNPERFORMED"
+          // "local_search_operators {"
+          // "  use_path_lns:BOOL_TRUE"
+          // "  use_inactive_lns:BOOL_TRUE"
+          // "}",
+          "Text proto RoutingSearchParameters (possibly partial) that will "
+          "override the DefaultRoutingSearchParameters()");
 
 const char* kDistance        = "distance";
 const char* kDistanceBalance = "distance_balance";
@@ -69,8 +69,9 @@ namespace {
 class NoImprovementLimit : public SearchLimit {
 public:
   NoImprovementLimit(Solver* const solver, IntVar* const objective_var,
-                     int64 solution_nbr_tolerance, double time_out, int64 time_out_coef,
-                     int64 init_duration, const bool minimize = true)
+                     int64_t solution_nbr_tolerance, double time_out,
+                     int64_t time_out_coef, int64_t init_duration,
+                     const bool minimize = true)
       : SearchLimit(solver)
       , solver_(solver)
       , start_time_(absl::GetCurrentTimeNanos())
@@ -173,17 +174,17 @@ public:
 
 private:
   Solver* const solver_;
-  int64 best_result_;
+  int64_t best_result_;
   double start_time_;
-  int64 solution_nbr_tolerance_;
+  int64_t solution_nbr_tolerance_;
   bool minimize_;
   bool limit_reached_;
   bool first_solution_;
   double initial_time_out_;
   double time_out_;
-  int64 time_out_coef_;
-  int64 init_duration_;
-  int64 nbr_solutions_with_no_better_obj_;
+  int64_t time_out_coef_;
+  int64_t init_duration_;
+  int64_t nbr_solutions_with_no_better_obj_;
   std::unique_ptr<Assignment> prototype_;
 };
 
@@ -191,8 +192,8 @@ private:
 
 NoImprovementLimit*
 MakeNoImprovementLimit(Solver* const solver, IntVar* const objective_var,
-                       const int64 solution_nbr_tolerance, const double time_out,
-                       const int64 time_out_coef, const int64 init_duration,
+                       const int64_t solution_nbr_tolerance, const double time_out,
+                       const int64_t time_out_coef, const int64_t init_duration,
                        const bool minimize = true) {
   return solver->RevAlloc(new NoImprovementLimit(solver, objective_var,
                                                  solution_nbr_tolerance, time_out,
@@ -205,7 +206,7 @@ namespace {
 class LoggerMonitor : public SearchMonitor {
 public:
   LoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
-                RoutingIndexManager* manager, int64 min_start, int64 size_matrix,
+                RoutingIndexManager* manager, int64_t min_start, int64_t size_matrix,
                 bool debug, bool intermediate, ortools_result::Result* result,
                 std::vector<std::vector<IntervalVar*>> stored_rests, std::string filename,
                 const bool minimize = true)
@@ -278,11 +279,11 @@ public:
                                               const std::string& dimension_name) const {
     if (routing_->GetMutableDimension(dimension_name) == nullptr)
       return 0;
-    int64 start_time =
+    int64_t start_time =
         routing_->GetMutableDimension(dimension_name)->CumulVar(index)->Min();
-    int64 upper_bound =
+    int64_t upper_bound =
         routing_->GetMutableDimension(dimension_name)->GetCumulVarSoftUpperBound(index);
-    int64 excess = std::max(start_time - upper_bound, (int64)0);
+    int64_t excess = std::max(start_time - upper_bound, (int64_t)0);
     return (double)excess *
            routing_->GetMutableDimension(dimension_name)
                ->GetCumulVarSoftUpperBoundCoefficient(index) /
@@ -315,15 +316,15 @@ public:
           std::vector<IntervalVar*> rests = stored_rests_[route_nbr];
           ortools_result::Route* route    = result_->add_routes();
           int previous_index              = -1;
-          int64 previous_start_time       = 0;
-          int64 lateness_cost             = 0;
-          int64 overload_cost             = 0;
+          int64_t previous_start_time     = 0;
+          int64_t lateness_cost           = 0;
+          int64_t overload_cost           = 0;
           bool vehicle_used               = false;
-          for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index);
-               index       = routing_->NextVar(index)->Value()) {
+          for (int64_t index = routing_->Start(route_nbr); !routing_->IsEnd(index);
+               index         = routing_->NextVar(index)->Value()) {
             for (std::vector<IntervalVar*>::iterator it = rests.begin();
                  it != rests.end();) {
-              const int64 rest_start_time = (*it)->StartMin();
+              const int64_t rest_start_time = (*it)->StartMin();
               if ((*it)->StartMin() == (*it)->StartMax() && previous_index != -1 &&
                   rest_start_time >= previous_start_time &&
                   rest_start_time <=
@@ -348,12 +349,12 @@ public:
             ortools_result::Activity* activity       = route->add_activities();
             RoutingIndexManager::NodeIndex nodeIndex = manager_->IndexToNode(index);
             activity->set_index(data_.ProblemIndex(nodeIndex));
-            const int64 start_time =
+            const int64_t start_time =
                 routing_->GetMutableDimension(kTime)->CumulVar(index)->Min();
             activity->set_start_time(start_time);
-            const int64 upper_bound =
+            const int64_t upper_bound =
                 routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
-            const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
+            const int64_t lateness = std::max<int64_t>(start_time - upper_bound, 0);
             activity->set_lateness(lateness);
             lateness_cost += GetUpperBoundCostForDimension(index, kTime);
             activity->set_current_distance(
@@ -384,7 +385,7 @@ public:
 
           for (std::vector<IntervalVar*>::iterator it = rests.begin(); it != rests.end();
                ++it) {
-            const int64 rest_start_time = (*it)->StartMin();
+            const int64_t rest_start_time = (*it)->StartMin();
             if ((*it)->StartMin() == (*it)->StartMax()) {
               ortools_result::Activity* rest = route->add_activities();
               std::stringstream ss((*it)->name());
@@ -402,15 +403,15 @@ public:
           ortools_result::Activity* end_activity = route->add_activities();
           RoutingIndexManager::NodeIndex nodeIndex =
               manager_->IndexToNode(routing_->End(route_nbr));
-          const int64 end_index = routing_->End(route_nbr);
+          const int64_t end_index = routing_->End(route_nbr);
           end_activity->set_index(data_.ProblemIndex(nodeIndex));
 
-          const int64 start_time =
+          const int64_t start_time =
               routing_->GetMutableDimension(kTime)->CumulVar(end_index)->Min();
           end_activity->set_start_time(start_time);
-          const int64 upper_bound =
+          const int64_t upper_bound =
               routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
-          const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
+          const int64_t lateness = std::max<int64_t>(start_time - upper_bound, 0);
           end_activity->set_lateness(lateness);
           lateness_cost += GetUpperBoundCostForDimension(end_index, kTime);
           end_activity->set_current_distance(routing_->GetMutableDimension(kDistance)
@@ -561,7 +562,7 @@ public:
     if (debug_ && new_best) {
       std::cout << "min start : " << min_start_ << std::endl;
       for (RoutingIndexManager::NodeIndex i(0); i < data_.SizeMatrix() - 1; ++i) {
-        const int64 index       = manager_->NodeToIndex(i);
+        const int64_t index     = manager_->NodeToIndex(i);
         const IntVar* cumul_var = routing_->GetMutableDimension(kTime)->CumulVar(index);
         const IntVar* transit_var =
             routing_->GetMutableDimension(kTime)->TransitVar(index);
@@ -639,17 +640,17 @@ private:
   RoutingModel* routing_;
   RoutingIndexManager* manager_;
   Solver* const solver_;
-  int64 best_result_;
+  int64_t best_result_;
   double cleaned_cost_;
   double start_time_;
-  int64 min_start_;
-  int64 size_matrix_;
+  int64_t min_start_;
+  int64_t size_matrix_;
   bool minimize_;
   bool limit_reached_;
   bool debug_;
   bool intermediate_;
-  int64 pow_;
-  int64 iteration_counter_;
+  int64_t pow_;
+  int64_t iteration_counter_;
   std::unique_ptr<Assignment> prototype_;
   std::string filename_;
   ortools_result::Result* result_;
@@ -659,8 +660,8 @@ private:
 } // namespace
 
 LoggerMonitor* MakeLoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
-                                 RoutingIndexManager* manager, int64 min_start,
-                                 int64 size_matrix, bool debug, bool intermediate,
+                                 RoutingIndexManager* manager, int64_t min_start,
+                                 int64_t size_matrix, bool debug, bool intermediate,
                                  ortools_result::Result* result,
                                  std::vector<std::vector<IntervalVar*>> stored_rests,
                                  std::string filename, const bool minimize = true) {

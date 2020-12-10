@@ -19,9 +19,9 @@
 
 namespace operations_research {
 
-const static int64 kPostiveInfinityInt64 = std::numeric_limits<int64>::max();
+const static int64_t kPostiveInfinityInt64 = std::numeric_limits<int64_t>::max();
 
-  
+
 }  //  namespace operations_research
 
 #endif //  OR_TOOLS_TUTORIALS_CPLUSPLUS_CONSTANTS_H

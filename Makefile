@@ -3,7 +3,7 @@ OR_TOOLS_TOP=../or-tools
 TUTORIAL=resources
 
 # -isystem prevents most of the warnings rooted in or-tools library appearing in our compilation
-CFLAGS := -std=c++14 -isystem$(OR_TOOLS_TOP)/include
+CFLAGS := -std=c++17 -isystem $(OR_TOOLS_TOP)/include
 
 # During development uncomment the next line to have debug checks and other verifications
 # DEVELOPMENT = true
@@ -47,8 +47,8 @@ tsp_simple.o: tsp_simple.cc ortools_vrp.pb.h \
 	$(CXX) $(CFLAGS) -I $(TUTORIAL) -c ./tsp_simple.cc -o tsp_simple.o
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
-	$(CXX) $(CFLAGS) -fwhole-program tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \
-	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lortools -lprotobuf -lglog -lgflags -labsl_raw_hash_set -labsl_time -labsl_time_zone \
+	$(CXX) $(CFLAGS) -g tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \
+	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lortools -lprotobuf \
 	-o tsp_simple
 
 local_clean:

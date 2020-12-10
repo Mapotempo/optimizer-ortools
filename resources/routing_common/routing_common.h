@@ -23,7 +23,6 @@
 #include <sstream>
 #include <limits>
 
-#include "ortools/base/random.h"
 #include "ortools/constraint_solver/routing.h"
 
 #include "routing_common/routing_common_flags.h"
@@ -51,18 +50,18 @@ struct Point {
 //  Distances/costs can be symetric or not.
 class CompleteGraphArcCost {
 public:
-  explicit CompleteGraphArcCost(int32 size = 0): size_(size), is_created_(false), is_instanciated_(false), is_symmetric_(false),
+  explicit CompleteGraphArcCost(int32_t size = 0): size_(size), is_created_(false), is_instanciated_(false), is_symmetric_(false),
     min_cost_(kPostiveInfinityInt64), max_cost_(-1) {
     if (size_ > 0) {
       CreateMatrix(size_);
     }
   }
 
-  int32 Size() const {
+  int32_t Size() const {
     return size_;
   }
 
-  void Create(int32 size) {
+  void Create(int32_t size) {
     CHECK(!IsCreated()) << "Matrix already created!";
     size_ = size;
     CreateMatrix(size);
@@ -83,22 +82,22 @@ public:
     ComputeIsSymmetric();
   }
 
-  int64 Cost(RoutingIndexManager::NodeIndex from,
+  int64_t Cost(RoutingIndexManager::NodeIndex from,
                    RoutingIndexManager::NodeIndex to) const {
     return matrix_.get()[MatrixIndex(from, to)];
   }
 
-  int64& Cost(RoutingIndexManager::NodeIndex from,
+  int64_t& Cost(RoutingIndexManager::NodeIndex from,
                    RoutingIndexManager::NodeIndex to) {
     return matrix_.get()[MatrixIndex(from, to)];
   }
 
-  int64 MaxCost() const {
+  int64_t MaxCost() const {
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     return max_cost_;
   }
 
-  int64 MinCost() const {
+  int64_t MinCost() const {
     CHECK(IsInstanciated()) << "Instance is not instanciated!";
     return min_cost_;
   }
@@ -112,16 +111,16 @@ public:
   void Print(std::ostream & out, const bool label = false, const int width = absl::GetFlag(FLAGS_width_size)) const;
 
 private:
-  int64 MatrixIndex(RoutingIndexManager::NodeIndex from,
+  int64_t MatrixIndex(RoutingIndexManager::NodeIndex from,
                     RoutingIndexManager::NodeIndex to) const {
     return (from * size_ + to).value();
   }
 
   void CreateMatrix(const int size) {
     CHECK_GT(size, 2) << "Size for matrix non consistent.";
-    int64 * p_array = nullptr;
+    int64_t * p_array = nullptr;
     try {
-      p_array  = new int64 [size_ * size_];
+      p_array  = new int64_t [size_ * size_];
     } catch (std::bad_alloc & e) {
       p_array = nullptr;
       LOG(FATAL) << "Problems allocating ressource. Try with a smaller size.";
@@ -131,7 +130,7 @@ private:
     is_created_ = true;
   }
 
-  void UpdateExtremeDistance(int64 dist) {
+  void UpdateExtremeDistance(int64_t dist) {
     if (min_cost_ > dist) { min_cost_ = dist;}
     if (max_cost_ < dist) { max_cost_ = dist;}
   }
@@ -161,17 +160,17 @@ private:
     return true;
   }
 
-  int32 size_;
-  //scoped_array<int64> matrix_;
-  std::shared_ptr<int64[]> matrix_;
+  int32_t size_;
+  //scoped_array<int64_t> matrix_;
+  std::shared_ptr<int64_t[]> matrix_;
 
 
 
   bool is_created_;
   bool is_instanciated_;
   bool is_symmetric_;
-  int64 min_cost_;
-  int64 max_cost_;
+  int64_t min_cost_;
+  int64_t max_cost_;
 };
 
 void CompleteGraphArcCost::Print(std::ostream& out, const bool label, const int width) const {

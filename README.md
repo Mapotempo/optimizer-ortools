@@ -6,7 +6,7 @@ optimizer-ortools
 Compute an optimized solution to the Vehicle Routing Problem with Time Windows and various constraints using OR-Tools.
 This wrapper is designed to be called through [Optimizer-API](https://github.com/Mapotempo/optimizer-api) and has been tested on Ubuntu 17.10, 18.04; Linux Mint 18; Debian 8, 10.
 
-The current implementation has been tested with the version 7.8 of OR-Tools
+The current implementation has been tested with the version 9.0 of OR-Tools
 
 Installation
 ============
@@ -14,9 +14,9 @@ Installation
 
 Require OR-Tools for the C++ part. Fetch source code at [https://github.com/google/or-tools](https://github.com/google/or-tools).
 
-Download OR-Tools here : https://github.com/google/or-tools/releases/tag/v7.8
+Download OR-Tools here : https://github.com/google/or-tools/releases/tag/v9.0
 
-- Recommended Asset : [or-tools_debian-10_v7.8.7959.tar.gz](https://github.com/google/or-tools/releases/download/v7.8/or-tools_debian-10_v7.8.7959.tar.gz)
+- Recommended Asset : [or-tools_debian-10_v9.0.9048.tar.gz](https://github.com/google/or-tools/releases/download/v9.0/or-tools_debian-10_v9.0.9048.tar.gz)
 
 More details on [Google Optimization Tools Documentation](https://developers.google.com/optimization/introduction/installing)
 
