@@ -127,7 +127,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       std::string service_id            = data.ServiceId(i);
       if (ready.size() > 0 &&
           (ready[0] > -CUSTOM_MAX_INT || due.back() < CUSTOM_MAX_INT)) {
-        if (FLAGS_debug) {
+        if (absl::GetFlag(FLAGS_debug)) {
           std::cout << "Node " << i << " index " << index << " ["
                     << (ready[0] - min_start) << " : " << (due.back() - min_start)
                     << "]:" << data.ServiceTime(i) << std::endl;
@@ -188,7 +188,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       ++i;
     }
 
-    if (FLAGS_debug) {
+    if (absl::GetFlag(FLAGS_debug)) {
       std::cout << "Activity " << activity << "\t exclusion cost: " << exclusion_cost
                 << "\t disjunction cost: " << disjunction_cost * std::pow(2, 4 - priority)
                 << std::endl;
@@ -679,7 +679,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 
 void AddBalanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                           RoutingIndexManager& manager, const int horizon) {
-  if (FLAGS_balance) {
+  if (absl::GetFlag(FLAGS_balance)) {
     std::vector<IntVar*> ends_distance_vars;
     std::vector<IntVar*> shift_vars;
     std::vector<int> zero_evaluators;
@@ -790,7 +790,7 @@ void AddDistanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
             return vehicle.FakeDistance(manager.IndexToNode(i), manager.IndexToNode(j));
           }));
     }
-    if (FLAGS_nearby) {
+    if (absl::GetFlag(FLAGS_nearby)) {
       distance_order_evaluators.push_back(routing.RegisterTransitCallback(
           [&vehicle, &manager](const int64 i, const int64 j) {
             return vehicle.DistanceOrder(manager.IndexToNode(i), manager.IndexToNode(j));
@@ -798,7 +798,7 @@ void AddDistanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
     }
   }
 
-  if (FLAGS_nearby) {
+  if (absl::GetFlag(FLAGS_nearby)) {
     routing.AddDimensionWithVehicleTransits(distance_order_evaluators, 0, LLONG_MAX, true,
                                             kDistanceOrder);
   }
@@ -812,7 +812,7 @@ void AddDistanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 
   int v = 0;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
-    if (FLAGS_nearby) {
+    if (absl::GetFlag(FLAGS_nearby)) {
       routing.GetMutableDimension(kDistanceOrder)
           ->SetSpanCostCoefficientForVehicle(vehicle.cost_distance_multiplier / 5, v);
     }
@@ -848,7 +848,7 @@ void AddTimeDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                                                    manager.IndexToNode(j));
           }));
     }
-    if (FLAGS_nearby) {
+    if (absl::GetFlag(FLAGS_nearby)) {
       time_order_evaluators.push_back(routing.RegisterTransitCallback(
           [&vehicle, &manager](const int64 i, const int64 j) {
             return vehicle.TimeOrder(manager.IndexToNode(i), manager.IndexToNode(j));
@@ -861,7 +861,7 @@ void AddTimeDimensions(const TSPTWDataDT& data, RoutingModel& routing,
   routing.AddDimensionWithVehicleTransits(time_evaluators, 0, horizon, false,
                                           kTimeNoWait);
 
-  if (FLAGS_nearby)
+  if (absl::GetFlag(FLAGS_nearby))
     routing.AddDimensionWithVehicleTransits(time_order_evaluators, 0, LLONG_MAX, true,
                                             kTimeOrder);
   if (free_approach_return == true) {
@@ -887,7 +887,7 @@ void AddTimeDimensions(const TSPTWDataDT& data, RoutingModel& routing,
       routing.GetMutableDimension(kTimeNoWait)
           ->SetSpanCostCoefficientForVehicle(std::max<int64>(without_wait_cost, 0), v);
     }
-    if (FLAGS_nearby) {
+    if (absl::GetFlag(FLAGS_nearby)) {
       routing.GetMutableDimension(kTimeOrder)
           ->SetSpanCostCoefficientForVehicle(vehicle.cost_time_multiplier / 5, v);
     }
@@ -993,7 +993,7 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
 
       routing.GetMutableDimension(kTime)->SetSpanUpperBoundForVehicle(vehicle.duration,
                                                                       v);
-    } else if (FLAGS_balance) {
+    } else if (absl::GetFlag(FLAGS_balance)) {
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
       routing.AddVariableMaximizedByFinalizer(time_cumul_var);
     } else {
@@ -1050,7 +1050,7 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
   const int size_mtws     = data.TwiceTWsCounter();
   const int size_vehicles = data.Vehicles().size();
   const int size_rest     = data.SizeRest();
-  switch (FLAGS_solver_parameter) {
+  switch (absl::GetFlag(FLAGS_solver_parameter)) {
   case 0:
     parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
     break;
@@ -1237,7 +1237,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
         GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
     route_costs->set_distance(distance_cost);
 
-    if (FLAGS_nearby) {
+    if (absl::GetFlag(FLAGS_nearby)) {
       const double time_order_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
       total_time_order_cost += time_order_cost;
@@ -1249,7 +1249,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
       route_costs->set_distance_order(distance_order_cost);
     }
 
-    if (FLAGS_balance) {
+    if (absl::GetFlag(FLAGS_balance)) {
       const double time_balance_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeBalance);
       route_costs->set_time_balance(time_balance_cost);
@@ -1423,7 +1423,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   }
 
   std::vector<IntVar*> used_vehicles;
-  if (FLAGS_vehicle_limit > 0) {
+  if (absl::GetFlag(FLAGS_vehicle_limit) > 0) {
     for (int vehicle = 0; vehicle < size_vehicles; ++vehicle) {
       int64 start_index = routing.Start(vehicle);
       int64 end_index   = routing.End(vehicle);
@@ -1436,8 +1436,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
       used_vehicles.push_back(is_vehicle_used);
     }
 
-    solver->AddConstraint(solver->MakeLessOrEqual(solver->MakeSum(used_vehicles),
-                                                  (int64)FLAGS_vehicle_limit));
+    solver->AddConstraint(solver->MakeLessOrEqual(
+        solver->MakeSum(used_vehicles), (int64)absl::GetFlag(FLAGS_vehicle_limit)));
   }
 
   // Setting solve parameters indicators
@@ -1488,8 +1488,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
-  CHECK(google::protobuf::TextFormat::MergeFromString(FLAGS_routing_search_parameters,
-                                                      &parameters));
+  CHECK(google::protobuf::TextFormat::MergeFromString(
+      absl::GetFlag(FLAGS_routing_search_parameters), &parameters));
   SetFirstSolutionStrategy(data, parameters, shift_preference, has_overall_duration,
                            unique_configuration, has_route_duration, loop_route);
 
@@ -1500,12 +1500,14 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   // parameters.set_local_search_metaheuristic(LocalSearchMetaheuristic::GENERIC_TABU_SEARCH);
 
   const Assignment* solution = nullptr;
-  if (FLAGS_time_limit_in_ms > 0) {
-    CHECK_OK(util_time::EncodeGoogleApiProto(absl::Milliseconds(FLAGS_time_limit_in_ms),
-                                             parameters.mutable_time_limit()));
+  if (absl::GetFlag(FLAGS_time_limit_in_ms) > 0) {
+    CHECK_OK(util_time::EncodeGoogleApiProto(
+        absl::Milliseconds(absl::GetFlag(FLAGS_time_limit_in_ms)),
+        parameters.mutable_time_limit()));
   }
 
-  if (FLAGS_only_first_solution || FLAGS_verification_only) {
+  if (absl::GetFlag(FLAGS_only_first_solution) ||
+      absl::GetFlag(FLAGS_verification_only)) {
     parameters.set_solution_limit(1);
   } else {
     parameters.set_local_search_metaheuristic(
@@ -1523,16 +1525,19 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   const bool build_route = RouteBuilder(data, routing, manager, assignment);
 
   LoggerMonitor* const logger = MakeLoggerMonitor(
-      data, &routing, &manager, min_start, size_matrix, FLAGS_debug,
-      FLAGS_intermediate_solutions, result, stored_rests, filename, true);
+      data, &routing, &manager, min_start, size_matrix, absl::GetFlag(FLAGS_debug),
+      absl::GetFlag(FLAGS_intermediate_solutions), result, stored_rests, filename, true);
   routing.AddSearchMonitor(logger);
 
   if (data.Size() > 3) {
-    if (FLAGS_no_solution_improvement_limit > 0 || FLAGS_minimum_duration > 0 ||
-        FLAGS_init_duration > 0) {
+    if (absl::GetFlag(FLAGS_no_solution_improvement_limit) > 0 ||
+        absl::GetFlag(FLAGS_minimum_duration) > 0 ||
+        absl::GetFlag(FLAGS_init_duration) > 0) {
       NoImprovementLimit* const no_improvement_limit = MakeNoImprovementLimit(
-          routing.solver(), routing.CostVar(), FLAGS_no_solution_improvement_limit,
-          FLAGS_minimum_duration, FLAGS_time_out_multiplier, FLAGS_init_duration, true);
+          routing.solver(), routing.CostVar(),
+          absl::GetFlag(FLAGS_no_solution_improvement_limit),
+          absl::GetFlag(FLAGS_minimum_duration), absl::GetFlag(FLAGS_time_out_multiplier),
+          absl::GetFlag(FLAGS_init_duration), true);
       routing.AddSearchMonitor(no_improvement_limit);
     }
   } else {
@@ -1542,16 +1547,16 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 
   if (data.Routes().size() > 0 && build_route &&
       routing.solver()->CheckAssignment(assignment)) {
-    if (!FLAGS_verification_only || FLAGS_debug)
+    if (!absl::GetFlag(FLAGS_verification_only) || absl::GetFlag(FLAGS_debug))
       std::cout << "Using the provided initial solution." << std::endl;
 
     solution = routing.SolveFromAssignmentWithParameters(assignment, parameters);
   } else {
     if (data.Routes().size() > 0 && build_route &&
-        (!FLAGS_verification_only || FLAGS_debug))
+        (!absl::GetFlag(FLAGS_verification_only) || absl::GetFlag(FLAGS_debug)))
       std::cout << "The provided initial solution is invalid." << std::endl;
 
-    if (!FLAGS_verification_only) {
+    if (!absl::GetFlag(FLAGS_verification_only)) {
       std::cout << "First solution strategy : "
                 << FirstSolutionStrategy::Value_Name(parameters.first_solution_strategy())
                 << std::endl;
@@ -1559,7 +1564,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
     }
   }
 
-  if (FLAGS_debug) {
+  if (absl::GetFlag(FLAGS_debug)) {
     std::cout << std::endl;
     std::cout << "Solutions: " << solver->solutions() << std::endl;
     std::cout << "Failures: " << solver->failures() << std::endl;
@@ -1574,7 +1579,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
     ParseSolutionIntoResult(solution, result, data, routing, routing_values, manager,
                             logger, stored_rests);
 
-    if (!FLAGS_verification_only || FLAGS_debug)
+    if (!absl::GetFlag(FLAGS_verification_only) || absl::GetFlag(FLAGS_debug))
       std::cout << "Final Iteration : " << result->iterations()
                 << " Cost : " << result->cost() << " Time : " << result->duration()
                 << std::endl;
@@ -1588,8 +1593,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 
 void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWDataDT& data,
                           RoutingValues* routing_values, const std::string& filename) {
-  if (FLAGS_only_first_solution) // no need to bother if first solution only
-    return;
+  if (absl::GetFlag(FLAGS_only_first_solution))
+    return; // no need to bother if first solution only
 
   bool there_is_a_nonempty_vehicle_with_improvable_pause = false;
 
@@ -1653,8 +1658,8 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
     const int64 rounding_step = 120; // in seconds. Because of rounding up, it acts as if
                                      // it is double the amount, so don't increase it too
                                      // much. Binary search is very fast.
-    FLAGS_verification_only      = true;
-    FLAGS_intermediate_solutions = DEBUG_MODE;
+    absl::SetFlag(&FLAGS_verification_only, true);
+    absl::SetFlag(&FLAGS_intermediate_solutions, DEBUG_MODE);
 
     // set the initial routes using the result
     local_data.Routes()->clear();
@@ -1735,7 +1740,7 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
-  FLAGS_logtostderr = 1;
+  absl::SetFlag(&FLAGS_logtostderr, 1);
 
   std::cout << "OR-Tools v" << operations_research::OrToolsMajorVersion() << '.'
             << operations_research::OrToolsMinorVersion() << std::endl;
@@ -1743,23 +1748,25 @@ int main(int argc, char** argv) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (FLAGS_time_limit_in_ms <= 0 && FLAGS_no_solution_improvement_limit <= 0 &&
-      !FLAGS_only_first_solution) {
+  if (absl::GetFlag(FLAGS_time_limit_in_ms) <= 0 &&
+      absl::GetFlag(FLAGS_no_solution_improvement_limit) <= 0 &&
+      !absl::GetFlag(FLAGS_only_first_solution)) {
     LOG(FATAL) << "No stopping condition";
   }
 
-  operations_research::TSPTWDataDT tsptw_data(FLAGS_instance_file);
+  operations_research::TSPTWDataDT tsptw_data(absl::GetFlag(FLAGS_instance_file));
   operations_research::RoutingValues* routing_values =
       new operations_research::RoutingValues(tsptw_data);
 
-  const ortools_result::Result* result =
-      operations_research::TSPTWSolver(tsptw_data, routing_values, FLAGS_solution_file);
+  const ortools_result::Result* result = operations_research::TSPTWSolver(
+      tsptw_data, routing_values, absl::GetFlag(FLAGS_solution_file));
 
   if (result != nullptr) {
     operations_research::PushRestsToTheMiddle(result, tsptw_data, routing_values,
-                                              FLAGS_solution_file);
+                                              absl::GetFlag(FLAGS_solution_file));
 
-    std::ofstream output(FLAGS_solution_file, std::ios::trunc | std::ios::binary);
+    std::ofstream output(absl::GetFlag(FLAGS_solution_file),
+                         std::ios::trunc | std::ios::binary);
     if (!result->SerializeToOstream(&output)) {
       LOG(FATAL) << "Failed to write result.";
     }

@@ -109,7 +109,7 @@ public:
   }
 
 
-  void Print(std::ostream & out, const bool label = false, const int width = FLAGS_width_size) const;
+  void Print(std::ostream & out, const bool label = false, const int width = absl::GetFlag(FLAGS_width_size)) const;
 
 private:
   int64 MatrixIndex(RoutingIndexManager::NodeIndex from,

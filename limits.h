@@ -435,7 +435,7 @@ public:
           route_costs->set_distance(distance_cost);
           total_distance_cost += distance_cost;
 
-          if (FLAGS_nearby) {
+          if (absl::GetFlag(FLAGS_nearby)) {
             const double time_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
             total_time_order_cost += time_order_cost;
@@ -447,7 +447,7 @@ public:
             route_costs->set_distance_order(distance_order_cost);
           }
 
-          if (FLAGS_balance) {
+          if (absl::GetFlag(FLAGS_balance)) {
             const double time_balance_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
             route_costs->set_time_balance(time_balance_cost);
@@ -502,7 +502,7 @@ public:
         }
         output.close();
 
-        if (FLAGS_debug) {
+        if (absl::GetFlag(FLAGS_debug)) {
           std::cout.precision(15);
           std::cout << "Cost breakdown:"
                     << "\n nbr_services_served: " << nbr_services_served
@@ -526,7 +526,7 @@ public:
         }
       } else {
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-          if (FLAGS_nearby) {
+          if (absl::GetFlag(FLAGS_nearby)) {
             const double time_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
             total_time_order_cost += time_order_cost;
@@ -567,7 +567,7 @@ public:
     }
 
     ++iteration_counter_;
-    if ((!FLAGS_verification_only || FLAGS_debug) &&
+    if ((!absl::GetFlag(FLAGS_verification_only) || absl::GetFlag(FLAGS_debug)) &&
         iteration_counter_ >= std::pow(2, pow_)) {
       std::cout << "Iteration : " << iteration_counter_;
 
