@@ -1227,59 +1227,59 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
       const double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
       route_costs->set_fixed(fixed_cost);
       routing_values->RouteEndValues(route_nbr).initial_time_value = start_time;
+
+      const double time_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTime);
+      route_costs->set_time(time_cost);
+
+      const double distance_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
+      route_costs->set_distance(distance_cost);
+
+      if (absl::GetFlag(FLAGS_nearby)) {
+        const double time_order_cost =
+            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
+        total_time_order_cost += time_order_cost;
+        route_costs->set_time_order(time_order_cost);
+
+        const double distance_order_cost = GetSpanCostForVehicleForDimension(
+            routing, solution, route_nbr, kDistanceOrder);
+        total_distance_order_cost += distance_order_cost;
+        route_costs->set_distance_order(distance_order_cost);
+      }
+
+      if (absl::GetFlag(FLAGS_balance)) {
+        const double time_balance_cost =
+            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeBalance);
+        route_costs->set_time_balance(time_balance_cost);
+
+        const double distance_balance_cost = GetSpanCostForVehicleForDimension(
+            routing, solution, route_nbr, kDistanceBalance);
+        route_costs->set_distance_balance(distance_balance_cost);
+      }
+
+      if (data.Vehicles(route_nbr).free_approach == true ||
+          data.Vehicles(route_nbr).free_return == true) {
+        const double fake_time_cost =
+            GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeTime);
+        route_costs->set_time_fake(fake_time_cost);
+
+        const double fake_distance_cost = GetSpanCostForVehicleForDimension(
+            routing, solution, route_nbr, kFakeDistance);
+        route_costs->set_distance_fake(fake_distance_cost);
+      }
+
+      const double time_without_wait_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeNoWait);
+      route_costs->set_time_without_wait(time_without_wait_cost);
+
+      const double value_cost =
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kValue);
+      route_costs->set_value(value_cost);
+
+      route_costs->set_overload(overload_cost);
+      route_costs->set_lateness(lateness_cost);
     }
-
-    const double time_cost =
-        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTime);
-    route_costs->set_time(time_cost);
-
-    const double distance_cost =
-        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
-    route_costs->set_distance(distance_cost);
-
-    if (absl::GetFlag(FLAGS_nearby)) {
-      const double time_order_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
-      total_time_order_cost += time_order_cost;
-      route_costs->set_time_order(time_order_cost);
-
-      const double distance_order_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistanceOrder);
-      total_distance_order_cost += distance_order_cost;
-      route_costs->set_distance_order(distance_order_cost);
-    }
-
-    if (absl::GetFlag(FLAGS_balance)) {
-      const double time_balance_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeBalance);
-      route_costs->set_time_balance(time_balance_cost);
-
-      const double distance_balance_cost = GetSpanCostForVehicleForDimension(
-          routing, solution, route_nbr, kDistanceBalance);
-      route_costs->set_distance_balance(distance_balance_cost);
-    }
-
-    if (data.Vehicles(route_nbr).free_approach == true ||
-        data.Vehicles(route_nbr).free_return == true) {
-      const double fake_time_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeTime);
-      route_costs->set_time_fake(fake_time_cost);
-
-      const double fake_distance_cost =
-          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kFakeDistance);
-      route_costs->set_distance_fake(fake_distance_cost);
-    }
-
-    const double time_without_wait_cost =
-        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeNoWait);
-    route_costs->set_time_without_wait(time_without_wait_cost);
-
-    const double value_cost =
-        GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kValue);
-    route_costs->set_value(value_cost);
-
-    route_costs->set_overload(overload_cost);
-    route_costs->set_lateness(lateness_cost);
   }
 
   std::vector<double> scores = logger->GetFinalScore();
