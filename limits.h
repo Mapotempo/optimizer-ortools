@@ -227,9 +227,11 @@ public:
       , result_(result)
       , stored_rests_(stored_rests) {
     if (minimize_) {
-      best_result_ = kint64max;
+      best_result_  = kint64max;
+      cleaned_cost_ = kint64max;
     } else {
-      best_result_ = kint64min;
+      best_result_  = kint64min;
+      cleaned_cost_ = kint64min;
     }
 
     DCHECK_NOTNULL(routing->CostVar());
@@ -240,9 +242,11 @@ public:
     iteration_counter_ = 0;
     pow_               = 0;
     if (minimize_) {
-      best_result_ = kint64max;
+      best_result_  = kint64max;
+      cleaned_cost_ = kint64max;
     } else {
-      best_result_ = kint64min;
+      best_result_  = kint64min;
+      cleaned_cost_ = kint64min;
     }
   }
 
@@ -291,7 +295,9 @@ public:
     const IntVar* objective = prototype_->Objective();
     if (minimize_ && (objective->Min() * 1.01 < best_result_ ||
                       (DEBUG_MODE && objective->Min() < best_result_))) {
-      best_result_ = objective->Min();
+      best_result_    = objective->Min();
+      double duration = 1e-9 * (absl::GetCurrentTimeNanos() - start_time_);
+      double total_time_order_cost(0.0), total_distance_order_cost(0.0);
       if (intermediate_) {
         result_->clear_routes();
 
@@ -299,7 +305,6 @@ public:
             total_time_cost(0.0), total_distance_cost(0.0), total_time_balance_cost(0.0),
             total_distance_balance_cost(0.0), total_time_without_wait_cost(0.0),
             total_value_cost(0.0), total_vehicle_fixed_cost(0.0),
-            total_time_order_cost(0.0), total_distance_order_cost(0.0),
             total_lateness_cost(0.0), total_overload_cost(0.0);
 
         int nbr_routes(0), nbr_services_served(0);
@@ -483,9 +488,10 @@ public:
           total_lateness_cost += lateness_cost;
         }
 
-        result_->set_cost(best_result_ / CUSTOM_BIGNUM -
-                          (total_time_order_cost + total_distance_order_cost));
-        result_->set_duration(1e-9 * (absl::GetCurrentTimeNanos() - start_time_));
+        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
+                        (total_time_order_cost + total_distance_order_cost);
+        result_->set_cost(cleaned_cost_);
+        result_->set_duration(duration);
         result_->set_iterations(iteration_counter_);
 
         std::fstream output(filename_,
@@ -495,10 +501,6 @@ public:
           return false;
         }
         output.close();
-
-        std::cout << "Iteration : " << result_->iterations()
-                  << " Cost : " << result_->cost() << " Time : " << result_->duration()
-                  << std::endl;
 
         if (FLAGS_debug) {
           std::cout.precision(15);
@@ -522,7 +524,23 @@ public:
                     << "\n total_distance_order_cost:    " << total_distance_order_cost
                     << std::endl;
         }
+      } else {
+        for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
+          if (FLAGS_nearby) {
+            const double time_order_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
+            total_time_order_cost += time_order_cost;
+
+            const double distance_order_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
+            total_distance_order_cost += distance_order_cost;
+          }
+        }
+        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
+                        (total_time_order_cost + total_distance_order_cost);
       }
+      std::cout << "Iteration : " << iteration_counter_ << " Cost : " << cleaned_cost_
+                << " Time : " << duration << std::endl;
       new_best = true;
     } else if (!minimize_) {
       std::cout << "Maximization is not implemented!" << std::endl;
@@ -555,7 +573,7 @@ public:
 
       if (intermediate_ == false)
         std::cout << " \tInternal cost : " /* The `c` of cost needs to stay lowercase */
-                  << best_result_ / CUSTOM_BIGNUM;
+                  << cleaned_cost_ / CUSTOM_BIGNUM;
 
       std::cout << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
                 << std::endl;
@@ -570,6 +588,7 @@ public:
         reinterpret_cast<const LoggerMonitor* const>(limit);
 
     best_result_       = copy_limit->best_result_;
+    cleaned_cost_      = copy_limit->cleaned_cost_;
     iteration_counter_ = copy_limit->iteration_counter_;
     start_time_        = copy_limit->start_time_;
     size_matrix_       = copy_limit->size_matrix_;
@@ -593,7 +612,7 @@ public:
   }
 
   std::vector<double> GetFinalScore() {
-    return {(best_result_ / CUSTOM_BIGNUM),
+    return {(cleaned_cost_ / CUSTOM_BIGNUM),
             1e-9 * (absl::GetCurrentTimeNanos() - start_time_),
             (double)iteration_counter_};
   }
@@ -610,6 +629,7 @@ private:
   RoutingIndexManager* manager_;
   Solver* const solver_;
   int64 best_result_;
+  int64 cleaned_cost_;
   double start_time_;
   int64 min_start_;
   int64 size_matrix_;
