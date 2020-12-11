@@ -867,6 +867,19 @@ void AddTimeDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 
   int v = 0;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
+    if (vehicle.shift_preference == ForceStart &&
+        vehicle.cost_waiting_time_multiplier >= vehicle.cost_time_multiplier) {
+      if (vehicle.cost_time_multiplier == 0 && vehicle.cost_distance_multiplier == 0) {
+        // TODO: verify but it shouldn't be necessary to multiply with CUSTOM_BIGNUM
+        // since we just want to create a small incentive
+        const_cast<TSPTWDataDT::Vehicle&>(vehicle).cost_time_multiplier = 1;
+      }
+      if (vehicle.cost_time_multiplier > 0) {
+        const_cast<TSPTWDataDT::Vehicle&>(vehicle).cost_waiting_time_multiplier =
+            vehicle.cost_time_multiplier - 1;
+      }
+    }
+
     const int64 without_wait_cost =
         vehicle.cost_time_multiplier - vehicle.cost_waiting_time_multiplier;
     // Vehicle costs
