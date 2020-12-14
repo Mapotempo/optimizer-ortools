@@ -273,6 +273,8 @@ std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data,
         rest_array, vehicle_index, data.ServiceTimes());
 
     if (vehicle.max_interval_between_breaks > 0) {
+      DLOG(INFO) << "\n\nSetting max break distance to "
+                 << vehicle.max_interval_between_breaks << std::endl;
       // Put an upperbound on the intervals between breaks that are longer than "dur"
       routing.GetMutableDimension(kTime)->SetBreakDistanceDurationOfVehicle(
           /*upperbound*/ vehicle.max_interval_between_breaks, /*dur*/ 0, vehicle_index);
@@ -1169,6 +1171,8 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
         activity->set_type("service");
         activity->set_id(data.ServiceId(nodeIndex));
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
+        DLOG(INFO) << "nodeIndex:" << nodeIndex << "\t start_time: " << start_time
+                   << std::endl;
         routing_values->NodeValues(nodeIndex).initial_time_value = start_time;
       }
       for (std::size_t q = 0;
@@ -1226,6 +1230,8 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
     if (vehicle_used) {
       const double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
       route_costs->set_fixed(fixed_cost);
+      DLOG(INFO) << "RouteEndValues:" << route_nbr << "\t start_time: " << start_time
+                 << std::endl;
       routing_values->RouteEndValues(route_nbr).initial_time_value = start_time;
 
       const double time_cost =
@@ -1397,6 +1403,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   // Dimensions
   const int64 horizon =
       data.Horizon() * (has_lateness && !CheckOverflow(data.Horizon(), 2) ? 2 : 1);
+  DLOG(INFO) << "horizon=" << horizon;
 
   AddTimeDimensions(data, routing, manager, horizon, free_approach_return);
   AddDistanceDimensions(data, routing, manager, maximum_route_distance,
