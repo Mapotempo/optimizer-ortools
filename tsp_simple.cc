@@ -243,12 +243,27 @@ bool RouteBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   return routing.RoutesToAssignment(routes, true, false, assignment);
 }
 
-std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data,
-                                                   RoutingModel& routing) {
+std::vector<std::vector<IntervalVar*>>
+RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon) {
   Solver* solver          = routing.solver();
   const int size_vehicles = data.Vehicles().size();
   std::vector<std::vector<IntervalVar*>> stored_rests;
+
+  // TODO: only the last pause is pushed towards the end of route. If there are multiple
+  // pauses per vehicle then multiple "rest" dimensions are needed.
+  routing.AddDimension(/*zero_evaluator*/ 0, horizon, horizon, true, kRestPosition);
+
   for (int vehicle_index = 0; vehicle_index < size_vehicles; ++vehicle_index) {
+    RoutingDimension* rest_dimension = routing.GetMutableDimension(kRestPosition);
+    // Add a small cost so that pause will be pushed towards the end of the route if it
+    // doesn't increase other costs. Note: the cost coefficient is actually very small
+    // (1 / CUSTOM_BIGNUM) since every other cost is multipled with CUSTOM_BIGNUM
+    rest_dimension->SetSpanCostCoefficientForVehicle(1, vehicle_index);
+    rest_dimension->CumulVar(routing.Start(vehicle_index))->SetMax(0);
+
+    IntVar* const end_rest_cumul_var =
+        rest_dimension->CumulVar(routing.End(vehicle_index));
+
     const RoutingDimension& time_dimension = routing.GetDimensionOrDie(kTime);
     IntVar* const cumul_var     = time_dimension.CumulVar(routing.Start(vehicle_index));
     IntVar* const cumul_var_end = time_dimension.CumulVar(routing.End(vehicle_index));
@@ -265,9 +280,14 @@ std::vector<std::vector<IntervalVar*>> RestBuilder(const TSPTWDataDT& data,
           solver->MakeGreaterOrEqual(rest_interval->SafeStartExpr(0), cumul_var));
       solver->AddConstraint(
           solver->MakeLessOrEqual(rest_interval->SafeEndExpr(0), cumul_var_end));
-      routing.AddVariableTargetToFinalizer(rest_interval->SafeStartExpr(0)->Var(),
-                                           // set the middle of timewindow as a target
-                                           (rest.ready_time[0] + rest.due_time[0]) / 2);
+
+      // Push the rest as close to the end of route as possible
+      routing.AddVariableMaximizedByFinalizer(rest_interval->SafeStartExpr(0)->Var());
+      routing.AddVariableMaximizedByFinalizer(rest_interval->SafeEndExpr(0)->Var());
+      routing.AddVariableMinimizedByFinalizer(rest_interval->SafeDurationExpr(0)->Var());
+      solver->AddConstraint(solver->MakeGreaterOrEqual(
+          end_rest_cumul_var,
+          solver->MakeDifference(cumul_var_end, rest_interval->SafeStartExpr(0)->Var())));
     }
     routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(
         rest_array, vehicle_index, data.ServiceTimes());
@@ -1006,8 +1026,13 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
     } else {
       if (vehicle.free_approach == true)
         routing.AddVariableMaximizedByFinalizer(time_cumul_var);
+      else
+        routing.AddVariableMinimizedByFinalizer(time_cumul_var);
+
       if (vehicle.free_return == true)
         routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
+      else
+        routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
     }
     ++v;
   }
@@ -1120,7 +1145,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
-  double total_time_order_cost(0), total_distance_order_cost(0);
+  double total_time_order_cost(0.0), total_distance_order_cost(0.0),
+      total_rest_position_cost(0.0);
 
   for (int route_nbr = 0; route_nbr < routing.vehicles(); route_nbr++) {
     std::vector<IntervalVar*> rests = stored_rests[route_nbr];
@@ -1247,6 +1273,9 @@ void ParseSolutionIntoResult(const Assignment* const solution,
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kDistance);
       route_costs->set_distance(distance_cost);
 
+      total_rest_position_cost +=
+          GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kRestPosition);
+
       if (absl::GetFlag(FLAGS_nearby)) {
         const double time_order_cost =
             GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeOrder);
@@ -1294,8 +1323,9 @@ void ParseSolutionIntoResult(const Assignment* const solution,
   }
 
   std::vector<double> scores = logger->GetFinalScore();
-  result->set_cost(solution->ObjectiveValue() / CUSTOM_BIGNUM -
-                   (total_time_order_cost + total_distance_order_cost));
+  result->set_cost(
+      solution->ObjectiveValue() / CUSTOM_BIGNUM -
+      (total_time_order_cost + total_distance_order_cost + total_rest_position_cost));
   result->set_duration(scores[1]);
   result->set_iterations(scores[2]);
 }
@@ -1496,7 +1526,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   // Setting visit time windows
   MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2,
                   min_start);
-  std::vector<std::vector<IntervalVar*>> stored_rests = RestBuilder(data, routing);
+  std::vector<std::vector<IntervalVar*>> stored_rests =
+      RestBuilder(data, routing, horizon);
   RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 

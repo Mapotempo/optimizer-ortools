@@ -58,6 +58,8 @@ const char* kTimeBalance    = "time_balance";
 const char* kTimeNoWait     = "time_without_wait";
 const char* kTimeOrder      = "time_order";
 
+const char* kRestPosition = "rest_position";
+
 const char* kValue = "value";
 
 namespace operations_research {
@@ -297,7 +299,8 @@ public:
                       (DEBUG_MODE && objective->Min() < best_result_))) {
       best_result_    = objective->Min();
       double duration = 1e-9 * (absl::GetCurrentTimeNanos() - start_time_);
-      double total_time_order_cost(0.0), total_distance_order_cost(0.0);
+      double total_time_order_cost(0.0), total_distance_order_cost(0.0),
+          total_rest_position_cost(0.0);
       if (intermediate_) {
         result_->clear_routes();
 
@@ -434,6 +437,9 @@ public:
             route_costs->set_distance(distance_cost);
             total_distance_cost += distance_cost;
 
+            total_rest_position_cost +=
+                GetSpanCostForVehicleForDimension(route_nbr, kRestPosition);
+
             if (absl::GetFlag(FLAGS_nearby)) {
               const double time_order_cost =
                   GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
@@ -490,7 +496,8 @@ public:
         }
 
         cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
-                        (total_time_order_cost + total_distance_order_cost);
+                        (total_time_order_cost + total_distance_order_cost +
+                         total_rest_position_cost);
         result_->set_cost(cleaned_cost_);
         result_->set_duration(duration);
         result_->set_iterations(iteration_counter_);
@@ -520,9 +527,10 @@ public:
                     << "\n total_overload_cost:          " << total_overload_cost
                     << "\n total_lateness_cost:          " << total_lateness_cost
                     << "\n Cost substracted from the results but used in optimization "
-                       "(due to nearby flag):"
+                       "(due to nearby flag and rest position):"
                     << "\n total_time_order_cost:        " << total_time_order_cost
                     << "\n total_distance_order_cost:    " << total_distance_order_cost
+                    << "\n total_rest_position_cost:     " << total_rest_position_cost
                     << std::endl;
         }
       } else {
@@ -536,9 +544,13 @@ public:
                 GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
             total_distance_order_cost += distance_order_cost;
           }
+
+          total_rest_position_cost +=
+              GetSpanCostForVehicleForDimension(route_nbr, kRestPosition);
         }
         cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
-                        (total_time_order_cost + total_distance_order_cost);
+                        (total_time_order_cost + total_distance_order_cost +
+                         total_rest_position_cost);
       }
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << cleaned_cost_
                 << " Time : " << duration << std::endl;
@@ -630,7 +642,7 @@ private:
   RoutingIndexManager* manager_;
   Solver* const solver_;
   int64 best_result_;
-  int64 cleaned_cost_;
+  double cleaned_cost_;
   double start_time_;
   int64 min_start_;
   int64 size_matrix_;

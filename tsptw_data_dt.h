@@ -17,7 +17,7 @@
 
 #define CUSTOM_MAX_INT (int64) std::pow(2, 30)
 
-#define CUSTOM_BIGNUM 1000000.0
+#define CUSTOM_BIGNUM 1e6
 
 enum RelationType {
   MinimumDurationLapse = 15,
