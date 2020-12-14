@@ -85,7 +85,7 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
 }
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
-                     RoutingValues* routing_values, RoutingIndexManager& manager,
+                     RoutingValues& routing_values, RoutingIndexManager& manager,
                      Assignment* assignment, const int64 size, const int64 min_start) {
   const int size_vehicles = data.Vehicles().size();
   // const int size_matrix = data.SizeMatrix();
@@ -119,7 +119,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       const int64 index               = manager.NodeToIndex(i);
       const std::vector<int64>& ready = data.ReadyTime(i);
       const std::vector<int64>& due   = data.DueTime(i);
-      const int64 initial_value       = routing_values->NodeValues(i).initial_time_value;
+      const int64 initial_value       = routing_values.NodeValues(i).initial_time_value;
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
@@ -917,7 +917,7 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 }
 
 void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
-                               RoutingValues* routing_values, Assignment* assignment,
+                               RoutingValues& routing_values, Assignment* assignment,
                                bool& has_route_duration) {
   int v = 0;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
@@ -947,8 +947,8 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
       }
     }
 
-    const int64 end_value(routing_values->RouteEndValues(v).initial_time_value);
-    const int64 start_value(routing_values->RouteStartValues(v).initial_time_value);
+    const int64 end_value(routing_values.RouteEndValues(v).initial_time_value);
+    const int64 start_value(routing_values.RouteStartValues(v).initial_time_value);
 
     if (vehicle.time_end < CUSTOM_MAX_INT) {
       const int64 coef = vehicle.late_multiplier;
@@ -1108,10 +1108,10 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
   // parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_MOST_CONSTRAINED_ARC);
 }
 
-void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result* result,
-                             const TSPTWDataDT& data, RoutingModel& routing,
-                             RoutingValues* routing_values, RoutingIndexManager& manager,
-                             LoggerMonitor* const logger,
+void ParseSolutionIntoResult(const Assignment* const solution,
+                             ortools_result::Result* result, const TSPTWDataDT& data,
+                             const RoutingModel& routing, RoutingValues& routing_values,
+                             RoutingIndexManager& manager, LoggerMonitor* const logger,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
@@ -1165,7 +1165,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
         activity->set_type("start");
         DLOG(INFO) << "RouteStartValues:" << route_nbr << "\t start_time: " << start_time
                    << std::endl;
-        routing_values->RouteStartValues(route_nbr).initial_time_value = start_time;
+        routing_values.RouteStartValues(route_nbr).initial_time_value = start_time;
       } else {
         vehicle_used = true;
         activity->set_type("service");
@@ -1173,7 +1173,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
         DLOG(INFO) << "nodeIndex:" << nodeIndex << "\t start_time: " << start_time
                    << std::endl;
-        routing_values->NodeValues(nodeIndex).initial_time_value = start_time;
+        routing_values.NodeValues(nodeIndex).initial_time_value = start_time;
       }
       for (std::size_t q = 0;
            q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -1232,7 +1232,7 @@ void ParseSolutionIntoResult(const Assignment* solution, ortools_result::Result*
       route_costs->set_fixed(fixed_cost);
       DLOG(INFO) << "RouteEndValues:" << route_nbr << "\t start_time: " << start_time
                  << std::endl;
-      routing_values->RouteEndValues(route_nbr).initial_time_value = start_time;
+      routing_values.RouteEndValues(route_nbr).initial_time_value = start_time;
 
       const double time_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTime);
@@ -1359,7 +1359,7 @@ int64 LowerBoundOnTheIntervalBetweenBreaksOfVehicle(const TSPTWDataDT& data,
 }
 
 const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
-                                          RoutingValues* routing_values,
+                                          RoutingValues& routing_values,
                                           const std::string& filename) {
   ortools_result::Result* result = new ortools_result::Result;
 
@@ -1599,7 +1599,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 }
 
 void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWDataDT& data,
-                          RoutingValues* routing_values, const std::string& filename) {
+                          RoutingValues& routing_values, const std::string& filename) {
   if (absl::GetFlag(FLAGS_only_first_solution))
     return; // no need to bother if first solution only
 
@@ -1704,9 +1704,10 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
                    << " as max break distance limit "
                    << "for vehicle " << v;
 
+        RoutingValues local_routing_values(routing_values);
         // and check if the solution stays valid
         const ortools_result::Result* local_result =
-            TSPTWSolver(local_data, routing_values, absl::StrCat(filename, v));
+            TSPTWSolver(local_data, local_routing_values, absl::StrCat(filename, v));
 
         // if the cost didn't increase update the UB
         // if the cost increased update the LB
@@ -1718,7 +1719,8 @@ void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWData
           local_data.SetMaxBreakDistUBOfVehicle(v, new_max_interval_limit);
           if (best_result != nullptr)
             delete best_result;
-          best_result = local_result;
+          best_result    = local_result;
+          routing_values = local_routing_values;
         } else {
           DLOG(INFO) << "Failed - LB increased";
           if (local_result != nullptr) {
@@ -1762,8 +1764,7 @@ int main(int argc, char** argv) {
   }
 
   operations_research::TSPTWDataDT tsptw_data(absl::GetFlag(FLAGS_instance_file));
-  operations_research::RoutingValues* routing_values =
-      new operations_research::RoutingValues(tsptw_data);
+  operations_research::RoutingValues routing_values(tsptw_data);
 
   const ortools_result::Result* result = operations_research::TSPTWSolver(
       tsptw_data, routing_values, absl::GetFlag(FLAGS_solution_file));
