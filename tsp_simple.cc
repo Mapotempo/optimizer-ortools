@@ -680,19 +680,13 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 }
 
 void AddBalanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
-                          RoutingIndexManager& manager, const int horizon) {
+                          const int horizon) {
   if (absl::GetFlag(FLAGS_balance)) {
     std::vector<IntVar*> ends_distance_vars;
     std::vector<IntVar*> shift_vars;
-    std::vector<int> zero_evaluators;
     Solver* solver = routing.solver();
 
-    int v = 0;
-    for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
-      zero_evaluators.push_back(routing.RegisterTransitCallback(
-          [&vehicle, &manager](const int64 i, const int64 j) {
-            return vehicle.ReturnZero(manager.IndexToNode(i), manager.IndexToNode(j));
-          }));
+    for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
       const operations_research::RoutingDimension& time_dimension =
           routing.GetDimensionOrDie(kTime);
       const operations_research::RoutingDimension& distance_dimension =
@@ -709,15 +703,13 @@ void AddBalanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
       IntVar* const time_difference =
           solver->MakeDifference(time_cumul_var_end, time_cumul_var)->Var();
       shift_vars.push_back(time_difference);
-      ++v;
     }
 
-    routing.AddDimensionWithVehicleTransits(zero_evaluators, horizon, horizon, true,
-                                            kTimeBalance);
-    routing.AddDimensionWithVehicleTransits(zero_evaluators, LLONG_MAX, LLONG_MAX, true,
-                                            kDistanceBalance);
+    routing.AddDimension(/*zero_evaluator*/ 0, horizon, horizon, true, kTimeBalance);
+    routing.AddDimension(/*zero_evaluator*/ 0, LLONG_MAX, LLONG_MAX, true,
+                         kDistanceBalance);
 
-    v = 0;
+    int v = 0;
     for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
       routing.GetMutableDimension(kTimeBalance)
           ->SetSpanCostCoefficientForVehicle((int64)vehicle.cost_time_multiplier, v);
@@ -1408,7 +1400,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   AddTimeDimensions(data, routing, manager, horizon, free_approach_return);
   AddDistanceDimensions(data, routing, manager, maximum_route_distance,
                         free_approach_return);
-  AddBalanceDimensions(data, routing, manager, horizon);
+  AddBalanceDimensions(data, routing, horizon);
   AddCapacityDimensions(data, routing, manager);
   AddValueDimensions(data, routing, manager);
 
