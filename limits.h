@@ -58,6 +58,8 @@ const char* kTimeBalance    = "time_balance";
 const char* kTimeNoWait     = "time_without_wait";
 const char* kTimeOrder      = "time_order";
 
+const char* kRestPosition = "rest_position";
+
 const char* kValue = "value";
 
 namespace operations_research {
@@ -297,7 +299,8 @@ public:
                       (DEBUG_MODE && objective->Min() < best_result_))) {
       best_result_    = objective->Min();
       double duration = 1e-9 * (absl::GetCurrentTimeNanos() - start_time_);
-      double total_time_order_cost(0.0), total_distance_order_cost(0.0);
+      double total_time_order_cost(0.0), total_distance_order_cost(0.0),
+          total_rest_position_cost(0.0);
       if (intermediate_) {
         result_->clear_routes();
 
@@ -424,72 +427,77 @@ public:
             route_costs->set_fixed(fixed_cost);
             total_vehicle_fixed_cost += fixed_cost;
             ++nbr_routes;
+
+            const double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
+            route_costs->set_time(time_cost);
+            total_time_cost += time_cost;
+
+            const double distance_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kDistance);
+            route_costs->set_distance(distance_cost);
+            total_distance_cost += distance_cost;
+
+            total_rest_position_cost +=
+                GetSpanCostForVehicleForDimension(route_nbr, kRestPosition);
+
+            if (absl::GetFlag(FLAGS_nearby)) {
+              const double time_order_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
+              total_time_order_cost += time_order_cost;
+              route_costs->set_time_order(time_order_cost);
+
+              const double distance_order_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
+              total_distance_order_cost += distance_order_cost;
+              route_costs->set_distance_order(distance_order_cost);
+            }
+
+            if (absl::GetFlag(FLAGS_balance)) {
+              const double time_balance_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
+              route_costs->set_time_balance(time_balance_cost);
+              total_time_balance_cost += time_balance_cost;
+
+              const double distance_balance_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
+              route_costs->set_distance_balance(distance_balance_cost);
+              total_distance_balance_cost += distance_balance_cost;
+            }
+
+            if (data_.Vehicles(route_nbr).free_approach == true ||
+                data_.Vehicles(route_nbr).free_return == true) {
+              const double fake_time_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
+              route_costs->set_time_fake(fake_time_cost);
+              total_fake_time_cost += fake_time_cost;
+
+              const double fake_distance_cost =
+                  GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
+              route_costs->set_distance_fake(fake_distance_cost);
+              total_fake_distance_cost += fake_distance_cost;
+            }
+
+            const double time_without_wait_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
+            route_costs->set_time_without_wait(time_without_wait_cost);
+            total_time_without_wait_cost += time_without_wait_cost;
+
+            const double value_cost =
+                GetSpanCostForVehicleForDimension(route_nbr, kValue);
+            route_costs->set_value(value_cost);
+            total_value_cost += value_cost;
+
+            route_costs->set_overload(overload_cost);
+            total_overload_cost += overload_cost;
+
+            route_costs->set_lateness(lateness_cost);
+            total_lateness_cost += lateness_cost;
           }
-
-          const double time_cost = GetSpanCostForVehicleForDimension(route_nbr, kTime);
-          route_costs->set_time(time_cost);
-          total_time_cost += time_cost;
-
-          const double distance_cost =
-              GetSpanCostForVehicleForDimension(route_nbr, kDistance);
-          route_costs->set_distance(distance_cost);
-          total_distance_cost += distance_cost;
-
-          if (FLAGS_nearby) {
-            const double time_order_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
-            total_time_order_cost += time_order_cost;
-            route_costs->set_time_order(time_order_cost);
-
-            const double distance_order_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
-            total_distance_order_cost += distance_order_cost;
-            route_costs->set_distance_order(distance_order_cost);
-          }
-
-          if (FLAGS_balance) {
-            const double time_balance_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kTimeBalance);
-            route_costs->set_time_balance(time_balance_cost);
-            total_time_balance_cost += time_balance_cost;
-
-            const double distance_balance_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kDistanceBalance);
-            route_costs->set_distance_balance(distance_balance_cost);
-            total_distance_balance_cost += distance_balance_cost;
-          }
-
-          if (data_.Vehicles(route_nbr).free_approach == true ||
-              data_.Vehicles(route_nbr).free_return == true) {
-            const double fake_time_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kFakeTime);
-            route_costs->set_time_fake(fake_time_cost);
-            total_fake_time_cost += fake_time_cost;
-
-            const double fake_distance_cost =
-                GetSpanCostForVehicleForDimension(route_nbr, kFakeDistance);
-            route_costs->set_distance_fake(fake_distance_cost);
-            total_fake_distance_cost += fake_distance_cost;
-          }
-
-          const double time_without_wait_cost =
-              GetSpanCostForVehicleForDimension(route_nbr, kTimeNoWait);
-          route_costs->set_time_without_wait(time_without_wait_cost);
-          total_time_without_wait_cost += time_without_wait_cost;
-
-          const double value_cost = GetSpanCostForVehicleForDimension(route_nbr, kValue);
-          route_costs->set_value(value_cost);
-          total_value_cost += value_cost;
-
-          route_costs->set_overload(overload_cost);
-          total_overload_cost += overload_cost;
-
-          route_costs->set_lateness(lateness_cost);
-          total_lateness_cost += lateness_cost;
         }
 
         cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
-                        (total_time_order_cost + total_distance_order_cost);
+                        (total_time_order_cost + total_distance_order_cost +
+                         total_rest_position_cost);
         result_->set_cost(cleaned_cost_);
         result_->set_duration(duration);
         result_->set_iterations(iteration_counter_);
@@ -502,7 +510,7 @@ public:
         }
         output.close();
 
-        if (FLAGS_debug) {
+        if (absl::GetFlag(FLAGS_debug)) {
           std::cout.precision(15);
           std::cout << "Cost breakdown:"
                     << "\n nbr_services_served: " << nbr_services_served
@@ -519,14 +527,15 @@ public:
                     << "\n total_overload_cost:          " << total_overload_cost
                     << "\n total_lateness_cost:          " << total_lateness_cost
                     << "\n Cost substracted from the results but used in optimization "
-                       "(due to nearby flag):"
+                       "(due to nearby flag and rest position):"
                     << "\n total_time_order_cost:        " << total_time_order_cost
                     << "\n total_distance_order_cost:    " << total_distance_order_cost
+                    << "\n total_rest_position_cost:     " << total_rest_position_cost
                     << std::endl;
         }
       } else {
         for (int route_nbr = 0; route_nbr < routing_->vehicles(); route_nbr++) {
-          if (FLAGS_nearby) {
+          if (absl::GetFlag(FLAGS_nearby)) {
             const double time_order_cost =
                 GetSpanCostForVehicleForDimension(route_nbr, kTimeOrder);
             total_time_order_cost += time_order_cost;
@@ -535,9 +544,13 @@ public:
                 GetSpanCostForVehicleForDimension(route_nbr, kDistanceOrder);
             total_distance_order_cost += distance_order_cost;
           }
+
+          total_rest_position_cost +=
+              GetSpanCostForVehicleForDimension(route_nbr, kRestPosition);
         }
         cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
-                        (total_time_order_cost + total_distance_order_cost);
+                        (total_time_order_cost + total_distance_order_cost +
+                         total_rest_position_cost);
       }
       std::cout << "Iteration : " << iteration_counter_ << " Cost : " << cleaned_cost_
                 << " Time : " << duration << std::endl;
@@ -567,7 +580,7 @@ public:
     }
 
     ++iteration_counter_;
-    if ((!FLAGS_verification_only || FLAGS_debug) &&
+    if ((!absl::GetFlag(FLAGS_verification_only) || absl::GetFlag(FLAGS_debug)) &&
         iteration_counter_ >= std::pow(2, pow_)) {
       std::cout << "Iteration : " << iteration_counter_;
 
@@ -629,7 +642,7 @@ private:
   RoutingIndexManager* manager_;
   Solver* const solver_;
   int64 best_result_;
-  int64 cleaned_cost_;
+  double cleaned_cost_;
   double start_time_;
   int64 min_start_;
   int64 size_matrix_;
