@@ -586,7 +586,7 @@ public:
 
       if (intermediate_ == false)
         std::cout << " \tInternal cost : " /* The `c` of cost needs to stay lowercase */
-                  << cleaned_cost_ / CUSTOM_BIGNUM;
+                  << cleaned_cost_;
 
       std::cout << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
                 << std::endl;
