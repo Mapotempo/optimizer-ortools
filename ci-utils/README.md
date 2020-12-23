@@ -11,7 +11,7 @@ Optimizer requires the two following images that must be manually built.
 ### Ortools
 
 ```
-export ORTOOLS_VERSION=v7.0
+export ORTOOLS_VERSION=v7.8
 cd ./docker/ortools
 docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} \
   -f ./Dockerfile -t ${REGISTRY}mapotempo/ortools:${ORTOOLS_VERSION} .
@@ -19,7 +19,7 @@ docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} \
 
 ## Build
 ```
-export ORTOOLS_VERSION=v7.0
+export ORTOOLS_VERSION=v7.8
 export BRANCH=${BRANCH:-ce}
 docker build --build-arg ORTOOLS_VERSION=${ORTOOLS_VERSION} \
   -f ./Dockerfile -t ${REGISTRY}mapotempo-${BRANCH}/optimizer-ortools:latest .
