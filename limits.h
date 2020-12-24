@@ -374,7 +374,7 @@ public:
                   routing_->GetMutableDimension("quantity" + std::to_string(q))
                       ->CumulVar(routing_->NextVar(index)->Value())
                       ->Min();
-              activity->add_quantities(exchange);
+              activity->add_quantities(exchange / CUSTOM_BIGNUM_QUANTITY);
               overload_cost += GetUpperBoundCostForDimension(
                   routing_->NextVar(index)->Value(), "quantity" + std::to_string(q));
             }

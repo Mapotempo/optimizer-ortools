@@ -1212,7 +1212,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         const double exchange =
             solution->Min(routing.GetMutableDimension("quantity" + std::to_string(q))
                               ->CumulVar(solution->Value(routing.NextVar(index))));
-        activity->add_quantities(exchange);
+        activity->add_quantities(exchange / CUSTOM_BIGNUM_QUANTITY);
         overload_cost += GetUpperBoundCostForDimension(
             routing, solution, solution->Value(routing.NextVar(index)),
             "quantity" + std::to_string(q));

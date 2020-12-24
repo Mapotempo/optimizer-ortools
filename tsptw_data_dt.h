@@ -19,6 +19,8 @@
 
 #define CUSTOM_BIGNUM_COST 1e6
 
+#define CUSTOM_BIGNUM_QUANTITY 1e3 // Needs to stay smaller than CUSTOM_BIGNUM_COST
+
 enum RelationType {
   MinimumDurationLapse = 15,
   VehicleGroupNumber   = 14,
@@ -711,15 +713,15 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     }
 
     std::vector<int64> q;
-    for (const int64& quantity : service.quantities()) {
+    for (const float& quantity : service.quantities()) {
       if (quantity < 0)
         ++deliveries_counter_;
-      q.push_back(quantity);
+      q.push_back(std::round(quantity * CUSTOM_BIGNUM_QUANTITY));
     }
 
     std::vector<int64> s_q;
-    for (const int64& setup_quantity : service.setup_quantities()) {
-      s_q.push_back(setup_quantity);
+    for (const float& setup_quantity : service.setup_quantities()) {
+      s_q.push_back(std::round(setup_quantity * CUSTOM_BIGNUM_QUANTITY));
     }
 
     std::vector<bool> r_q;
@@ -870,9 +872,12 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     vehicle_indices.push_back(vehicle.end_index());
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
-      v->capacity.push_back(capacity.limit());
-      v->overload_multiplier.push_back(capacity.overload_multiplier() *
-                                       CUSTOM_BIGNUM_COST);
+      v->capacity.push_back(std::round(capacity.limit() * CUSTOM_BIGNUM_QUANTITY));
+      // quantities and capacities are multiplied with CUSTOM_BIGNUM_QUANTITY so divide
+      // the CUSTOM_BIGNUM_COST by CUSTOM_BIGNUM_QUANTITY so that the cost will be correct
+      // when it is divided by CUSTOM_BIGNUM_COST
+      v->overload_multiplier.push_back(std::round(
+          capacity.overload_multiplier() * CUSTOM_BIGNUM_COST / CUSTOM_BIGNUM_QUANTITY));
       v->counting.push_back(capacity.counting());
     }
 
