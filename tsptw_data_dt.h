@@ -17,7 +17,7 @@
 
 #define CUSTOM_MAX_INT (int64) std::pow(2, 30)
 
-#define CUSTOM_BIGNUM 1e6
+#define CUSTOM_BIGNUM_COST 1e6
 
 enum RelationType {
   MinimumDurationLapse = 15,
@@ -770,10 +770,12 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
             alternative_size_map_[service.problem_index()], start, end,
             service.duration(), service.additional_value(), service.setup_duration(),
             service.priority(),
-            timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM)
-                                   : 0,
+            timewindows.size() > 0
+                ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
+                : 0,
             v_i, q, s_q,
-            service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM : -1,
+            service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM_COST
+                                         : -1,
             r_q));
 
         service_times_.push_back(service.duration());
@@ -790,9 +792,11 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           alternative_size_map_[service.problem_index()], ready_time, due_time,
           service.duration(), service.additional_value(), service.setup_duration(),
           service.priority(),
-          timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM) : 0,
+          timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
+                                 : 0,
           v_i, q, s_q,
-          service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM : -1,
+          service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM_COST
+                                       : -1,
           r_q));
       service_times_.push_back(service.duration());
       alternative_size_map_[service.problem_index()] += 1;
@@ -867,7 +871,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
       v->capacity.push_back(capacity.limit());
-      v->overload_multiplier.push_back(capacity.overload_multiplier() * CUSTOM_BIGNUM);
+      v->overload_multiplier.push_back(capacity.overload_multiplier() *
+                                       CUSTOM_BIGNUM_COST);
       v->counting.push_back(capacity.counting());
     }
 
@@ -883,22 +888,24 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT
                       ? vehicle.time_window().end()
                       : CUSTOM_MAX_INT;
-    v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * CUSTOM_BIGNUM);
-    v->cost_fixed      = (int64)(vehicle.cost_fixed() * CUSTOM_BIGNUM);
+    v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * CUSTOM_BIGNUM_COST);
+    v->cost_fixed      = (int64)(vehicle.cost_fixed() * CUSTOM_BIGNUM_COST);
     v->cost_distance_multiplier =
-        (int64)(vehicle.cost_distance_multiplier() * CUSTOM_BIGNUM);
-    v->cost_time_multiplier = (int64)(vehicle.cost_time_multiplier() * CUSTOM_BIGNUM);
+        (int64)(vehicle.cost_distance_multiplier() * CUSTOM_BIGNUM_COST);
+    v->cost_time_multiplier =
+        (int64)(vehicle.cost_time_multiplier() * CUSTOM_BIGNUM_COST);
     v->cost_waiting_time_multiplier =
-        (int64)(vehicle.cost_waiting_time_multiplier() * CUSTOM_BIGNUM);
-    v->cost_value_multiplier = (int64)(vehicle.cost_value_multiplier() * CUSTOM_BIGNUM);
-    v->coef_service          = vehicle.coef_service();
-    v->additional_service    = vehicle.additional_service();
-    v->coef_setup            = vehicle.coef_setup();
-    v->additional_setup      = vehicle.additional_setup();
-    v->duration              = (int64)(vehicle.duration());
-    v->distance              = vehicle.distance();
-    v->free_approach         = vehicle.free_approach();
-    v->free_return           = vehicle.free_return();
+        (int64)(vehicle.cost_waiting_time_multiplier() * CUSTOM_BIGNUM_COST);
+    v->cost_value_multiplier =
+        (int64)(vehicle.cost_value_multiplier() * CUSTOM_BIGNUM_COST);
+    v->coef_service       = vehicle.coef_service();
+    v->additional_service = vehicle.additional_service();
+    v->coef_setup         = vehicle.coef_setup();
+    v->additional_setup   = vehicle.additional_setup();
+    v->duration           = (int64)(vehicle.duration());
+    v->distance           = vehicle.distance();
+    v->free_approach      = vehicle.free_approach();
+    v->free_return        = vehicle.free_return();
     if (vehicle.shift_preference().compare("force_start") == 0)
       v->shift_preference = ForceStart;
     else if (vehicle.shift_preference().compare("force_end") == 0)
