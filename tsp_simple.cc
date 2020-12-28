@@ -65,7 +65,7 @@ double GetSpanCostForVehicleForDimension(const RoutingModel& routing,
                             ->CumulVar(routing.Start(vehicle)))) *
          routing.GetMutableDimension(dimension_name)
              ->GetSpanCostCoefficientForVehicle(vehicle) /
-         CUSTOM_BIGNUM;
+         CUSTOM_BIGNUM_COST;
 }
 
 double GetUpperBoundCostForDimension(const RoutingModel& routing,
@@ -81,7 +81,7 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
   return excess *
          routing.GetMutableDimension(dimension_name)
              ->GetCumulVarSoftUpperBoundCoefficient(index) /
-         CUSTOM_BIGNUM;
+         CUSTOM_BIGNUM_COST;
 }
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
@@ -257,7 +257,8 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     RoutingDimension* rest_dimension = routing.GetMutableDimension(kRestPosition);
     // Add a small cost so that pause will be pushed towards the end of the route if it
     // doesn't increase other costs. Note: the cost coefficient is actually very small
-    // (1 / CUSTOM_BIGNUM) since every other cost is multipled with CUSTOM_BIGNUM
+    // (1 / CUSTOM_BIGNUM_COST) since every other cost is multipled with
+    // CUSTOM_BIGNUM_COST
     rest_dimension->SetSpanCostCoefficientForVehicle(1, vehicle_index);
     rest_dimension->CumulVar(routing.Start(vehicle_index))->SetMax(0);
 
@@ -890,7 +891,7 @@ void AddTimeDimensions(const TSPTWDataDT& data, RoutingModel& routing,
     if (vehicle.shift_preference == ForceStart &&
         vehicle.cost_waiting_time_multiplier >= vehicle.cost_time_multiplier) {
       if (vehicle.cost_time_multiplier == 0 && vehicle.cost_distance_multiplier == 0) {
-        // TODO: verify but it shouldn't be necessary to multiply with CUSTOM_BIGNUM
+        // TODO: verify but it shouldn't be necessary to multiply with CUSTOM_BIGNUM_COST
         // since we just want to create a small incentive
         const_cast<TSPTWDataDT::Vehicle&>(vehicle).cost_time_multiplier = 1;
       }
@@ -1211,7 +1212,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         const double exchange =
             solution->Min(routing.GetMutableDimension("quantity" + std::to_string(q))
                               ->CumulVar(solution->Value(routing.NextVar(index))));
-        activity->add_quantities(exchange);
+        activity->add_quantities(exchange / CUSTOM_BIGNUM_QUANTITY);
         overload_cost += GetUpperBoundCostForDimension(
             routing, solution, solution->Value(routing.NextVar(index)),
             "quantity" + std::to_string(q));
@@ -1259,7 +1260,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
     auto route_costs = route->mutable_cost_details();
 
     if (vehicle_used) {
-      const double fixed_cost = routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
+      const double fixed_cost =
+          routing.GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM_COST;
       route_costs->set_fixed(fixed_cost);
       DLOG(INFO) << "RouteEndValues:" << route_nbr << "\t start_time: " << start_time
                  << std::endl;
@@ -1324,7 +1326,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
 
   std::vector<double> scores = logger->GetFinalScore();
   result->set_cost(
-      solution->ObjectiveValue() / CUSTOM_BIGNUM -
+      solution->ObjectiveValue() / CUSTOM_BIGNUM_COST -
       (total_time_order_cost + total_distance_order_cost + total_rest_position_cost));
   result->set_duration(scores[1]);
   result->set_iterations(scores[2]);

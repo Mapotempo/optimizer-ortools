@@ -272,7 +272,7 @@ public:
                 ->Max()) *
            routing_->GetMutableDimension(dimension_name)
                ->GetSpanCostCoefficientForVehicle(vehicle) /
-           CUSTOM_BIGNUM;
+           CUSTOM_BIGNUM_COST;
   }
 
   inline double GetUpperBoundCostForDimension(const int index,
@@ -287,7 +287,7 @@ public:
     return (double)excess *
            routing_->GetMutableDimension(dimension_name)
                ->GetCumulVarSoftUpperBoundCoefficient(index) /
-           CUSTOM_BIGNUM;
+           CUSTOM_BIGNUM_COST;
   }
 
   virtual bool AtSolution() {
@@ -374,7 +374,7 @@ public:
                   routing_->GetMutableDimension("quantity" + std::to_string(q))
                       ->CumulVar(routing_->NextVar(index)->Value())
                       ->Min();
-              activity->add_quantities(exchange);
+              activity->add_quantities(exchange / CUSTOM_BIGNUM_QUANTITY);
               overload_cost += GetUpperBoundCostForDimension(
                   routing_->NextVar(index)->Value(), "quantity" + std::to_string(q));
             }
@@ -423,7 +423,7 @@ public:
 
           if (vehicle_used) {
             const double fixed_cost =
-                routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM;
+                routing_->GetFixedCostOfVehicle(route_nbr) / CUSTOM_BIGNUM_COST;
             route_costs->set_fixed(fixed_cost);
             total_vehicle_fixed_cost += fixed_cost;
             ++nbr_routes;
@@ -495,7 +495,7 @@ public:
           }
         }
 
-        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
+        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM_COST -
                         (total_time_order_cost + total_distance_order_cost +
                          total_rest_position_cost);
         result_->set_cost(cleaned_cost_);
@@ -548,7 +548,7 @@ public:
           total_rest_position_cost +=
               GetSpanCostForVehicleForDimension(route_nbr, kRestPosition);
         }
-        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM -
+        cleaned_cost_ = best_result_ / CUSTOM_BIGNUM_COST -
                         (total_time_order_cost + total_distance_order_cost +
                          total_rest_position_cost);
       }
@@ -586,7 +586,7 @@ public:
 
       if (intermediate_ == false)
         std::cout << " \tInternal cost : " /* The `c` of cost needs to stay lowercase */
-                  << cleaned_cost_ / CUSTOM_BIGNUM;
+                  << cleaned_cost_;
 
       std::cout << " \tTime : " << 1e-9 * (absl::GetCurrentTimeNanos() - start_time_)
                 << std::endl;
@@ -625,15 +625,15 @@ public:
   }
 
   std::vector<double> GetFinalScore() {
-    return {(cleaned_cost_ / CUSTOM_BIGNUM),
+    return {(cleaned_cost_ / CUSTOM_BIGNUM_COST),
             1e-9 * (absl::GetCurrentTimeNanos() - start_time_),
             (double)iteration_counter_};
   }
 
   // void GetFinalLog() {
   //   std::cout << "Final Iteration : " << iteration_counter_ << " Cost : " <<
-  //   best_result_ / CUSTOM_BIGNUM << " Time : " << 1e-9 * (base::GetCurrentTimeNanos() -
-  //   start_time_) << std::endl;
+  //   best_result_ / CUSTOM_BIGNUM_COST << " Time : " << 1e-9 *
+  //   (base::GetCurrentTimeNanos() - start_time_) << std::endl;
   // }
 
 private:

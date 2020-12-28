@@ -16,7 +16,7 @@ message TimeWindow {
 
 message Service {
   repeated TimeWindow time_windows = 1;
-  repeated int64 quantities        = 2;
+  repeated float quantities        = 2;
   uint32 duration                  = 3;
   uint32 priority                  = 4;
   repeated int32 vehicle_indices   = 5;
@@ -24,7 +24,7 @@ message Service {
   uint32 setup_duration            = 7;
   string id                        = 9;
   float late_multiplier            = 10;
-  repeated int32 setup_quantities  = 11;
+  repeated float setup_quantities  = 11;
   uint32 additional_value          = 12;
   int64 exclusion_cost             = 13;
   repeated bool refill_quantities  = 14;
@@ -40,7 +40,7 @@ message Rest {
 }
 
 message Capacity {
-  int64 limit               = 1;
+  float limit               = 1;
   float overload_multiplier = 2;
   bool counting             = 3;
 }
