@@ -1014,27 +1014,17 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
         vehicle.time_end - vehicle.time_start > vehicle.duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
-      if (vehicle.shift_preference == ForceStart)
-        routing.AddVariableMinimizedByFinalizer(time_cumul_var);
-      else
-        routing.AddVariableMaximizedByFinalizer(time_cumul_var);
 
       routing.GetMutableDimension(kTime)->SetSpanUpperBoundForVehicle(vehicle.duration,
                                                                       v);
-    } else if (absl::GetFlag(FLAGS_balance)) {
-      routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
-      routing.AddVariableMaximizedByFinalizer(time_cumul_var);
     } else {
-      if (vehicle.free_approach == true)
-        routing.AddVariableMaximizedByFinalizer(time_cumul_var);
-      else
-        routing.AddVariableMinimizedByFinalizer(time_cumul_var);
-
-      if (vehicle.free_return == true)
-        routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
-      else
-        routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
+      routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
     }
+
+    if (vehicle.shift_preference == ForceStart)
+      routing.AddVariableMinimizedByFinalizer(time_cumul_var);
+    else
+      routing.AddVariableMaximizedByFinalizer(time_cumul_var);
     ++v;
   }
 }
