@@ -771,6 +771,7 @@ void AddBalanceDimensions(const TSPTWDataDT& data, RoutingModel& routing,
 void AddCapacityDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                            RoutingIndexManager& manager) {
   for (std::size_t unit_i = 0; unit_i < data.Vehicles(0).capacity.size(); ++unit_i) {
+    const std::string kQuantity = ("quantity" + std::to_string(unit_i)).c_str();
     std::vector<int64> capacities;
     for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
       const int64 coef = vehicle.overload_multiplier[unit_i];
@@ -787,7 +788,19 @@ void AddCapacityDimensions(const TSPTWDataDT& data, RoutingModel& routing,
         };
     routing.AddDimensionWithVehicleCapacity(
         routing.RegisterTransitCallback(quantity_evaluator), LLONG_MAX, capacities, false,
-        "quantity" + std::to_string(unit_i));
+        kQuantity);
+
+    int v = 0;
+    for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
+      const int64 start_index = routing.Start(v);
+      const operations_research::RoutingDimension& unit_dimension =
+          routing.GetDimensionOrDie(kQuantity);
+      IntVar* const start_unit_slack_var = unit_dimension.SlackVar(start_index);
+      IntVar* const start_unit_cumul_var = unit_dimension.CumulVar(start_index);
+      start_unit_slack_var->SetMax(0);
+      start_unit_cumul_var->SetMax(vehicle.initial_capacities[unit_i]);
+      ++v;
+    }
   }
 }
 
