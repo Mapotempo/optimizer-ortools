@@ -275,7 +275,8 @@ public:
         , problem_matrix_index(0)
         , value_matrix_index(0)
         , vehicle_indices(0)
-        , initial_capacities(0)
+        , initial_capacity(0)
+        , initial_load(0)
         , capacity(0)
         , overload_multiplier(0)
         , break_size(0)
@@ -469,7 +470,8 @@ public:
     int64 problem_matrix_index;
     int64 value_matrix_index;
     std::vector<int64> vehicle_indices;
-    std::vector<int64> initial_capacities;
+    std::vector<int64> initial_capacity;
+    std::vector<int64> initial_load;
     std::vector<int64> capacity;
     std::vector<bool> counting;
     std::vector<int64> overload_multiplier;
@@ -875,7 +877,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
       v->capacity.push_back(std::round(capacity.limit() * CUSTOM_BIGNUM_QUANTITY));
-      v->initial_capacities.push_back(std::round(capacity.initial() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_capacity.push_back(std::round(capacity.initial_limit() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_load.push_back(std::round(capacity.initial_load() * CUSTOM_BIGNUM_QUANTITY));
       // quantities and capacities are multiplied with CUSTOM_BIGNUM_QUANTITY so divide
       // the CUSTOM_BIGNUM_COST by CUSTOM_BIGNUM_QUANTITY so that the cost will be correct
       // when it is divided by CUSTOM_BIGNUM_COST

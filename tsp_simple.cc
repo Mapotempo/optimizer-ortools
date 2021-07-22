@@ -793,7 +793,8 @@ void AddCapacityDimensions(const TSPTWDataDT& data, RoutingModel& routing,
       IntVar* const start_unit_slack_var = unit_dimension.SlackVar(start_index);
       IntVar* const start_unit_cumul_var = unit_dimension.CumulVar(start_index);
       start_unit_slack_var->SetMax(0);
-      start_unit_cumul_var->SetMax(vehicle.initial_capacities[unit_i]);
+      start_unit_cumul_var->SetMax(vehicle.initial_capacity[unit_i]);
+      start_unit_cumul_var->SetMin(vehicle.initial_load[unit_i]);
       ++v;
     }
   }
