@@ -662,8 +662,9 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
               routing.GetMutableDimension(kTime)->CumulVar(current_start_index);
           IntVar* const previous_end_cumul_var =
               routing.GetMutableDimension(kTime)->CumulVar(previous_end_index);
-          solver->AddConstraint(
-              solver->MakeLessOrEqual(solver->MakeSum(previous_end_cumul_var, relation.lapse), current_cumul_var));
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeSum(previous_end_cumul_var, relation.lapse),
+              current_cumul_var));
           previous_vehicle_index = current_vehicle_index;
         }
       }
