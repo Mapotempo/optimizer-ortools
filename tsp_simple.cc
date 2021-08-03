@@ -135,23 +135,28 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         if (ready[0] > -CUSTOM_MAX_INT) {
           cumul_var->SetMin(ready[0]);
         }
-        if (due.back() < CUSTOM_MAX_INT) {
-          if (initial_value >= 0) {
-            assignment->Add(cumul_var);
-            DLOG(INFO) << "cumul_var:" << cumul_var << "\t value: " << initial_value
-                       << std::endl;
-            assignment->SetValue(cumul_var, initial_value);
-          }
-          if (late_multiplier > 0) {
+
+        if (initial_value >= 0) {
+          assignment->Add(cumul_var);
+          DLOG(INFO) << "cumul_var:" << cumul_var << "\t value: " << initial_value
+                     << std::endl;
+          assignment->SetValue(cumul_var, initial_value);
+        }
+
+        if (late_multiplier > 0) {
+          // if lateness is allowed, we can do nothing about the intermediary TWs
+          if (due.back() < CUSTOM_MAX_INT) {
             routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
                 index, due.back(), late_multiplier);
-          } else {
+          }
+        } else {
+          if (due.back() < CUSTOM_MAX_INT) {
             cumul_var->SetMax(due.back());
-            if (due.size() > 1) {
-              for (tw_index = due.size() - 1; tw_index--;) {
-                cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1] - 1);
-              }
-            }
+          }
+
+          // remove the "invalid" intervals between TWs
+          for (tw_index = 0; tw_index < due.size() - 1; ++tw_index) {
+            cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1] - 1);
           }
         }
       }
