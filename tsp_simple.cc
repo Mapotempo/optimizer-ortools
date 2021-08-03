@@ -149,7 +149,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
             cumul_var->SetMax(due.back());
             if (due.size() > 1) {
               for (tw_index = due.size() - 1; tw_index--;) {
-                cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1]);
+                cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1] - 1);
               }
             }
           }
