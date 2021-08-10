@@ -135,23 +135,28 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         if (ready[0] > -CUSTOM_MAX_INT) {
           cumul_var->SetMin(ready[0]);
         }
-        if (due.back() < CUSTOM_MAX_INT) {
-          if (initial_value >= 0) {
-            assignment->Add(cumul_var);
-            DLOG(INFO) << "cumul_var:" << cumul_var << "\t value: " << initial_value
-                       << std::endl;
-            assignment->SetValue(cumul_var, initial_value);
-          }
-          if (late_multiplier > 0) {
+
+        if (initial_value >= 0) {
+          assignment->Add(cumul_var);
+          DLOG(INFO) << "cumul_var:" << cumul_var << "\t value: " << initial_value
+                     << std::endl;
+          assignment->SetValue(cumul_var, initial_value);
+        }
+
+        if (late_multiplier > 0) {
+          // if lateness is allowed, we can do nothing about the intermediary TWs
+          if (due.back() < CUSTOM_MAX_INT) {
             routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
                 index, due.back(), late_multiplier);
-          } else {
+          }
+        } else {
+          if (due.back() < CUSTOM_MAX_INT) {
             cumul_var->SetMax(due.back());
-            if (due.size() > 1) {
-              for (tw_index = due.size() - 1; tw_index--;) {
-                cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1]);
-              }
-            }
+          }
+
+          // remove the "invalid" intervals between TWs
+          for (tw_index = 0; tw_index < due.size() - 1; ++tw_index) {
+            cumul_var->RemoveInterval(due[tw_index], ready[tw_index + 1] - 1);
           }
         }
       }
@@ -402,7 +407,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         IntVar* const previous_active_var = routing.ActiveVar(previous_index);
         IntVar* const active_var          = routing.ActiveVar(current_index);
 
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
         IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
         IntVar* const vehicle_var          = routing.VehicleVar(current_index);
 
@@ -663,8 +667,9 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
               routing.GetMutableDimension(kTime)->CumulVar(current_start_index);
           IntVar* const previous_end_cumul_var =
               routing.GetMutableDimension(kTime)->CumulVar(previous_end_index);
-          solver->AddConstraint(
-              solver->MakeLessOrEqual(solver->MakeSum(previous_end_cumul_var, relation.lapse), current_cumul_var));
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeSum(previous_end_cumul_var, relation.lapse),
+              current_cumul_var));
           previous_vehicle_index = current_vehicle_index;
         }
       }
