@@ -3,6 +3,7 @@
 set -e
 
 if [[ $GITHUB_REF == *tags* ]]; then
+  echo "> Building image for tag purpose (${GITHUB_REF}) with or-tools ${ORTOOLS_VERSION}"
   TAG=${GITHUB_REF#refs/tags/}
 else
   echo "> Building image for dev purpose (${REPOSITORY}) with or-tools ${ORTOOLS_VERSION}"
