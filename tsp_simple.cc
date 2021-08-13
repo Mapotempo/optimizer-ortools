@@ -92,9 +92,9 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   const int size_problem = data.SizeProblem();
 
   const int64 max_time =
-      (2 * data.MaxTime() + data.MaxServiceTime()) * data.MaxTimeCost();
-  const int64 max_distance = 2 * data.MaxDistance() * data.MaxDistanceCost();
-  const int64 max_value    = 2 * data.MaxValue() * data.MaxValueCost();
+      (2 * data.MaxTime() + data.MaxServiceTime() + 1) * data.MaxTimeCost();
+  const int64 max_distance = (2 * data.MaxDistance() + 1) * data.MaxDistanceCost();
+  const int64 max_value    = (2 * data.MaxValue() + 1) * data.MaxValueCost();
 
   bool overflow_danger =
       CheckOverflow(max_time + max_distance + max_value, size_vehicles);
