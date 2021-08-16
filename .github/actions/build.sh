@@ -8,6 +8,7 @@ if [[ $GITHUB_REF == *tags* ]]; then
 else
   echo "> Building image for dev purpose (${REPOSITORY}) with or-tools ${ORTOOLS_VERSION}"
   TAG=$(echo "${REPOSITORY}" | sed "s/\/.*//")
+  REGISTRY=${REGISTRY:-registry.test.com}
 fi
 
 IMAGE_NAME=${REGISTRY}/mapotempo-ce/optimizer-ortools:${TAG}
