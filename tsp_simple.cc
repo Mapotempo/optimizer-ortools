@@ -1122,9 +1122,10 @@ void SetFirstSolutionStrategy(const TSPTWDataDT& data,
       parameters.set_first_solution_strategy(FirstSolutionStrategy::CHRISTOFIDES);
     } else if (shift_preference == ForceStart) {
       parameters.set_first_solution_strategy(FirstSolutionStrategy::PATH_CHEAPEST_ARC);
-    } else if (loop_route && unique_configuration &&
-               ((has_route_duration && size_vehicles == 1) ||
-                (((float)size_mtws) / size_missions > 0.2 && size_rest == 0))) {
+    } else if (size_missions == 1 ||
+               (loop_route && unique_configuration &&
+                ((has_route_duration && size_vehicles == 1) ||
+                 (((float)size_mtws) / size_missions > 0.2 && size_rest == 0)))) {
       parameters.set_first_solution_strategy(FirstSolutionStrategy::GLOBAL_CHEAPEST_ARC);
     } else if ((size_rest > 0 && size_vehicles == 1) || data.DeliveriesCounter() > 0 ||
                size_mtws > 0) {
