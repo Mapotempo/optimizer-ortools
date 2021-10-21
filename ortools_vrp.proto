@@ -10,8 +10,9 @@ message Matrix {
 }
 
 message TimeWindow {
-  uint32 start = 1;
-  uint32 end   = 2;
+  uint32 start            = 1;
+  uint32 end              = 2;
+  uint32 maximum_lateness = 3;
 }
 
 message Service {

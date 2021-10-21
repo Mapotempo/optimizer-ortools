@@ -97,7 +97,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   overflow_danger = overflow_danger || CheckOverflow(data_verif, std::pow(2, 4) * size);
   data_verif      = data_verif * std::pow(2, 4) * size;
   RoutingIndexManager::NodeIndex i(0);
-  int32 tw_index = 0;
+  uint32 tw_index = 0;
   int64 disjunction_cost =
       !overflow_danger && !CheckOverflow(data_verif, size) ? data_verif : std::pow(2, 52);
 
@@ -110,10 +110,11 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     for (int alternative = 0; alternative < data.AlternativeSize(activity);
          ++alternative) {
       vect->push_back(manager.NodeToIndex(i));
-      const int64 index               = manager.NodeToIndex(i);
-      const std::vector<int64>& ready = data.ReadyTime(i);
-      const std::vector<int64>& due   = data.DueTime(i);
-      const int64 initial_value       = routing_values.NodeValues(i).initial_time_value;
+      const int64 index                          = manager.NodeToIndex(i);
+      const std::vector<int64>& ready            = data.ReadyTime(i);
+      const std::vector<int64>& due              = data.DueTime(i);
+      const std::vector<int64>& maximum_lateness = data.MaximumLateness(i);
+      const int64 initial_value = routing_values.NodeValues(i).initial_time_value;
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
@@ -137,11 +138,18 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           assignment->SetValue(cumul_var, initial_value);
         }
 
-        if (late_multiplier > 0) {
-          // if lateness is allowed, we can do nothing about the intermediary TWs
+        if (late_multiplier > 0 && maximum_lateness.back() > 0) {
+          CHECK_LE(due.size(), 1)
+              << "If lateness is allowed, there should have been only one TW because the "
+                 "services are already split into alternative services with single TWs";
+
           if (due.back() < CUSTOM_MAX_INT) {
             routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
                 index, due.back(), late_multiplier);
+
+            if (maximum_lateness.back() < CUSTOM_MAX_INT) {
+              cumul_var->SetMax(due.back() + maximum_lateness.back());
+            }
           }
         } else {
           if (due.back() < CUSTOM_MAX_INT) {
@@ -1038,10 +1046,14 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
                    << std::endl;
         assignment->SetValue(time_cumul_var, start_value);
       }
-      if (coef > 0) {
-        // Timewindow end may be soft
+      if (coef > 0 && vehicle.time_maximum_lateness > 0) {
+        // Timewindow end may be soft but it cannot be violated more than
+        // timewindow.maximum_lateness
         routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
             end_index, vehicle.time_end, coef);
+        if (vehicle.time_maximum_lateness < CUSTOM_MAX_INT) {
+          time_cumul_var_end->SetMax(vehicle.time_end + vehicle.time_maximum_lateness);
+        }
         if (vehicle.shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
         }

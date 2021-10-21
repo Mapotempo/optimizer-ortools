@@ -184,6 +184,11 @@ public:
     return tsptw_clients_[i.value()].due_time;
   }
 
+  const std::vector<int64>&
+  MaximumLateness(const RoutingIndexManager::NodeIndex i) const {
+    return tsptw_clients_[i.value()].maximum_lateness;
+  }
+
   int64 LateMultiplier(const RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].late_multiplier;
   }
@@ -288,6 +293,7 @@ public:
         , max_interval_between_breaks_LB(0)
         , time_start(0)
         , time_end(0)
+        , time_maximum_lateness(CUSTOM_MAX_INT)
         , late_multiplier(0) {}
 
     int32 SizeMatrix() const { return size_matrix; }
@@ -485,6 +491,7 @@ public:
     int64 max_interval_between_breaks_LB;
     int64 time_start;
     int64 time_end;
+    int64 time_maximum_lateness;
     int64 late_multiplier;
     int64 cost_fixed;
     int64 cost_distance_multiplier;
@@ -608,6 +615,7 @@ private:
         , alternative_index(0)
         , ready_time({-CUSTOM_MAX_INT})
         , due_time({CUSTOM_MAX_INT})
+        , maximum_lateness({CUSTOM_MAX_INT})
         , service_time(0.0)
         , service_value(0.0)
         , setup_time(0.0)
@@ -616,16 +624,17 @@ private:
         , is_break(false) {}
     // Mission definition
     TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, int32 a_i,
-                std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v,
-                double st_t, int32 p_t, double l_m, std::vector<int64>& v_i,
-                std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c,
-                std::vector<bool>& r_q)
+                std::vector<int64> r_t, std::vector<int64> d_t,
+                std::vector<int64>& max_lateness, double s_t, double s_v, double st_t,
+                int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q,
+                std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q)
         : customer_id(cust_id)
         , matrix_index(m_i)
         , problem_index(p_i)
         , alternative_index(a_i)
         , ready_time(r_t)
         , due_time(d_t)
+        , maximum_lateness(max_lateness)
         , service_time(s_t)
         , service_value(s_v)
         , setup_time(st_t)
@@ -643,6 +652,7 @@ private:
     int32 alternative_index;
     std::vector<int64> ready_time;
     std::vector<int64> due_time;
+    std::vector<int64> maximum_lateness;
     int64 service_time;
     int64 service_value;
     int64 setup_time;
@@ -741,15 +751,6 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       v_i.push_back(index);
     }
 
-    std::vector<int64> ready_time;
-    std::vector<int64> due_time;
-
-    for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-      timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
-                                            : ready_time.push_back(-CUSTOM_MAX_INT);
-      timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
-                                         : due_time.push_back(CUSTOM_MAX_INT);
-    }
     tws_counter_ += timewindows.size();
 
     if (timewindows.size() > 1)
@@ -773,10 +774,18 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           end.push_back(timewindows[timewindow_index]->end());
         else
           end.push_back(CUSTOM_MAX_INT);
+
+        std::vector<int64> max_lateness;
+        if (timewindows.size() > 0 &&
+            timewindows[timewindow_index]->maximum_lateness() < CUSTOM_MAX_INT)
+          max_lateness.push_back(timewindows[timewindow_index]->maximum_lateness());
+        else
+          max_lateness.push_back(CUSTOM_MAX_INT);
+
         size_problem_ = std::max(size_problem_, service.problem_index());
         tsptw_clients_.push_back(TSPTWClient(
             (std::string)service.id(), matrix_index, service.problem_index(),
-            alternative_size_map_[service.problem_index()], start, end,
+            alternative_size_map_[service.problem_index()], start, end, max_lateness,
             service.duration(), service.additional_value(), service.setup_duration(),
             service.priority(),
             timewindows.size() > 0
@@ -794,13 +803,27 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         ++timewindow_index;
       } while (timewindow_index < service.time_windows_size());
     } else {
+      std::vector<int64> ready_time;
+      std::vector<int64> due_time;
+      std::vector<int64> max_lateness;
+
+      for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
+        timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
+                                              : ready_time.push_back(-CUSTOM_MAX_INT);
+        timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
+                                           : due_time.push_back(CUSTOM_MAX_INT);
+        timewindow->maximum_lateness() < CUSTOM_MAX_INT
+            ? max_lateness.push_back(timewindow->maximum_lateness())
+            : max_lateness.push_back(CUSTOM_MAX_INT);
+      }
+
       matrix_indices.push_back(service.matrix_index());
       size_problem_ = std::max(size_problem_, service.problem_index());
       tsptw_clients_.push_back(TSPTWClient(
           (std::string)service.id(), matrix_index, service.problem_index(),
           alternative_size_map_[service.problem_index()], ready_time, due_time,
-          service.duration(), service.additional_value(), service.setup_duration(),
-          service.priority(),
+          max_lateness, service.duration(), service.additional_value(),
+          service.setup_duration(), service.priority(),
           timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
                                  : 0,
           v_i, q, s_q,
@@ -904,6 +927,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT
                       ? vehicle.time_window().end()
                       : CUSTOM_MAX_INT;
+    v->time_maximum_lateness = vehicle.time_window().maximum_lateness() < CUSTOM_MAX_INT
+                                   ? vehicle.time_window().maximum_lateness()
+                                   : CUSTOM_MAX_INT;
     v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * CUSTOM_BIGNUM_COST);
     v->cost_fixed      = (int64)(vehicle.cost_fixed() * CUSTOM_BIGNUM_COST);
     v->cost_distance_multiplier =
