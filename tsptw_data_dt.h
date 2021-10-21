@@ -260,12 +260,15 @@ public:
   }
 
   struct Rest {
-    Rest(std::string id, std::vector<int64> r_t, std::vector<int64> d_t, int64 s_t)
-        : rest_id(id), ready_time(r_t), due_time(d_t), service_time(s_t) {}
+    Rest(std::string id, int64 ready_t, int64 due_t, int64 dur)
+        : rest_id(id)
+        , ready_time(std::max(0L, ready_t))
+        , due_time(std::min(CUSTOM_MAX_INT, due_t))
+        , duration(dur) {}
     std::string rest_id;
-    std::vector<int64> ready_time;
-    std::vector<int64> due_time;
-    int64 service_time;
+    int64 ready_time;
+    int64 due_time;
+    int64 duration;
   };
 
   struct Vehicle {
@@ -877,8 +880,10 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
       v->capacity.push_back(std::round(capacity.limit() * CUSTOM_BIGNUM_QUANTITY));
-      v->initial_capacity.push_back(std::round(capacity.initial_limit() * CUSTOM_BIGNUM_QUANTITY));
-      v->initial_load.push_back(std::round(capacity.initial_load() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_capacity.push_back(
+          std::round(capacity.initial_limit() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_load.push_back(
+          std::round(capacity.initial_load() * CUSTOM_BIGNUM_QUANTITY));
       // quantities and capacities are multiplied with CUSTOM_BIGNUM_QUANTITY so divide
       // the CUSTOM_BIGNUM_COST by CUSTOM_BIGNUM_QUANTITY so that the cost will be correct
       // when it is divided by CUSTOM_BIGNUM_COST
@@ -942,28 +947,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     // Add vehicle rests
     for (const ortools_vrp::Rest& rest : vehicle.rests()) {
-      const int32 tws_size = rest.time_windows_size();
-      std::vector<const ortools_vrp::TimeWindow*> timewindows;
-      for (int32 tw = 0; tw < tws_size; ++tw) {
-        timewindows.push_back(&rest.time_windows().Get(tw));
-      }
-
-      std::vector<int64> ready_time;
-      std::vector<int64> due_time;
-
-      for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-        timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
-                                              : ready_time.push_back(0);
-        timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
-                                           : due_time.push_back(CUSTOM_MAX_INT);
-      }
-      tws_counter_ += timewindows.size();
-
-      if (timewindows.size() > 1)
-        multiple_tws_counter_ += 1;
-
-      v->rests.emplace_back((std::string)rest.id(), ready_time, due_time,
-                            rest.duration());
+      v->rests.emplace_back((std::string)rest.id(), rest.time_window().start(),
+                            rest.time_window().end(), rest.duration());
     }
 
     v_idx++;

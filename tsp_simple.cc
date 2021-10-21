@@ -277,9 +277,9 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
     for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
-          std::max(rest.ready_time[0], vehicle.time_start),
-          std::min(rest.due_time[0], vehicle.time_end - rest.service_time),
-          rest.service_time, // Currently only one timewindow
+          std::max(rest.ready_time, vehicle.time_start),
+          std::min(rest.due_time, vehicle.time_end - rest.duration),
+          rest.duration, // Currently only one timewindow
           false, absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
       solver->AddConstraint(
@@ -1399,10 +1399,10 @@ int64 LowerBoundOnTheIntervalBetweenBreaksOfVehicle(const TSPTWDataDT& data,
       solver.MakeNumVar(vehicle.time_start, vehicle.time_end, "RouteEnd");
   std::vector<LinearExpr> interval_vars;
   for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
-    interval_vars.emplace_back(solver.MakeNumVar(
-        std::max(rest.ready_time[0], vehicle.time_start),
-        std::min(rest.due_time[0], vehicle.time_end - rest.service_time),
-        absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index)));
+    interval_vars.emplace_back(
+        solver.MakeNumVar(std::max(rest.ready_time[0], vehicle.time_start),
+                          std::min(rest.due_time[0], vehicle.time_end - rest.duration),
+                          absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index)));
   }
 
   /* Objectif function */
@@ -1418,11 +1418,11 @@ int64 LowerBoundOnTheIntervalBetweenBreaksOfVehicle(const TSPTWDataDT& data,
   solver.MakeRowConstraint(LinearRange(interval_vars.front() - start <= gamma));
   for (std::size_t i = 0; i < interval_vars.size() - 1; ++i) {
     solver.MakeRowConstraint(LinearRange(
-        interval_vars[i + 1] - (interval_vars[i] + vehicle.Rests()[i].service_time) <=
+        interval_vars[i + 1] - (interval_vars[i] + vehicle.Rests()[i].duration) <=
         gamma));
   }
   solver.MakeRowConstraint(LinearRange(
-      end - (interval_vars.back() + vehicle.Rests().back().service_time) <= gamma));
+      end - (interval_vars.back() + vehicle.Rests().back().duration) <= gamma));
 
   DLOG(INFO) << "Number of variables = " << solver.NumVariables();
   DLOG(INFO) << "Number of constraints = " << solver.NumConstraints();
