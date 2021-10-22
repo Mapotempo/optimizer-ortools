@@ -312,7 +312,7 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
 }
 
 void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
-                     bool& has_overall_duration) {
+                     RoutingIndexManager& manager, bool& has_overall_duration) {
   Solver* solver = routing.solver();
   // const int size_vehicles = data.Vehicles().size();
 
@@ -340,6 +340,17 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     std::vector<std::pair<int, int>> pairs;
     std::vector<int64> intermediate_values;
     std::vector<int64> values;
+
+    int32 alternative_size;
+    RoutingModel::DisjunctionIndex previous_disjunction_index;
+    RoutingModel::DisjunctionIndex current_disjunction_index;
+    std::vector<int64> previous_vehicle_index_set;
+    std::vector<int64> current_vehicle_index_set;
+    std::vector<IntVar*> previous_vehicle_var_set;
+    std::vector<IntVar*> current_vehicle_var_set;
+    std::vector<IntVar*> previous_active_cumul_var_set;
+    std::vector<IntVar*> current_active_cumul_var_set;
+
     switch (relation.type) {
     case Sequence:
       // int64 new_current_index;
@@ -479,17 +490,40 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       }
       break;
     case Shipment:
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
+        current_index             = data.IdIndex(relation.linked_ids[link_index]);
+        current_disjunction_index = routing.GetDisjunctionIndices(current_index)[0];
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        routing.AddPickupAndDelivery(previous_index, current_index);
-        solver->AddConstraint(solver->MakeEquality(routing.VehicleVar(previous_index),
-                                                   routing.VehicleVar(current_index)));
-        solver->AddConstraint(solver->MakeLessOrEqual(
-            routing.GetMutableDimension(kTime)->CumulVar(previous_index),
-            routing.GetMutableDimension(kTime)->CumulVar(current_index)));
-        previous_index = current_index;
+        current_active_cumul_var_set.clear();
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          current_vehicle_var_set.push_back(routing.VehicleVar(alternative_index));
+          IntVar* const active_node = routing.ActiveVar(alternative_index);
+          current_active_cumul_var_set.push_back(
+              solver
+                  ->MakeProd(active_node,
+                             routing.GetMutableDimension(kTime)->CumulVar(current_index))
+                  ->Var());
+        }
+
+        if (link_index >= 1) {
+          routing.AddPickupAndDeliverySets(previous_disjunction_index,
+                                           current_disjunction_index);
+          solver->AddConstraint(
+              solver->MakeEquality(solver->MakeMax(previous_vehicle_var_set),
+                                   solver->MakeMax(current_vehicle_var_set)));
+
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(previous_active_cumul_var_set),
+                                      solver->MakeMax(current_active_cumul_var_set)));
+        }
+        previous_index                = current_index;
+        previous_disjunction_index    = current_disjunction_index;
+        previous_vehicle_var_set      = current_vehicle_var_set;
+        previous_active_cumul_var_set = current_active_cumul_var_set;
       }
       break;
     case MeetUp:
@@ -1539,7 +1573,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
                   min_start);
   std::vector<std::vector<IntervalVar*>> stored_rests =
       RestBuilder(data, routing, horizon);
-  RelationBuilder(data, routing, has_overall_duration);
+  RelationBuilder(data, routing, manager, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
   CHECK(google::protobuf::TextFormat::MergeFromString(
