@@ -30,4 +30,4 @@ RUN wget -qO- $ORTOOLS_URL | tar xz --strip-components=1 -C /srv/or-tools
 ADD . /srv/optimizer-ortools
 
 WORKDIR /srv/optimizer-ortools
-RUN make tsp_simple
+RUN make -j3 tsp_simple
