@@ -660,7 +660,7 @@ private:
   int32 size_missions_;
   int32 size_matrix_;
   int32 size_rest_;
-  int32 size_problem_;
+  uint32 size_problem_;
   std::vector<int32> tws_size_;
   std::vector<Vehicle> tsptw_vehicles_;
   std::vector<Relation> tsptw_relations_;

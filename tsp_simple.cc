@@ -1058,7 +1058,7 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
     }
 
     // Route duration may be limited
-    if (vehicle.duration >= 0 &&
+    if (vehicle.duration > 0 &&
         vehicle.time_end - vehicle.time_start > vehicle.duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
@@ -1405,7 +1405,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   int64 maximum_route_distance = 0;
   int64 v                      = 0;
   while ((maximum_route_distance != INT_MAX) && (v < size_vehicles)) {
-    if (data.Vehicles(v).distance == -1)
+    if (data.Vehicles(v).distance <= 0)
       maximum_route_distance = INT_MAX;
     else
       maximum_route_distance =

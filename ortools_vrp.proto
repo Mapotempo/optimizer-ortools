@@ -10,8 +10,8 @@ message Matrix {
 }
 
 message TimeWindow {
-  int64 start = 1;
-  int64 end   = 2;
+  uint32 start = 1;
+  uint32 end   = 2;
 }
 
 message Service {
@@ -19,24 +19,24 @@ message Service {
   repeated float quantities        = 2;
   uint32 duration                  = 3;
   uint32 priority                  = 4;
-  repeated int32 vehicle_indices   = 5;
+  repeated uint32 vehicle_indices  = 5;
   uint32 matrix_index              = 6;
   uint32 setup_duration            = 7;
   string id                        = 9;
   float late_multiplier            = 10;
   repeated float setup_quantities  = 11;
   uint32 additional_value          = 12;
-  int64 exclusion_cost             = 13;
+  float exclusion_cost             = 13;
   repeated bool refill_quantities  = 14;
-  int32 problem_index              = 15;
+  uint32 problem_index             = 15;
 }
 
 message Rest {
   TimeWindow time_window           = 1;
-  uint64 duration                  = 2;
+  uint32 duration                  = 2;
   string id                        = 3;
   float late_multiplier            = 4;
-  int64 exclusion_cost             = 5;
+  float exclusion_cost             = 5;
 }
 
 message Capacity {
@@ -57,21 +57,21 @@ message Vehicle {
   float cost_time_multiplier         = 8;
   float cost_waiting_time_multiplier = 9;
   uint32 matrix_index                = 10;
-  int32 start_index                  = 11;
-  int32 end_index                    = 12;
-  int64 duration                     = 13;
+  sint32 start_index                 = 11;
+  sint32 end_index                   = 12;
+  uint32 duration                    = 13;
   string shift_preference            = 14;
   float cost_late_multiplier         = 15;
-  int32 day_index                    = 16;
+  sint32 day_index                   = 16;
   uint32 value_matrix_index          = 17;
   float cost_value_multiplier        = 18;
-  int64 max_ride_time                = 19;
-  int64 max_ride_distance            = 20;
-  int64 distance                     = 22;
+  uint32 max_ride_time               = 19;
+  uint32 max_ride_distance           = 20;
+  uint32 distance                    = 22;
   float coef_service                 = 23;
   float coef_setup                   = 24;
-  int64 additional_service           = 25;
-  int64 additional_setup             = 26;
+  uint32 additional_service          = 25;
+  uint32 additional_setup            = 26;
   bool free_approach                 = 27;
   bool free_return                   = 28;
 }
@@ -79,7 +79,7 @@ message Vehicle {
 message Relation {
   string type                        = 1;
   repeated string linked_ids         = 2;
-  int32 lapse                        = 3;
+  uint32 lapse                       = 3;
   repeated string linked_vehicle_ids = 4;
 }
 
