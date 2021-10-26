@@ -30,7 +30,7 @@ Compile the C++ optimizer
 Test
 ====
 
-LD_LIBRARY_PATH=../or-tools/lib/ ../optimizer-ortools/tsp_simple -time_limit_in_ms 1000 -intermediate_solutions -instance_file 'data/49Missions_7Vehicles_VRP2TW' -solution_file '/tmp/optimize-or-tools-output'
+LD_LIBRARY_PATH=../or-tools/lib/ ../optimizer-ortools/tsp_simple -time_limit_in_ms 500 -intermediate_solutions -instance_file 'data/test_ortools_single_route_with_route_order' -solution_file '/tmp/optimize-or-tools-output'
 
 Dev
 ===
