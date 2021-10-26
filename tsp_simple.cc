@@ -498,6 +498,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         alternative_size = data.AlternativeSize(service_index);
 
         current_active_cumul_var_set.clear();
+        current_vehicle_var_set.clear();
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
           current_vehicle_var_set.push_back(routing.VehicleVar(alternative_index));
