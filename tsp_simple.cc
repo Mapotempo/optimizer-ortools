@@ -47,12 +47,6 @@ bool CheckOverflow(const int64 a, const int64 b) {
   return false;
 }
 
-int64 RoundUp(int64 numToRound, int64 multiple) {
-  assert(multiple);
-  int isPositive = (int)(numToRound >= 0);
-  return ((numToRound + isPositive * (multiple - 1)) / multiple) * multiple;
-}
-
 double GetSpanCostForVehicleForDimension(const RoutingModel& routing,
                                          const Assignment* solution, const int vehicle,
                                          const std::string& dimension_name) {
@@ -103,7 +97,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   overflow_danger = overflow_danger || CheckOverflow(data_verif, std::pow(2, 4) * size);
   data_verif      = data_verif * std::pow(2, 4) * size;
   RoutingIndexManager::NodeIndex i(0);
-  int32 tw_index = 0;
+  uint32 tw_index = 0;
   int64 disjunction_cost =
       !overflow_danger && !CheckOverflow(data_verif, size) ? data_verif : std::pow(2, 52);
 
@@ -116,10 +110,11 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     for (int alternative = 0; alternative < data.AlternativeSize(activity);
          ++alternative) {
       vect->push_back(manager.NodeToIndex(i));
-      const int64 index               = manager.NodeToIndex(i);
-      const std::vector<int64>& ready = data.ReadyTime(i);
-      const std::vector<int64>& due   = data.DueTime(i);
-      const int64 initial_value       = routing_values.NodeValues(i).initial_time_value;
+      const int64 index                          = manager.NodeToIndex(i);
+      const std::vector<int64>& ready            = data.ReadyTime(i);
+      const std::vector<int64>& due              = data.DueTime(i);
+      const std::vector<int64>& maximum_lateness = data.MaximumLateness(i);
+      const int64 initial_value = routing_values.NodeValues(i).initial_time_value;
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
@@ -143,11 +138,18 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           assignment->SetValue(cumul_var, initial_value);
         }
 
-        if (late_multiplier > 0) {
-          // if lateness is allowed, we can do nothing about the intermediary TWs
+        if (late_multiplier > 0 && maximum_lateness.back() > 0) {
+          CHECK_LE(due.size(), 1)
+              << "If lateness is allowed, there should have been only one TW because the "
+                 "services are already split into alternative services with single TWs";
+
           if (due.back() < CUSTOM_MAX_INT) {
             routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
                 index, due.back(), late_multiplier);
+
+            if (maximum_lateness.back() < CUSTOM_MAX_INT) {
+              cumul_var->SetMax(due.back() + maximum_lateness.back());
+            }
           }
         } else {
           if (due.back() < CUSTOM_MAX_INT) {
@@ -277,9 +279,9 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
     for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
-          std::max(rest.ready_time[0], vehicle.time_start),
-          std::min(rest.due_time[0], vehicle.time_end - rest.service_time),
-          rest.service_time, // Currently only one timewindow
+          std::max(rest.ready_time, vehicle.time_start),
+          std::min(rest.due_time, vehicle.time_end - rest.duration),
+          rest.duration, // Currently only one timewindow
           false, absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
       solver->AddConstraint(
@@ -1044,10 +1046,14 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
                    << std::endl;
         assignment->SetValue(time_cumul_var, start_value);
       }
-      if (coef > 0) {
-        // Timewindow end may be soft
+      if (coef > 0 && vehicle.time_maximum_lateness > 0) {
+        // Timewindow end may be soft but it cannot be violated more than
+        // timewindow.maximum_lateness
         routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(
             end_index, vehicle.time_end, coef);
+        if (vehicle.time_maximum_lateness < CUSTOM_MAX_INT) {
+          time_cumul_var_end->SetMax(vehicle.time_end + vehicle.time_maximum_lateness);
+        }
         if (vehicle.shift_preference == ForceEnd) {
           routing.AddVariableMaximizedByFinalizer(time_cumul_var_end);
         }
@@ -1064,7 +1070,7 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
     }
 
     // Route duration may be limited
-    if (vehicle.duration >= 0 &&
+    if (vehicle.duration > 0 &&
         vehicle.time_end - vehicle.time_start > vehicle.duration) {
       has_route_duration = true;
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
@@ -1377,69 +1383,6 @@ void ParseSolutionIntoResult(const Assignment* const solution,
   result->set_iterations(scores[2]);
 }
 
-int64 LowerBoundOnTheIntervalBetweenBreaksOfVehicle(const TSPTWDataDT& data,
-                                                    const int64 vehicle_index,
-                                                    const int64 route_duration) {
-  DLOG(INFO) << "LowerBoundOnTheIntervalBetweenBreaksOfVehicle";
-  const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
-
-  MPSolver solver("LowerBoundOnTheIntervalBetweenBreaksOfVehicle",
-                  MPSolver::GLOP_LINEAR_PROGRAMMING);
-
-  /* Variables */
-  // interval variable
-  const LinearExpr gamma = solver.MakeNumVar(0.0, route_duration, "Interval");
-
-  // route_begin variable
-  // rest variables
-  // route_end variable
-  const LinearExpr start =
-      solver.MakeNumVar(vehicle.time_start, vehicle.time_end, "RouteStart");
-  const LinearExpr end =
-      solver.MakeNumVar(vehicle.time_start, vehicle.time_end, "RouteEnd");
-  std::vector<LinearExpr> interval_vars;
-  for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
-    interval_vars.emplace_back(solver.MakeNumVar(
-        std::max(rest.ready_time[0], vehicle.time_start),
-        std::min(rest.due_time[0], vehicle.time_end - rest.service_time),
-        absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index)));
-  }
-
-  /* Objectif function */
-  // Minimize Interval.
-  MPObjective* const objective = solver.MutableObjective();
-  objective->MinimizeLinearExpr(gamma);
-
-  /* Constraints */
-  // End - Start == route_duration
-  solver.MakeRowConstraint(LinearRange(end - start == route_duration));
-
-  // std::vector<MPVariable* const> interval_constraints;
-  solver.MakeRowConstraint(LinearRange(interval_vars.front() - start <= gamma));
-  for (std::size_t i = 0; i < interval_vars.size() - 1; ++i) {
-    solver.MakeRowConstraint(LinearRange(
-        interval_vars[i + 1] - (interval_vars[i] + vehicle.Rests()[i].service_time) <=
-        gamma));
-  }
-  solver.MakeRowConstraint(LinearRange(
-      end - (interval_vars.back() + vehicle.Rests().back().service_time) <= gamma));
-
-  DLOG(INFO) << "Number of variables = " << solver.NumVariables();
-  DLOG(INFO) << "Number of constraints = " << solver.NumConstraints();
-
-  const MPSolver::ResultStatus result_status = solver.Solve();
-  // Check that the problem has an optimal solution.
-  if (result_status != MPSolver::OPTIMAL) {
-    DLOG(WARNING)
-        << "The interval minimization problem does not have an optimal solution!";
-    return -1;
-  }
-  DLOG(INFO) << "Optimal objective value = " << objective->Value();
-  DLOG(INFO) << "Problem solved in " << solver.wall_time() << " milliseconds and "
-             << solver.iterations() << " iterations";
-  return static_cast<int64>(gamma.SolutionValue());
-}
-
 const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
                                           RoutingValues& routing_values,
                                           const std::string& filename) {
@@ -1474,7 +1417,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   int64 maximum_route_distance = 0;
   int64 v                      = 0;
   while ((maximum_route_distance != INT_MAX) && (v < size_vehicles)) {
-    if (data.Vehicles(v).distance == -1)
+    if (data.Vehicles(v).distance <= 0)
       maximum_route_distance = INT_MAX;
     else
       maximum_route_distance =
@@ -1678,165 +1621,6 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   } else {
     delete result;
     return nullptr;
-  }
-}
-
-void PushRestsToTheMiddle(const ortools_result::Result*& result, const TSPTWDataDT& data,
-                          RoutingValues& routing_values, const std::string& filename) {
-  // It was used to push the pauses to the middle of the routes by exploiting the
-  // SetMaxBreakDistUBOfVehicle function of or-tools and re-optimising until we can't
-  // improve the pause location.
-  // This function is not in use at the moment.
-  // The pauses are pushed towards the end of route instead.
-  if (absl::GetFlag(FLAGS_only_first_solution))
-    return; // no need to bother if first solution only
-
-  bool there_is_a_nonempty_vehicle_with_improvable_pause = false;
-
-  TSPTWDataDT local_data = data; // doesn't copy the matrix
-
-  for (int v = 0; v < result->routes_size(); ++v) {
-    if (local_data.Vehicles(v).break_size <= 0) {
-      continue; // skip route if vehicle has no break
-    }
-
-    const auto& route = result->routes(v);
-    if (std::none_of(route.activities().begin(), route.activities().end(),
-                     [](const ortools_result::Activity& activity) {
-                       return activity.type() == "service";
-                     })) {
-      continue; // skip route if empty
-    }
-
-    // set current_max_break_interval
-    // set max_break_interval_LB
-    int64 current_max_break_interval = 0;
-    int64 time_of_last_pause         = 0;
-    std::for_each(
-        route.activities().begin(), route.activities().end(),
-        [&time_of_last_pause, &current_max_break_interval, &local_data,
-         v](const ortools_result::Activity& activity) {
-          if (activity.type() == "service") {
-            local_data.SetVehicleIndices(activity.index(), std::vector<int64>(1, v));
-          } else if (activity.type() == "break" || activity.type() == "end") {
-            current_max_break_interval = std::max(
-                current_max_break_interval, activity.start_time() - time_of_last_pause);
-            time_of_last_pause = activity.start_time();
-          } else if (activity.type() == "start") {
-            time_of_last_pause = activity.start_time();
-          } else {
-            // this shouldn't happen, unless there is a new type of activity
-            // then correct this function with the new type
-            DCHECK(false);
-          }
-        });
-    local_data.SetMaxBreakDistUBOfVehicle(v, current_max_break_interval);
-
-    const int64 route_duration = route.activities().rbegin()->start_time() -
-                                 route.activities().begin()->start_time();
-    int64 max_break_interval_LB =
-        LowerBoundOnTheIntervalBetweenBreaksOfVehicle(local_data, v, route_duration);
-    if (max_break_interval_LB == -1 || max_break_interval_LB > current_max_break_interval)
-      max_break_interval_LB = current_max_break_interval;
-    local_data.SetMaxBreakDistLBOfVehicle(v, max_break_interval_LB);
-
-    if (max_break_interval_LB < current_max_break_interval)
-      there_is_a_nonempty_vehicle_with_improvable_pause = true;
-  }
-
-  const ortools_result::Result* best_result = nullptr;
-
-  if (there_is_a_nonempty_vehicle_with_improvable_pause) {
-    DLOG(INFO) << "Launch optimisations with sticky_vehicles and initial_routes to "
-                  "improve the pause location w/o increasing the cost";
-
-    // Because of rounding up, rounding_step acts as if
-    // it is double the amount, so don't increase it too
-    // much. Binary search is very fast.
-    const int64 rounding_step = DEBUG_MODE ? 1 : 120; // in seconds
-
-    absl::SetFlag(&FLAGS_verification_only, true);
-    absl::SetFlag(&FLAGS_intermediate_solutions, DEBUG_MODE);
-
-    // set the initial routes using the result
-    local_data.Routes()->clear();
-    for (int v = 0; v < result->routes_size(); ++v) {
-      std::vector<std::string> service_ids;
-      for (const auto& activity : result->routes(v).activities()) {
-        service_ids.push_back(activity.id());
-      }
-      local_data.Routes()->emplace_back(local_data.Vehicles(v).id, v, service_ids);
-    }
-
-    for (int v = 0; v < result->routes_size(); ++v) {
-      if (local_data.MaxBreakDistUBOfVehicle(v) <=
-          local_data.MaxBreakDistLBOfVehicle(v)) {
-        DLOG(INFO) << "Skipping vehicle " << v
-                   << " since MaxBreakDistUBOfVehicle <= MaxBreakDistLBOfVehicle";
-        continue; // skip if it doesn't have an improvable break
-      }
-
-      // Do a binary seach between the UB and LB
-      while (true) {
-        // re-set the max_interval_limit to the middle
-        const int64 new_max_interval_limit =
-            RoundUp(std::ceil((local_data.MaxBreakDistUBOfVehicle(v) +
-                               local_data.MaxBreakDistLBOfVehicle(v)) /
-                              2.0),
-                    rounding_step);
-        // convergence logic depends on ceil and RoundUp
-        if (new_max_interval_limit >= local_data.MaxBreakDistUBOfVehicle(v)) {
-          DLOG(INFO) << "Converged: "
-                     << "new_max_interval_limit >= local_data.MaxBreakDistUBOfVehicle(v)"
-                     << "( " << new_max_interval_limit
-                     << " >= " << local_data.MaxBreakDistUBOfVehicle(v) << " )";
-          break; // converged
-        }
-
-        local_data.SetMaxBreakDistOfVehicle(v, new_max_interval_limit);
-
-        DLOG(INFO) << "Trying " << new_max_interval_limit
-                   << " as max break distance limit "
-                   << "for vehicle " << v;
-
-        RoutingValues local_routing_values(routing_values);
-        // and check if the solution stays valid
-        const ortools_result::Result* local_result =
-            TSPTWSolver(local_data, local_routing_values, absl::StrCat(filename, v));
-
-        // if the cost didn't increase update the UB
-        // if the cost increased update the LB
-        // compare the cost to the very first original result
-        // (otherwise we risk increasing the cost a lot in small increments)
-        if (local_result != nullptr && result->cost() * 1.001 >= local_result->cost()) {
-          DLOG(INFO) << "Sucess - UB improved (original cost " << result->cost()
-                     << " local cost " << local_result->cost() << ")";
-          local_data.SetMaxBreakDistUBOfVehicle(v, new_max_interval_limit);
-          if (best_result != nullptr)
-            delete best_result;
-          best_result    = local_result;
-          routing_values = local_routing_values;
-        } else {
-          DLOG(INFO) << "Failed - LB increased";
-          if (local_result != nullptr) {
-            DLOG(INFO) << " (original cost " << result->cost() << " local cost "
-                       << local_result->cost() << ")";
-            delete local_result;
-          }
-          local_data.SetMaxBreakDistLBOfVehicle(v, new_max_interval_limit);
-        }
-      }
-    }
-
-    // TODO: check if it makes sense to repeat the above process without the sticky
-    // vehicles. We might improve the pause location of vehicles which we couldn't due to
-    // load. Of coure to preven using extra vehicles, the fixed costs of unused vehicles
-    // needs to be increased or they can be completely removed from the problem.
-  }
-
-  if (best_result != nullptr) {
-    delete result;
-    result = best_result;
   }
 }
 

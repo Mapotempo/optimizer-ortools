@@ -184,6 +184,11 @@ public:
     return tsptw_clients_[i.value()].due_time;
   }
 
+  const std::vector<int64>&
+  MaximumLateness(const RoutingIndexManager::NodeIndex i) const {
+    return tsptw_clients_[i.value()].maximum_lateness;
+  }
+
   int64 LateMultiplier(const RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].late_multiplier;
   }
@@ -260,12 +265,15 @@ public:
   }
 
   struct Rest {
-    Rest(std::string id, std::vector<int64> r_t, std::vector<int64> d_t, int64 s_t)
-        : rest_id(id), ready_time(r_t), due_time(d_t), service_time(s_t) {}
+    Rest(std::string id, int64 ready_t, int64 due_t, int64 dur)
+        : rest_id(id)
+        , ready_time(std::max(0L, ready_t))
+        , due_time(std::min(CUSTOM_MAX_INT, due_t))
+        , duration(dur) {}
     std::string rest_id;
-    std::vector<int64> ready_time;
-    std::vector<int64> due_time;
-    int64 service_time;
+    int64 ready_time;
+    int64 due_time;
+    int64 duration;
   };
 
   struct Vehicle {
@@ -285,6 +293,7 @@ public:
         , max_interval_between_breaks_LB(0)
         , time_start(0)
         , time_end(0)
+        , time_maximum_lateness(CUSTOM_MAX_INT)
         , late_multiplier(0) {}
 
     int32 SizeMatrix() const { return size_matrix; }
@@ -482,6 +491,7 @@ public:
     int64 max_interval_between_breaks_LB;
     int64 time_start;
     int64 time_end;
+    int64 time_maximum_lateness;
     int64 late_multiplier;
     int64 cost_fixed;
     int64 cost_distance_multiplier;
@@ -605,6 +615,7 @@ private:
         , alternative_index(0)
         , ready_time({-CUSTOM_MAX_INT})
         , due_time({CUSTOM_MAX_INT})
+        , maximum_lateness({CUSTOM_MAX_INT})
         , service_time(0.0)
         , service_value(0.0)
         , setup_time(0.0)
@@ -613,16 +624,17 @@ private:
         , is_break(false) {}
     // Mission definition
     TSPTWClient(std::string cust_id, int32 m_i, int32 p_i, int32 a_i,
-                std::vector<int64> r_t, std::vector<int64> d_t, double s_t, double s_v,
-                double st_t, int32 p_t, double l_m, std::vector<int64>& v_i,
-                std::vector<int64>& q, std::vector<int64>& s_q, int64 e_c,
-                std::vector<bool>& r_q)
+                std::vector<int64> r_t, std::vector<int64> d_t,
+                std::vector<int64>& max_lateness, double s_t, double s_v, double st_t,
+                int32 p_t, double l_m, std::vector<int64>& v_i, std::vector<int64>& q,
+                std::vector<int64>& s_q, int64 e_c, std::vector<bool>& r_q)
         : customer_id(cust_id)
         , matrix_index(m_i)
         , problem_index(p_i)
         , alternative_index(a_i)
         , ready_time(r_t)
         , due_time(d_t)
+        , maximum_lateness(max_lateness)
         , service_time(s_t)
         , service_value(s_v)
         , setup_time(st_t)
@@ -640,6 +652,7 @@ private:
     int32 alternative_index;
     std::vector<int64> ready_time;
     std::vector<int64> due_time;
+    std::vector<int64> maximum_lateness;
     int64 service_time;
     int64 service_value;
     int64 setup_time;
@@ -657,7 +670,7 @@ private:
   int32 size_missions_;
   int32 size_matrix_;
   int32 size_rest_;
-  int32 size_problem_;
+  uint32 size_problem_;
   std::vector<int32> tws_size_;
   std::vector<Vehicle> tsptw_vehicles_;
   std::vector<Relation> tsptw_relations_;
@@ -738,15 +751,6 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       v_i.push_back(index);
     }
 
-    std::vector<int64> ready_time;
-    std::vector<int64> due_time;
-
-    for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-      timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
-                                            : ready_time.push_back(-CUSTOM_MAX_INT);
-      timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
-                                         : due_time.push_back(CUSTOM_MAX_INT);
-    }
     tws_counter_ += timewindows.size();
 
     if (timewindows.size() > 1)
@@ -770,10 +774,18 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           end.push_back(timewindows[timewindow_index]->end());
         else
           end.push_back(CUSTOM_MAX_INT);
+
+        std::vector<int64> max_lateness;
+        if (timewindows.size() > 0 &&
+            timewindows[timewindow_index]->maximum_lateness() < CUSTOM_MAX_INT)
+          max_lateness.push_back(timewindows[timewindow_index]->maximum_lateness());
+        else
+          max_lateness.push_back(CUSTOM_MAX_INT);
+
         size_problem_ = std::max(size_problem_, service.problem_index());
         tsptw_clients_.push_back(TSPTWClient(
             (std::string)service.id(), matrix_index, service.problem_index(),
-            alternative_size_map_[service.problem_index()], start, end,
+            alternative_size_map_[service.problem_index()], start, end, max_lateness,
             service.duration(), service.additional_value(), service.setup_duration(),
             service.priority(),
             timewindows.size() > 0
@@ -791,13 +803,27 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         ++timewindow_index;
       } while (timewindow_index < service.time_windows_size());
     } else {
+      std::vector<int64> ready_time;
+      std::vector<int64> due_time;
+      std::vector<int64> max_lateness;
+
+      for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
+        timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
+                                              : ready_time.push_back(-CUSTOM_MAX_INT);
+        timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
+                                           : due_time.push_back(CUSTOM_MAX_INT);
+        timewindow->maximum_lateness() < CUSTOM_MAX_INT
+            ? max_lateness.push_back(timewindow->maximum_lateness())
+            : max_lateness.push_back(CUSTOM_MAX_INT);
+      }
+
       matrix_indices.push_back(service.matrix_index());
       size_problem_ = std::max(size_problem_, service.problem_index());
       tsptw_clients_.push_back(TSPTWClient(
           (std::string)service.id(), matrix_index, service.problem_index(),
           alternative_size_map_[service.problem_index()], ready_time, due_time,
-          service.duration(), service.additional_value(), service.setup_duration(),
-          service.priority(),
+          max_lateness, service.duration(), service.additional_value(),
+          service.setup_duration(), service.priority(),
           timewindows.size() > 0 ? (int64)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
                                  : 0,
           v_i, q, s_q,
@@ -877,8 +903,10 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     for (const ortools_vrp::Capacity& capacity : vehicle.capacities()) {
       v->capacity.push_back(std::round(capacity.limit() * CUSTOM_BIGNUM_QUANTITY));
-      v->initial_capacity.push_back(std::round(capacity.initial_limit() * CUSTOM_BIGNUM_QUANTITY));
-      v->initial_load.push_back(std::round(capacity.initial_load() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_capacity.push_back(
+          std::round(capacity.initial_limit() * CUSTOM_BIGNUM_QUANTITY));
+      v->initial_load.push_back(
+          std::round(capacity.initial_load() * CUSTOM_BIGNUM_QUANTITY));
       // quantities and capacities are multiplied with CUSTOM_BIGNUM_QUANTITY so divide
       // the CUSTOM_BIGNUM_COST by CUSTOM_BIGNUM_QUANTITY so that the cost will be correct
       // when it is divided by CUSTOM_BIGNUM_COST
@@ -899,6 +927,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT
                       ? vehicle.time_window().end()
                       : CUSTOM_MAX_INT;
+    v->time_maximum_lateness = vehicle.time_window().maximum_lateness() < CUSTOM_MAX_INT
+                                   ? vehicle.time_window().maximum_lateness()
+                                   : CUSTOM_MAX_INT;
     v->late_multiplier = (int64)(vehicle.cost_late_multiplier() * CUSTOM_BIGNUM_COST);
     v->cost_fixed      = (int64)(vehicle.cost_fixed() * CUSTOM_BIGNUM_COST);
     v->cost_distance_multiplier =
@@ -942,28 +973,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     // Add vehicle rests
     for (const ortools_vrp::Rest& rest : vehicle.rests()) {
-      const int32 tws_size = rest.time_windows_size();
-      std::vector<const ortools_vrp::TimeWindow*> timewindows;
-      for (int32 tw = 0; tw < tws_size; ++tw) {
-        timewindows.push_back(&rest.time_windows().Get(tw));
-      }
-
-      std::vector<int64> ready_time;
-      std::vector<int64> due_time;
-
-      for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-        timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
-                                              : ready_time.push_back(0);
-        timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
-                                           : due_time.push_back(CUSTOM_MAX_INT);
-      }
-      tws_counter_ += timewindows.size();
-
-      if (timewindows.size() > 1)
-        multiple_tws_counter_ += 1;
-
-      v->rests.emplace_back((std::string)rest.id(), ready_time, due_time,
-                            rest.duration());
+      v->rests.emplace_back((std::string)rest.id(), rest.time_window().start(),
+                            rest.time_window().end(), rest.duration());
     }
 
     v_idx++;

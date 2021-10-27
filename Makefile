@@ -11,7 +11,7 @@ ifeq ($(DEVELOPMENT), true)
   CFLAGS := $(CFLAGS) -O0 -DDEBUG -ggdb3 -fsanitize=address -fkeep-inline-functions -fno-inline-small-functions -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_TOP)/include
   CXX := LSAN_OPTION=verbosity=1:log_threads=1 $(CXX)
 else
-  CFLAGS := $(CFLAGS) -O4 -DNDEBUG
+  CFLAGS := $(CFLAGS) -O3 -DNDEBUG
 endif
 
 .PHONY: all local_clean
@@ -19,7 +19,7 @@ endif
 all: $(EXE)
 
 %.pb.cc: %.proto
-	$(OR_TOOLS_TOP)/bin/protoc --cpp_out . $<
+	$(OR_TOOLS_TOP)/bin/protoc --cpp_out . --ruby_out . $<
 
 %.o: %.cc %.h
 	$(CXX) $(CFLAGS) -c ./$< -o $@
@@ -37,7 +37,7 @@ tsp_simple.o: tsp_simple.cc ortools_vrp.pb.h \
 	$(CXX) $(CFLAGS) -I $(TUTORIAL) -c ./tsp_simple.cc -o tsp_simple.o
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
-	$(CXX) $(CFLAGS) -g tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \
+	$(CXX) $(CFLAGS) -fwhole-program tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \
 	-L $(OR_TOOLS_TOP)/lib -Wl,-rpath $(OR_TOOLS_TOP)/lib -lortools -lprotobuf -lglog -lgflags -labsl_raw_hash_set -labsl_time -labsl_time_zone \
 	-o tsp_simple
 
