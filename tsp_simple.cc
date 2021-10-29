@@ -477,7 +477,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         IntVar* const vehicle_index_var =
             solver
                 ->MakeElement(day_to_vehicle_evaluator,
-                              solver->MakeSum(previous_part, relation.lapse)->Var())
+                              solver->MakeSum(previous_part, relation.lapse + 1)->Var())
                 ->Var();
         solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
 
@@ -488,7 +488,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
             solver->MakeProd(previous_vehicle_var, isConstraintActive)));
         solver->AddConstraint(solver->MakeLessOrEqual(
             solver->MakeProd(vehicle_var, isConstraintActive),
-            solver->MakeProd(vehicle_index_var, isConstraintActive)));
+            solver->MakeProd(solver->MakeSum(vehicle_index_var, -1)->Var(),
+                             isConstraintActive)));
         previous_index = current_index;
       }
       break;
