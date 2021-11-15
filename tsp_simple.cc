@@ -358,6 +358,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       // int64 new_current_index;
       previous_index = data.IdIndex(relation.linked_ids[0]);
       for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
+        previous_indices.push_back(previous_index);
         current_index = data.IdIndex(relation.linked_ids[link_index]);
 
         pairs.push_back(std::make_pair(previous_index, current_index));
@@ -379,7 +380,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         solver->AddConstraint(solver->MakeEquality(
             solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
             solver->MakeProd(isConstraintActive, current_index)));
-        previous_indices.push_back(previous_index);
         previous_index = current_index;
       }
       if (relation.linked_ids.size() > 1)
