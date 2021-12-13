@@ -367,20 +367,10 @@ public:
 
     int64 FakeDistance(const RoutingIndexManager::NodeIndex i,
                        const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1 ||
-          (i == Start() && free_approach) || (j == Stop() && free_return))
+      if ((i == Start() && free_approach) || (j == Stop() && free_return))
         return 0;
-      if (i != Start() && j != Stop() && max_ride_distance_ > 0 &&
-          data->distances_matrices_[problem_matrix_index].Cost(
-              RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-              RoutingIndexManager::NodeIndex(matrix_indices[j.value()])) >
-              max_ride_distance_)
-        return CUSTOM_MAX_INT;
-      return data->distances_matrices_[problem_matrix_index].Cost(
-          RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-          RoutingIndexManager::NodeIndex(matrix_indices[j.value()]));
+
+      return Distance(i, j);
     }
 
     int64 Time(const RoutingIndexManager::NodeIndex i,
@@ -401,19 +391,10 @@ public:
 
     int64 FakeTime(const RoutingIndexManager::NodeIndex i,
                    const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1 ||
-          (i == Start() && free_approach) || (j == Stop() && free_return))
+      if ((i == Start() && free_approach) || (j == Stop() && free_return))
         return 0;
-      if (i != Start() && j != Stop() && max_ride_time_ > 0 &&
-          data->times_matrices_[problem_matrix_index].Cost(
-              RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-              RoutingIndexManager::NodeIndex(matrix_indices[j.value()])) > max_ride_time_)
-        return CUSTOM_MAX_INT;
-      return data->times_matrices_[problem_matrix_index].Cost(
-          RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-          RoutingIndexManager::NodeIndex(matrix_indices[j.value()]));
+
+      return Time(i, j);
     }
 
     int64 Value(const RoutingIndexManager::NodeIndex i,
@@ -429,24 +410,12 @@ public:
 
     int64 TimeOrder(const RoutingIndexManager::NodeIndex i,
                     const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1)
-        return 0;
-      return 10 * std::sqrt(data->times_matrices_[problem_matrix_index].Cost(
-                      RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-                      RoutingIndexManager::NodeIndex(matrix_indices[j.value()])));
+      return 10 * std::sqrt(Time(i, j));
     }
 
     int64 DistanceOrder(const RoutingIndexManager::NodeIndex i,
                         const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1)
-        return 0;
-      return 100 * std::sqrt(data->distances_matrices_[problem_matrix_index].Cost(
-                       RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-                       RoutingIndexManager::NodeIndex(matrix_indices[j.value()])));
+      return 100 * std::sqrt(Distance(i, j));
     }
 
     //  Transit quantity at a node "from"
@@ -495,11 +464,6 @@ public:
     int64 ValuePlusServiceValue(const RoutingIndexManager::NodeIndex from,
                                 const RoutingIndexManager::NodeIndex to) const {
       return Time(from, to) + data->ServiceValue(from);
-    }
-
-    int64 TimePlus(const RoutingIndexManager::NodeIndex from,
-                   const RoutingIndexManager::NodeIndex to) const {
-      return Time(from, to);
     }
 
     RoutingIndexManager::NodeIndex Start() const { return start; }
