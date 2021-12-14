@@ -463,7 +463,7 @@ public:
 
     int64 ValuePlusServiceValue(const RoutingIndexManager::NodeIndex from,
                                 const RoutingIndexManager::NodeIndex to) const {
-      return Time(from, to) + data->ServiceValue(from);
+      return Value(from, to) + data->ServiceValue(from);
     }
 
     RoutingIndexManager::NodeIndex Start() const { return start; }
