@@ -135,10 +135,6 @@ public:
 
   int64 Horizon() const { return horizon_; }
 
-  int64 MatrixIndex(const RoutingIndexManager::NodeIndex i) const {
-    return tsptw_clients_[i.value()].matrix_index;
-  }
-
   int64 EarliestStart() const { return earliest_start_; }
 
   int64 MaxTime() const { return max_time_; }
@@ -154,8 +150,6 @@ public:
   int64 MaxDistanceCost() const { return max_distance_cost_; }
 
   int64 MaxValueCost() const { return max_value_cost_; }
-
-  int64 TWsCounter() const { return tws_counter_; }
 
   int64 TwiceTWsCounter() const { return multiple_tws_counter_; }
 
@@ -257,8 +251,6 @@ public:
     return tsptw_clients_[i.value()].vehicle_indices;
   }
 
-  int32 TimeWindowsSize(const int i) const { return tws_size_[i]; }
-
   int32 Size() const { return size_; }
 
   int32 SizeMissions() const { return size_missions_; }
@@ -346,23 +338,14 @@ public:
         , time_maximum_lateness(CUSTOM_MAX_INT)
         , late_multiplier(0) {}
 
-    int32 SizeMatrix() const { return size_matrix; }
-
-    int32 SizeRest() const { return size_rest; }
-
     void SetStart(const RoutingIndexManager::NodeIndex s) {
-      CHECK_LT(s, size);
+      DCHECK_LT(s, size);
       start = s;
     }
 
     void SetStop(const RoutingIndexManager::NodeIndex s) {
-      CHECK_LT(s, size);
+      DCHECK_LT(s, size);
       stop = s;
-    }
-
-    int64 ReturnZero(const RoutingIndexManager::NodeIndex,
-                     const RoutingIndexManager::NodeIndex) const {
-      return 0;
     }
 
     int64 Distance(const RoutingIndexManager::NodeIndex i,
@@ -636,18 +619,9 @@ public:
 
   const std::vector<Relation>& Relations() const { return tsptw_relations_; }
 
-  const std::vector<int>& VehiclesDay() const { return vehicles_day_; }
-
   int VehicleDay(const int64 index) const {
     if (index < 0) {
       return -1;
-    }
-    return vehicles_day_[index];
-  }
-
-  int VehicleDayAlt(const int64 index) const {
-    if (index < 0) {
-      return CUSTOM_MAX_INT;
     }
     return vehicles_day_[index];
   }
