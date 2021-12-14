@@ -135,10 +135,6 @@ public:
 
   int64_t Horizon() const { return horizon_; }
 
-  int64_t MatrixIndex(const RoutingIndexManager::NodeIndex i) const {
-    return tsptw_clients_[i.value()].matrix_index;
-  }
-
   int64_t EarliestStart() const { return earliest_start_; }
 
   int64_t MaxTime() const { return max_time_; }
@@ -154,8 +150,6 @@ public:
   int64_t MaxDistanceCost() const { return max_distance_cost_; }
 
   int64_t MaxValueCost() const { return max_value_cost_; }
-
-  int64_t TWsCounter() const { return tws_counter_; }
 
   int64_t TwiceTWsCounter() const { return multiple_tws_counter_; }
 
@@ -258,8 +252,6 @@ public:
     return tsptw_clients_[i.value()].vehicle_indices;
   }
 
-  int32_t TimeWindowsSize(const int i) const { return tws_size_[i]; }
-
   int32_t Size() const { return size_; }
 
   int32_t SizeMissions() const { return size_missions_; }
@@ -347,27 +339,18 @@ public:
         , time_maximum_lateness(CUSTOM_MAX_INT)
         , late_multiplier(0) {}
 
-    int32_t SizeMatrix() const { return size_matrix; }
-
-    int32_t SizeRest() const { return size_rest; }
-
     void SetStart(const RoutingIndexManager::NodeIndex s) {
-      CHECK_LT(s, size);
+      DCHECK_LT(s, size);
       start = s;
     }
 
     void SetStop(const RoutingIndexManager::NodeIndex s) {
-      CHECK_LT(s, size);
+      DCHECK_LT(s, size);
       stop = s;
     }
 
-    int64_t ReturnZero(const RoutingIndexManager::NodeIndex,
-                       const RoutingIndexManager::NodeIndex) const {
-      return 0;
-    }
-
     int64_t Distance(const RoutingIndexManager::NodeIndex i,
-                     const RoutingIndexManager::NodeIndex j) const {
+                   const RoutingIndexManager::NodeIndex j) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
       if (vehicle_indices[i.value()] == -1 || vehicle_indices[j.value()] == -1)
@@ -637,18 +620,9 @@ public:
 
   const std::vector<Relation>& Relations() const { return tsptw_relations_; }
 
-  const std::vector<int>& VehiclesDay() const { return vehicles_day_; }
-
   int VehicleDay(const int64_t index) const {
     if (index < 0) {
       return -1;
-    }
-    return vehicles_day_[index];
-  }
-
-  int VehicleDayAlt(const int64_t index) const {
-    if (index < 0) {
-      return CUSTOM_MAX_INT;
     }
     return vehicles_day_[index];
   }

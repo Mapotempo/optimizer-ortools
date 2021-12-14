@@ -326,10 +326,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     return data.DayIndexToVehicleIndex(index);
   };
 
-  // Solver::IndexEvaluator1 alternative_vehicle_evaluator = [&data](int64_t index) {
-  //   return data.VehicleDayAlt(index);
-  // };
-
   std::vector<IntVar*> next_vars;
   for (int i = 0; i < data.SizeMissions(); ++i) {
     next_vars.push_back(routing.NextVar(i));
