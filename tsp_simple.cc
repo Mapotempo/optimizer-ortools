@@ -607,12 +607,18 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     case NeverFirst:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
-          int64 start_index = routing.Start(v);
-          // int64 end_index = routing.End(v);
-          IntVar* const next_var = routing.NextVar(start_index);
-          next_var->RemoveValue(current_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
+            int64 start_index = routing.Start(v);
+            // int64 end_index = routing.End(v);
+            IntVar* const next_var = routing.NextVar(start_index);
+            next_var->RemoveValue(alternative_index);
+          }
         }
       }
       break;
@@ -623,12 +629,18 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        intermediate_values.push_back(current_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          intermediate_values.push_back(alternative_index);
 
-        std::vector<int64>::iterator it =
-            std::find(values.begin(), values.end(), current_index);
-        values.erase(it);
+          std::vector<int64>::iterator it =
+              std::find(values.begin(), values.end(), alternative_index);
+          values.erase(it);
+        }
       }
 
       for (int index : values) {
@@ -639,19 +651,31 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     case NeverLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        IntVar* const next_var = routing.NextVar(current_index);
-        for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
-          int64 end_index = routing.End(v);
-          next_var->RemoveValue(end_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const next_var = routing.NextVar(alternative_index);
+          for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
+            int64 end_index = routing.End(v);
+            next_var->RemoveValue(end_index);
+          }
         }
       }
       break;
     case ForceLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        values.push_back(current_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          values.push_back(alternative_index);
+        }
       }
       intermediate_values.insert(intermediate_values.end(), values.begin(), values.end());
       for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
@@ -732,7 +756,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     default:
       std::cout << "ERROR: Relation type (" << relation.type << ") is not implemented"
                 << std::endl;
-      throw - 1;
+      throw -1;
     }
   }
 }
