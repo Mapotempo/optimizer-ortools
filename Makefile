@@ -17,6 +17,13 @@ endif
 # Activate warnings
 CFLAGS := $(CFLAGS) -Wall -Wextra -Wshadow -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef
 
+# The following is to supress a warning due to a protobuf that is fixed at v3.14.
+# It can be removed when or-tools is upgraded to v8.1+ (where the protobuf dependency is upgraded to v3.14).
+PROTOBUF_VERSION := $(shell $(OR_TOOLS_TOP)/bin/protoc --version | cut -d" " -f2)
+ifeq ($(shell dpkg --compare-versions $(PROTOBUF_VERSION) 'lt' '3.14' && echo true), true)
+	CFLAGS := $(CFLAGS) -Wno-array-bounds
+endif
+
 .PHONY: all local_clean
 
 all: $(EXE)
