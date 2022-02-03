@@ -185,7 +185,7 @@ public:
   }
 
   bool AllServicesHaveEnd() const {
-    for (int i = 0; i < tsptw_clients_.size(); i++) {
+    for (std::size_t i = 0; i < tsptw_clients_.size(); i++) {
       if (tsptw_clients_[i].due_time.size() == 0)
         return false;
     }
@@ -274,7 +274,7 @@ public:
 
   std::vector<int64> MaxTimes(const ortools_vrp::Matrix& matrix) const {
     int64 max_row;
-    int32 size_matrix             = sqrt(matrix.time_size());
+    int32 size_matrix = sqrt(matrix.time_size());
     std::vector<int64> max_times;
     for (int32 i = 0; i < size_matrix; i++) {
       max_row = 0;
@@ -571,7 +571,7 @@ public:
   }
 
   bool AllVehiclesHaveEnd() {
-    for (int v = 0; v < tsptw_vehicles_.size(); v++) {
+    for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
       if (!VehicleHasEnd(v))
         return false;
     }
@@ -922,9 +922,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     // Estimate necessary horizon due to time matrix
     std::vector<int64> max_times(MaxTimes(matrix));
-    int64 matrix_sum_time         = 0;
+    int64 matrix_sum_time = 0;
     if (sqrt(matrix.time_size()) > 0) {
-      for (int64 i = 0; i < matrix_indices.size(); i++) {
+      for (std::size_t i = 0; i < matrix_indices.size(); i++) {
         matrix_sum_time += max_times.at(matrix_indices[i]);
       }
     }
@@ -945,6 +945,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
   int64 current_day_index        = 0;
   int v_idx                      = 0;
   day_index_to_vehicle_index_[0] = v_idx;
+  max_coef_service_              = 0;
+  max_coef_setup_                = 0;
   for (const ortools_vrp::Vehicle& vehicle : problem.vehicles()) {
     tsptw_vehicles_.emplace_back(this, size_);
     auto v = tsptw_vehicles_.rbegin();
@@ -1116,25 +1118,25 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
   max_service_ = 0;
   max_rest_    = 0;
   int64 rest_duration;
-  for (int32 v = 0; v < tsptw_vehicles_.size(); v++) {
+  for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
     rest_duration = 0;
-    for (int32 r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
+    for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
       rest_duration += tsptw_vehicles_[v].Rests()[r].duration;
     }
     max_rest_ = std::max(max_rest_, rest_duration);
   }
   if (AllVehiclesHaveEnd()) {
-    for (int32 v = 0; v < tsptw_vehicles_.size(); v++) {
+    for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
       horizon_ = std::max(horizon_, tsptw_vehicles_[v].time_end +
                                         tsptw_vehicles_[v].time_maximum_lateness);
     }
   } else if (AllServicesHaveEnd()) {
-    for (int32 i = 0; i < tsptw_clients_.size(); i++) {
+    for (std::size_t i = 0; i < tsptw_clients_.size(); i++) {
       horizon_ = std::max(horizon_, tsptw_clients_[i].due_time.back() +
                                         tsptw_clients_[i].maximum_lateness.back());
     }
-    for (int32 v = 0; v < tsptw_vehicles_.size(); v++) {
-      for (int32 r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
+    for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
+      for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
         horizon_ = std::max(horizon_, tsptw_vehicles_[v].Rests()[r].due_time);
       }
     }
@@ -1150,10 +1152,10 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         latest_start = std::max(latest_start, tsptw_clients_[i].ready_time.back());
       }
     }
-    for (int32 v = 0; v < tsptw_vehicles_.size(); v++) {
+    for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
       latest_start = std::max(latest_start, tsptw_vehicles_[v].time_start);
 
-      for (int32 r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
+      for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
         latest_rest_end =
             std::max(latest_rest_end, tsptw_vehicles_[v].Rests()[r].due_time);
       }
