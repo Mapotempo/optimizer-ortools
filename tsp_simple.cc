@@ -314,7 +314,7 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
 }
 
 void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
-                     RoutingIndexManager& manager, bool& has_overall_duration) {
+                     bool& has_overall_duration) {
   Solver* solver = routing.solver();
   // const int size_vehicles = data.Vehicles().size();
 
@@ -1520,7 +1520,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
                   min_start);
   std::vector<std::vector<IntervalVar*>> stored_rests =
       RestBuilder(data, routing, horizon);
-  RelationBuilder(data, routing, manager, has_overall_duration);
+  RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
   CHECK(google::protobuf::TextFormat::MergeFromString(

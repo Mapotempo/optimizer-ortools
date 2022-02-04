@@ -2,16 +2,26 @@ OR_TOOLS_TOP=../or-tools
 
 TUTORIAL=resources
 
-CFLAGS := -std=c++14 -I $(OR_TOOLS_TOP)/include
+# -isystem prevents most of the warnings rooted in or-tools library appearing in our compilation
+CFLAGS := -std=c++14 -isystem$(OR_TOOLS_TOP)/include
 
 # During development uncomment the next line to have debug checks and other verifications
 # DEVELOPMENT = true
 ifeq ($(DEVELOPMENT), true)
-	# -isystem prevents warnings rooted in or-tools library appearing in our compilation
-  CFLAGS := $(CFLAGS) -O0 -DDEBUG -ggdb3 -fsanitize=address -fkeep-inline-functions -fno-inline-small-functions -Wall -Wextra -Wshadow -Wunreachable-code -Winit-self -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef -isystem$(OR_TOOLS_TOP)/. -isystem$(OR_TOOLS_TOP)/include
-  CXX := LSAN_OPTION=verbosity=1:log_threads=1 $(CXX)
+  CFLAGS := $(CFLAGS) -O0 -DDEBUG -ggdb3 -fsanitize=address -fkeep-inline-functions -fno-inline-small-functions
+  CXX := LSAN_OPTION=verbosity=1:log_threads=1 $(CXX) # adress sanitizer works only if the executable launched without gdb
 else
   CFLAGS := $(CFLAGS) -O3 -DNDEBUG
+endif
+
+# Activate warnings
+CFLAGS := $(CFLAGS) -Wall -Wextra -Wshadow -Wmissing-include-dirs -Wswitch-enum -Wfloat-equal -Wundef
+
+# The following is to supress a warning due to a protobuf that is fixed at v3.14.
+# It can be removed when or-tools is upgraded to v8.1+ (where the protobuf dependency is upgraded to v3.14).
+PROTOBUF_VERSION := $(shell $(OR_TOOLS_TOP)/bin/protoc --version | cut -d" " -f2)
+ifeq ($(shell dpkg --compare-versions $(PROTOBUF_VERSION) 'lt' '3.14' && echo true), true)
+	CFLAGS := $(CFLAGS) -Wno-array-bounds
 endif
 
 .PHONY: all local_clean

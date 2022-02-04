@@ -90,8 +90,7 @@ public:
       best_result_ = kint64min;
     }
 
-    DCHECK_NOTNULL(objective_var);
-    prototype_->AddObjective(objective_var);
+    prototype_->AddObjective(DCHECK_NOTNULL(objective_var));
   }
 
   virtual void Init() {
@@ -145,7 +144,7 @@ public:
 
   virtual void Copy(const SearchLimit* const limit) {
     const NoImprovementLimit* const copy_limit =
-        reinterpret_cast<const NoImprovementLimit* const>(limit);
+        reinterpret_cast<const NoImprovementLimit*>(limit);
 
     best_result_                      = copy_limit->best_result_;
     solution_nbr_tolerance_           = copy_limit->solution_nbr_tolerance_;
@@ -597,8 +596,7 @@ public:
   }
 
   virtual void Copy(const SearchLimit* const limit) {
-    const LoggerMonitor* const copy_limit =
-        reinterpret_cast<const LoggerMonitor* const>(limit);
+    const LoggerMonitor* const copy_limit = reinterpret_cast<const LoggerMonitor*>(limit);
 
     best_result_       = copy_limit->best_result_;
     cleaned_cost_      = copy_limit->cleaned_cost_;
