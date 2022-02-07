@@ -1113,7 +1113,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     }
     for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
       for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
-        horizon_ = std::max(horizon_, tsptw_vehicles_[v].Rests()[r].due_time);
+        horizon_ = std::max<int64>(horizon_, tsptw_vehicles_[v].Rests()[r].due_time);
       }
     }
   } else {
@@ -1133,7 +1133,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
       for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
         latest_rest_end =
-            std::max(latest_rest_end, tsptw_vehicles_[v].Rests()[r].due_time);
+            std::max<int64>(latest_rest_end, tsptw_vehicles_[v].Rests()[r].due_time);
       }
     }
     horizon_ = std::max(latest_start, latest_rest_end) + sum_service * max_coef_service_ +
