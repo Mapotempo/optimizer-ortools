@@ -21,6 +21,13 @@
 
 #define CUSTOM_BIGNUM_QUANTITY 1e3 // Needs to stay smaller than CUSTOM_BIGNUM_COST
 
+static bool compare_less_than_custom_max_int(const float& value1, const float& value2) {
+  if (value2 < CUSTOM_MAX_INT && value1 < value2)
+    return true;
+  else
+    return false;
+}
+
 enum RelationType {
   MinimumDurationLapse = 15,
   VehicleGroupNumber   = 14,
@@ -72,66 +79,6 @@ public:
   }
 
   void LoadInstance(const std::string& filename);
-
-  //  Helper function
-  int64& SetDistMatrix(const int i, const int j) {
-    return distances_matrices_.back().Cost(RoutingIndexManager::NodeIndex(i),
-                                           RoutingIndexManager::NodeIndex(j));
-  }
-
-  int64& SetTimeMatrix(const int i, const int j) {
-    return times_matrices_.back().Cost(RoutingIndexManager::NodeIndex(i),
-                                       RoutingIndexManager::NodeIndex(j));
-  }
-
-  int64& SetValueMatrix(const int i, const int j) {
-    return values_matrices_.back().Cost(RoutingIndexManager::NodeIndex(i),
-                                        RoutingIndexManager::NodeIndex(j));
-  }
-
-  int64 BuildTimeMatrix(const ortools_vrp::Matrix& matrix) {
-    int64 max_time          = 0;
-    const int32 size_matrix = sqrt(matrix.time_size());
-    for (int64 i = 0; i < size_matrix; ++i) {
-      for (int64 j = 0; j < size_matrix; ++j) {
-        const int64 time = matrix.time(i * size_matrix + j) + 0.5;
-        if (time < CUSTOM_MAX_INT)
-          max_time = std::max(max_time, time);
-        SetTimeMatrix(i, j) = time;
-      }
-      // std::cout << std::endl;
-    }
-
-    return max_time;
-  }
-
-  int64 BuildDistanceMatrix(const ortools_vrp::Matrix& matrix) {
-    int64 max_distance      = 0;
-    const int32 size_matrix = sqrt(matrix.distance_size());
-    for (int64 i = 0; i < size_matrix; ++i) {
-      for (int64 j = 0; j < size_matrix; ++j) {
-        const int64 distance = matrix.distance(i * size_matrix + j);
-        if (distance < CUSTOM_MAX_INT)
-          max_distance = std::max(max_distance, distance);
-        SetDistMatrix(i, j) = distance;
-      }
-    }
-    return max_distance;
-  }
-
-  int64 BuildValueMatrix(const ortools_vrp::Matrix& matrix) {
-    int64 max_value         = 0;
-    const int32 size_matrix = sqrt(matrix.value_size());
-    for (int64 i = 0; i < size_matrix; ++i) {
-      for (int64 j = 0; j < size_matrix; ++j) {
-        const int64 value = matrix.value(i * size_matrix + j);
-        if (value < CUSTOM_MAX_INT)
-          max_value = std::max(max_value, value);
-        SetValueMatrix(i, j) = value;
-      }
-    }
-    return max_value;
-  }
 
   int64 Horizon() const { return horizon_; }
 
@@ -293,13 +240,12 @@ public:
   }
 
   std::vector<int64> MaxTimes(const ortools_vrp::Matrix& matrix) const {
-    int64 max_row;
-    int32 size_matrix = sqrt(matrix.time_size());
+    const uint32 matrix_size = matrix.size();
     std::vector<int64> max_times;
-    for (int32 i = 0; i < size_matrix; i++) {
-      max_row = 0;
-      for (int32 j = 0; j < size_matrix; j++) {
-        int64 cell = matrix.time(i * size_matrix + j);
+    for (uint32 i = 0; i < matrix_size; i++) {
+      int64 max_row = 0;
+      for (uint32 j = 0; j < matrix_size; j++) {
+        int64 cell = matrix.time(i * matrix_size + j);
         if (cell + 0.5 < CUSTOM_MAX_INT)
           max_row = std::max(max_row, (int64)(cell + 0.5));
       }
@@ -321,11 +267,12 @@ public:
   };
 
   struct Vehicle {
-    Vehicle(TSPTWDataDT* data_, int32 size_)
+    Vehicle(TSPTWDataDT* data_, int32 size_, const ortools_vrp::Matrix& matrix_,
+            const ortools_vrp::Matrix& value_matrix_)
         : data(data_)
         , size(size_)
-        , problem_matrix_index(0)
-        , value_matrix_index(0)
+        , matrix(&matrix_)
+        , value_matrix(&value_matrix_)
         , start_point_id("")
         , matrix_indices(0)
         , initial_capacity(0)
@@ -348,45 +295,59 @@ public:
       stop = s;
     }
 
-    int64 Distance(const RoutingIndexManager::NodeIndex i,
-                   const RoutingIndexManager::NodeIndex j) const {
+    inline int MatrixIndex(const RoutingIndexManager::NodeIndex i,
+                           const RoutingIndexManager::NodeIndex j,
+                           const size_t matrix_size) const {
       CheckNodeIsValid(i);
       CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1)
-        return 0;
-      if (i != Start() && j != Stop() && max_ride_distance_ > 0 &&
-          data->distances_matrices_[problem_matrix_index].Cost(
-              RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-              RoutingIndexManager::NodeIndex(matrix_indices[j.value()])) >
-              max_ride_distance_)
-        return CUSTOM_MAX_INT;
-      return data->distances_matrices_[problem_matrix_index].Cost(
-          RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-          RoutingIndexManager::NodeIndex(matrix_indices[j.value()]));
+      const auto i_matrix_index = matrix_indices[i.value()];
+      const auto j_matrix_index = matrix_indices[j.value()];
+
+      if (i_matrix_index == -1 || j_matrix_index == -1)
+        return -1;
+
+      DCHECK_LT(i_matrix_index, matrix_size);
+      DCHECK_LT(j_matrix_index, matrix_size);
+
+      return i_matrix_index * matrix_size + j_matrix_index;
     }
 
-    int64 FakeDistance(const RoutingIndexManager::NodeIndex i,
-                       const RoutingIndexManager::NodeIndex j) const {
-      if ((i == Start() && free_approach) || (j == Stop() && free_return))
+    int64 Distance(const RoutingIndexManager::NodeIndex i,
+                   const RoutingIndexManager::NodeIndex j) const {
+      const auto index = MatrixIndex(i, j, matrix->size());
+      if (index == -1)
         return 0;
 
-      return Distance(i, j);
+      const auto dist = matrix->distance(index);
+
+      if (max_ride_distance_ > 0 && i != Start() && j != Stop() &&
+          dist > max_ride_distance_)
+        return CUSTOM_MAX_INT;
+
+      return dist;
     }
 
     int64 Time(const RoutingIndexManager::NodeIndex i,
                const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1)
+      const auto index = MatrixIndex(i, j, matrix->size());
+      if (index == -1)
         return 0;
-      if (i != Start() && j != Stop() && max_ride_time_ > 0 &&
-          data->times_matrices_[problem_matrix_index].Cost(
-              RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-              RoutingIndexManager::NodeIndex(matrix_indices[j.value()])) > max_ride_time_)
+
+      const auto time = matrix->time(index);
+
+      if (max_ride_time_ > 0 && i != Start() && j != Stop() && time > max_ride_time_)
         return CUSTOM_MAX_INT;
-      return data->times_matrices_[problem_matrix_index].Cost(
-          RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-          RoutingIndexManager::NodeIndex(matrix_indices[j.value()]));
+
+      return time;
+    }
+
+    int64 Value(const RoutingIndexManager::NodeIndex i,
+                const RoutingIndexManager::NodeIndex j) const {
+      const auto index = MatrixIndex(i, j, value_matrix->size());
+      if (index == -1)
+        return 0;
+
+      return value_matrix->value(index);
     }
 
     int64 FakeTime(const RoutingIndexManager::NodeIndex i,
@@ -397,15 +358,12 @@ public:
       return Time(i, j);
     }
 
-    int64 Value(const RoutingIndexManager::NodeIndex i,
-                const RoutingIndexManager::NodeIndex j) const {
-      CheckNodeIsValid(i);
-      CheckNodeIsValid(j);
-      if (matrix_indices[i.value()] == -1 || matrix_indices[j.value()] == -1)
+    int64 FakeDistance(const RoutingIndexManager::NodeIndex i,
+                       const RoutingIndexManager::NodeIndex j) const {
+      if ((i == Start() && free_approach) || (j == Stop() && free_return))
         return 0;
-      return data->values_matrices_[value_matrix_index].Cost(
-          RoutingIndexManager::NodeIndex(matrix_indices[i.value()]),
-          RoutingIndexManager::NodeIndex(matrix_indices[j.value()]));
+
+      return Distance(i, j);
     }
 
     int64 TimeOrder(const RoutingIndexManager::NodeIndex i,
@@ -461,11 +419,6 @@ public:
                   : 0);
     }
 
-    int64 ValuePlusServiceValue(const RoutingIndexManager::NodeIndex from,
-                                const RoutingIndexManager::NodeIndex to) const {
-      return Value(from, to) + data->ServiceValue(from);
-    }
-
     RoutingIndexManager::NodeIndex Start() const { return start; }
 
     RoutingIndexManager::NodeIndex Stop() const { return stop; }
@@ -483,12 +436,12 @@ public:
     std::string id;
     int64 vehicle_index;
     int32 size;
+    const ortools_vrp::Matrix* const matrix;
+    const ortools_vrp::Matrix* const value_matrix;
     int32 size_matrix;
     int32 size_rest;
     RoutingIndexManager::NodeIndex start;
     RoutingIndexManager::NodeIndex stop;
-    int64 problem_matrix_index;
-    int64 value_matrix_index;
     std::string start_point_id;
     std::vector<int64> matrix_indices;
     std::vector<int64> initial_capacity;
@@ -590,6 +543,8 @@ public:
   }
 
 private:
+  ortools_vrp::Problem problem;
+
   void ProcessNewLine(char* const line);
 
   struct TSPTWClient {
@@ -683,9 +638,6 @@ private:
   std::vector<TSPTWClient> tsptw_clients_;
   std::map<int32, int32> alternative_size_map_;
   std::vector<Route> tsptw_routes_;
-  std::vector<CompleteGraphArcCost> distances_matrices_;
-  std::vector<CompleteGraphArcCost> times_matrices_;
-  std::vector<CompleteGraphArcCost> values_matrices_;
   std::vector<int> vehicles_day_;
   std::vector<int64> service_times_;
   std::string details_;
@@ -696,8 +648,6 @@ private:
 
 void TSPTWDataDT::LoadInstance(const std::string& filename) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  ortools_vrp::Problem problem;
 
   {
     std::fstream input(filename, std::ios::in | std::ios::binary);
@@ -860,33 +810,16 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
   size_          = node_index + 2;
 
   for (const ortools_vrp::Matrix& matrix : problem.matrices()) {
-    // + 2 In case vehicles have no depots
-    int32 problem_size =
-        std::max(std::max(sqrt(matrix.distance_size()), sqrt(matrix.time_size())),
-                 sqrt(matrix.value_size())) +
-        2 + (size_rest_ > 0 ? 1 : 0);
-
-    distances_matrices_.emplace_back(std::max(problem_size, 3));
-    times_matrices_.emplace_back(std::max(problem_size, 3));
-    values_matrices_.emplace_back(std::max(problem_size, 3));
-
-    // Matrix default values
-    for (int64 i = 0; i < std::max(problem_size, 3); ++i) {
-      for (int64 j = 0; j < std::max(problem_size, 3); ++j) {
-        SetTimeMatrix(i, j)  = 0;
-        SetDistMatrix(i, j)  = 0;
-        SetValueMatrix(i, j) = 0;
-      }
-    }
-
-    if (matrix.time_size() > 0) {
-      max_time_ = std::max(max_time_, BuildTimeMatrix(matrix));
-    }
-
     // Estimate necessary horizon due to time matrix
     std::vector<int64> max_times(MaxTimes(matrix));
     int64 matrix_sum_time = 0;
-    if (sqrt(matrix.time_size()) > 0) {
+    if (matrix.size() > 0) {
+      const int64 max_time = std::round(*std::max_element(
+          max_times.begin(), max_times.end(), compare_less_than_custom_max_int));
+
+      if (max_time < CUSTOM_MAX_INT)
+        max_time_ = std::max(max_time_, max_time);
+
       for (std::size_t i = 0; i < service_matrix_indices.size(); i++) {
         matrix_sum_time += max_times.at(service_matrix_indices[i]);
       }
@@ -894,11 +827,19 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     sum_max_time_ = std::max(sum_max_time_, matrix_sum_time);
 
     if (matrix.distance_size() > 0) {
-      max_distance_ = std::max(max_distance_, BuildDistanceMatrix(matrix));
+      const int64 max_distance =
+          std::round(*std::max_element(matrix.distance().begin(), matrix.distance().end(),
+                                       compare_less_than_custom_max_int));
+      if (max_distance < CUSTOM_MAX_INT)
+        max_distance_ = std::max(max_distance_, max_distance);
     }
 
     if (matrix.value_size() > 0) {
-      max_value_ = std::max(max_value_, BuildValueMatrix(matrix));
+      const int64 max_value =
+          std::round(*std::max_element(matrix.value().begin(), matrix.value().end(),
+                                       compare_less_than_custom_max_int));
+      if (max_value < CUSTOM_MAX_INT)
+        max_value_ = std::max(max_value_, max_value);
     }
   }
 
@@ -914,7 +855,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           "A vehicle should always have an initialized timewindow");
     }
 
-    tsptw_vehicles_.emplace_back(this, size_);
+    tsptw_vehicles_.emplace_back(this, size_, problem.matrices(vehicle.matrix_index()),
+                                 problem.matrices(vehicle.value_matrix_index()));
     auto v = tsptw_vehicles_.rbegin();
 
     // Every vehicle has its own matrix definition
@@ -936,14 +878,12 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       v->counting.push_back(capacity.counting());
     }
 
-    v->id                   = vehicle.id();
-    v->vehicle_index        = v_idx;
-    v->break_size           = vehicle.rests().size();
-    v->problem_matrix_index = vehicle.matrix_index();
-    v->value_matrix_index   = vehicle.value_matrix_index();
-    v->start_point_id       = vehicle.start_point_id();
-    v->matrix_indices       = matrix_indices;
-    v->time_start           = (vehicle.time_window().start() - earliest_start_) > 0
+    v->id             = vehicle.id();
+    v->vehicle_index  = v_idx;
+    v->break_size     = vehicle.rests().size();
+    v->start_point_id = vehicle.start_point_id();
+    v->matrix_indices = matrix_indices;
+    v->time_start     = (vehicle.time_window().start() - earliest_start_) > 0
                         ? vehicle.time_window().start() - earliest_start_
                         : 0;
     v->time_end = (vehicle.time_window().end() - earliest_start_) < CUSTOM_MAX_INT
