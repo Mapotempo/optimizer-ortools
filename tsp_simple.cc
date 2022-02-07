@@ -1118,11 +1118,18 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                         RoutingIndexManager& manager) {
   std::vector<int> value_evaluators;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
-    value_evaluators.push_back(routing.RegisterTransitCallback(
-        [&vehicle, &manager](const int64_t i, const int64_t j) {
-          return vehicle.ValuePlusServiceValue(manager.IndexToNode(i),
-                                               manager.IndexToNode(j));
-        }));
+    if (vehicle.value_matrix->value().empty()) {
+      value_evaluators.push_back(
+          routing.RegisterTransitCallback([&data, &manager](const int64_t i, const int64_t) {
+            return data.ServiceValue(manager.IndexToNode(i));
+          }));
+    } else {
+      value_evaluators.push_back(routing.RegisterTransitCallback(
+          [&vehicle, &data, &manager](const int64_t i, const int64_t j) {
+            return vehicle.Value(manager.IndexToNode(i), manager.IndexToNode(j)) +
+                   data.ServiceValue(manager.IndexToNode(i));
+          }));
+    }
   }
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, kValue);
   int v = 0;
