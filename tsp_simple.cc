@@ -287,8 +287,8 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
     for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
-          std::max(rest.ready_time, vehicle.time_start),
-          std::min(rest.due_time, vehicle.time_end - rest.duration),
+          std::max<int64>(rest.ready_time, vehicle.time_start),
+          std::min<int64>(rest.due_time, vehicle.time_end - rest.duration),
           rest.duration, // Currently only one timewindow
           false, absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
@@ -1230,11 +1230,9 @@ void AddVehicleDistanceConstraints(const TSPTWDataDT& data, RoutingModel& routin
       routing.GetDimensionOrDie(kDistance);
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
     if (vehicle.distance > 0) {
-      const int64 end_index = routing.End(v);
       // Vehicle maximum distance
-      IntVar* const dist_end_cumul_var = distance_dimension.CumulVar(end_index);
-      solver->AddConstraint(
-          solver->MakeLessOrEqual(dist_end_cumul_var, vehicle.distance));
+      solver->AddConstraint(solver->MakeLessOrEqual(
+          distance_dimension.CumulVar(routing.End(v)), vehicle.distance));
     }
     ++v;
   }

@@ -315,9 +315,9 @@ public:
         , due_time(std::min(CUSTOM_MAX_INT, due_t))
         , duration(dur) {}
     std::string rest_id;
-    int64 ready_time;
-    int64 due_time;
-    int64 duration;
+    uint32 ready_time;
+    uint32 due_time;
+    uint32 duration;
   };
 
   struct Vehicle {
@@ -515,8 +515,8 @@ public:
     int64 distance;
     ShiftPref shift_preference;
     int32 day_index;
-    int64 max_ride_time_;
-    int64 max_ride_distance_;
+    uint32 max_ride_time_;
+    uint32 max_ride_distance_;
     bool free_approach;
     bool free_return;
   };
@@ -970,7 +970,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     max_coef_setup_       = std::max(max_coef_setup_, v->coef_setup);
 
     v->additional_setup = vehicle.additional_setup();
-    v->duration         = (int64)(vehicle.duration());
+    v->duration         = vehicle.duration();
     v->distance         = vehicle.distance();
     v->free_approach    = vehicle.free_approach();
     v->free_return      = vehicle.free_return();
@@ -1112,7 +1112,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     }
     for (std::size_t v = 0; v < tsptw_vehicles_.size(); v++) {
       for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
-        horizon_ = std::max(horizon_, tsptw_vehicles_[v].Rests()[r].due_time);
+        horizon_ = std::max<int64>(horizon_, tsptw_vehicles_[v].Rests()[r].due_time);
       }
     }
   } else {
@@ -1132,7 +1132,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
       for (std::size_t r = 0; r < tsptw_vehicles_[v].Rests().size(); r++) {
         latest_rest_end =
-            std::max(latest_rest_end, tsptw_vehicles_[v].Rests()[r].due_time);
+            std::max<int64>(latest_rest_end, tsptw_vehicles_[v].Rests()[r].due_time);
       }
     }
     horizon_ = std::max(latest_start, latest_rest_end) + sum_service * max_coef_service_ +
