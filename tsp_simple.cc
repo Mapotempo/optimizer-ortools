@@ -101,6 +101,10 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   int64 disjunction_cost =
       !overflow_danger && !CheckOverflow(data_verif, size) ? data_verif : std::pow(2, 52);
 
+  std::vector<int64> all_vehicle_indices;
+  for (int v = 0; v < size_vehicles; ++v)
+    all_vehicle_indices.push_back(v);
+
   for (int activity = 0; activity <= size_problem; ++activity) {
     std::vector<int64>* vect = new std::vector<int64>();
 
@@ -118,8 +122,7 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 
       IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
       const int64 late_multiplier = data.LateMultiplier(i);
-      std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
-      std::string service_id            = data.ServiceId(i);
+      std::string service_id      = data.ServiceId(i);
       if (ready.size() > 0 &&
           (ready[0] > -CUSTOM_MAX_INT || due.back() < CUSTOM_MAX_INT)) {
         if (absl::GetFlag(FLAGS_debug)) {
@@ -163,25 +166,15 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         }
       }
 
-      if (sticky_vehicle.size() > 0) {
-        std::vector<int64> vehicle_indices;
-        std::vector<int64> vehicle_intersection;
-        std::vector<int64> vehicle_difference;
+      std::vector<int64> incompatible_vehicle_indices;
+      std::vector<int64> compatible_vehicles = data.VehicleIndices(i);
 
-        for (int v = 0; v < size_vehicles; ++v)
-          vehicle_indices.push_back(v);
+      std::set_difference(all_vehicle_indices.begin(), all_vehicle_indices.end(),
+                          compatible_vehicles.begin(), compatible_vehicles.end(),
+                          std::back_inserter(incompatible_vehicle_indices));
 
-        std::set_intersection(vehicle_indices.begin(), vehicle_indices.end(),
-                              sticky_vehicle.begin(), sticky_vehicle.end(),
-                              std::back_inserter(vehicle_intersection));
-        std::set_difference(vehicle_indices.begin(), vehicle_indices.end(),
-                            vehicle_intersection.begin(), vehicle_intersection.end(),
-                            std::back_inserter(vehicle_difference));
-        if (vehicle_difference.size() > 0) {
-          for (int64 remove : vehicle_difference)
-            routing.VehicleVar(index)->RemoveValue(remove);
-        }
-      }
+      for (int64 remove : incompatible_vehicle_indices)
+        routing.VehicleVar(index)->RemoveValue(remove);
 
       const std::vector<bool>& refill_quantities = data.RefillQuantities(i);
       for (std::size_t q = 0; q < data.Quantities(i).size(); ++q) {

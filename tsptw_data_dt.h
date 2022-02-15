@@ -249,10 +249,6 @@ public:
     return tsptw_clients_[i.value()].vehicle_indices;
   }
 
-  void SetVehicleIndices(const int64 i, std::vector<int64>&& vehicle_indices) {
-    tsptw_clients_[i].vehicle_indices = std::move(vehicle_indices);
-  }
-
   int32 TimeWindowsSize(const int i) const { return tws_size_[i]; }
 
   int32 Size() const { return size_; }
