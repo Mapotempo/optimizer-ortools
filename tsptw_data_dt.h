@@ -470,9 +470,10 @@ public:
                               const RoutingIndexManager::NodeIndex to) const {
       return Time(from, to) + coef_service * data->ServiceTime(from) +
              additional_service +
-             (Time(from, to) > 0 ? coef_setup * data->SetupTime(to) +
-                                       (data->SetupTime(to) > 0 ? additional_setup : 0)
-                                 : 0);
+             (vehicle_indices[from.value()] != vehicle_indices[to.value()]
+                  ? coef_setup * data->SetupTime(to) +
+                        (data->SetupTime(to) > 0 ? additional_setup : 0)
+                  : 0);
       // FIXME:
       // (Time(from, to) == 0 ? 0
       // and
@@ -485,7 +486,7 @@ public:
                                   const RoutingIndexManager::NodeIndex to) const {
       return FakeTime(from, to) + coef_service * data->ServiceTime(from) +
              additional_service +
-             (FakeTime(from, to) > 0
+             (vehicle_indices[from.value()] != vehicle_indices[to.value()]
                   ? coef_setup * data->SetupTime(to) +
                         (data->SetupTime(to) > 0 ? additional_setup : 0)
                   : 0);
