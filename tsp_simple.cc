@@ -341,6 +341,11 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     RoutingModel::DisjunctionIndex current_disjunction_index;
     std::vector<int64> previous_vehicle_index_set;
     std::vector<int64> current_vehicle_index_set;
+    std::vector<IntVar*> previous_active_var_set;
+    std::vector<IntVar*> current_active_var_set;
+    std::vector<IntVar*> current_active_index_set;
+    std::vector<IntVar*> previous_active_next_var_set;
+    std::vector<IntVar*> current_active_next_var_set;
     std::vector<IntVar*> previous_vehicle_var_set;
     std::vector<IntVar*> current_vehicle_var_set;
     std::vector<IntVar*> previous_active_cumul_var_set;
@@ -348,81 +353,182 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 
     switch (relation.type) {
     case Sequence:
-      // int64 new_current_index;
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
-        previous_indices.push_back(previous_index);
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        pairs.push_back(std::make_pair(previous_index, current_index));
+        current_active_var_set.clear();
+        current_active_cumul_var_set.clear();
+        current_vehicle_var_set.clear();
+        current_active_next_var_set.clear();
+        current_active_index_set.clear();
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const active_node = routing.ActiveVar(alternative_index);
+          current_vehicle_var_set.push_back(
+              solver->MakeProd(active_node, routing.VehicleVar(alternative_index))
+                  ->Var());
 
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        // routing.AddPickupAndDelivery(previous_index, current_index);
+          // The next var of the current active alternative
+          current_active_next_var_set.push_back(
+              solver->MakeProd(active_node, routing.NextVar(alternative_index))->Var());
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
-        IntExpr* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var)->Var();
-        routing.NextVar(current_index)->RemoveValues(previous_indices);
+          // The index of the current alternative
+          current_active_index_set.push_back(
+              solver->MakeProd(active_node, alternative_index)->Var());
 
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, previous_vehicle_var),
-            solver->MakeProd(isConstraintActive, vehicle_var)));
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
-            solver->MakeProd(isConstraintActive, current_index)));
-        previous_index = current_index;
+          current_active_var_set.push_back(active_node);
+          current_active_cumul_var_set.push_back(
+              solver
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
+                  ->Var());
+        }
+
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
+          // The current set may be active only if the predecessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+
+          // The current active alternative node should belong to the same route than the
+          // active predecessor
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+
+          // The successor of the predecessor should be the current active alternative
+          // node
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_next_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_index_set))));
+
+          // The current active alternative should start after the active predecessor
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_cumul_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_cumul_var_set))));
+        }
+        previous_active_var_set       = current_active_var_set;
+        previous_active_next_var_set  = current_active_next_var_set;
+        previous_vehicle_var_set      = current_vehicle_var_set;
+        previous_active_cumul_var_set = current_active_cumul_var_set;
       }
-      if (relation.linked_ids.size() > 1)
-        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case Order:
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      previous_indices.push_back(previous_index);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        pairs.push_back(std::make_pair(previous_index, current_index));
-        // routing.AddPickupAndDelivery(previous_index, current_index);
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
+        current_active_var_set.clear();
+        current_vehicle_var_set.clear();
+        current_active_cumul_var_set.clear();
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
-        routing.NextVar(current_index)->RemoveValues(previous_indices);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* active_node = routing.ActiveVar(alternative_index);
+          current_active_var_set.push_back(active_node);
+          current_vehicle_var_set.push_back(routing.VehicleVar(alternative_index));
+          current_active_cumul_var_set.push_back(
+              solver
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
+                  ->Var());
+        }
 
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        IntExpr* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var);
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, previous_vehicle_var),
-            solver->MakeProd(isConstraintActive, vehicle_var)));
-        previous_indices.push_back(current_index);
-        previous_index = current_index;
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
+
+          // The current set may be active only if the predessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+          // The active alternatives should belong to the same route
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+
+          // The current active alternative should start after the active predecessor
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_cumul_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_cumul_var_set))));
+        }
+        previous_active_var_set       = current_active_var_set;
+        previous_vehicle_var_set      = current_vehicle_var_set;
+        previous_active_cumul_var_set = current_active_cumul_var_set;
       }
-      if (relation.linked_ids.size() > 1)
-        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case SameRoute:
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
+        current_active_var_set.clear();
+        current_vehicle_var_set.clear();
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const active_node = routing.ActiveVar(alternative_index);
+          current_active_var_set.push_back(active_node);
+          // Current vehicle var is active only if one of the previous active var is
+          // active and if the current alternative is active
+          current_vehicle_var_set.push_back(
+              solver
+                  ->MakeProd(solver->MakeProd(solver->MakeMax(previous_active_var_set),
+                                              active_node),
+                             routing.VehicleVar(alternative_index))
+                  ->Var());
+        }
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
 
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        IntVar* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var)->Var();
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(previous_vehicle_var, isConstraintActive),
-            solver->MakeProd(vehicle_var, isConstraintActive)));
-        previous_index = current_index;
+          // The current set may be active only if the predessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+          // The active alternatives should belong to the same route
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+        }
+        previous_active_var_set  = current_active_var_set;
+        previous_vehicle_var_set = current_vehicle_var_set;
       }
       break;
     case MinimumDayLapse:

@@ -887,7 +887,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           r_q));
       service_times_.push_back(service.duration());
       alternative_size_map_[service.problem_index()] += 1;
-      ids_map_[(std::string)service.id()] = node_index;
+      if (ids_map_.find((std::string)service.id()) == ids_map_.end())
+        ids_map_[(std::string)service.id()] = node_index;
       node_index++;
     }
     ++matrix_index;
