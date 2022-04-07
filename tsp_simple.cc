@@ -608,18 +608,20 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           IntVar* const active_node = routing.ActiveVar(alternative_index);
           current_active_cumul_var_set.push_back(
               solver
-                  ->MakeProd(active_node,
-                             routing.GetMutableDimension(kTime)->CumulVar(current_index))
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
                   ->Var());
         }
 
         if (link_index >= 1) {
           routing.AddPickupAndDeliverySets(previous_disjunction_index,
                                            current_disjunction_index);
+          // The active alternatives should belong to the same route
           solver->AddConstraint(
               solver->MakeEquality(solver->MakeMax(previous_vehicle_var_set),
                                    solver->MakeMax(current_vehicle_var_set)));
 
+          // The current active alternative should start after the active predecessor
           solver->AddConstraint(
               solver->MakeLessOrEqual(solver->MakeMax(previous_active_cumul_var_set),
                                       solver->MakeMax(current_active_cumul_var_set)));
