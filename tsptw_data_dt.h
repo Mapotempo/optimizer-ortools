@@ -51,6 +51,7 @@ public:
       , size_matrix_(0)
       , size_missions_(0)
       , size_rest_(0)
+      , size_alternative_relations_(0)
       , deliveries_counter_(0)
       , horizon_(0)
       , max_distance_(0)
@@ -261,6 +262,8 @@ public:
 
   int32 SizeRest() const { return size_rest_; }
 
+  int32 SizeAlternativeRelations() const { return size_alternative_relations_; }
+
   const std::vector<bool>&
   RefillQuantities(const RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].refill_quantities;
@@ -464,12 +467,22 @@ public:
     //  This is the quantity added after visiting node "from"
     int64 TimePlusServiceTime(const RoutingIndexManager::NodeIndex from,
                               const RoutingIndexManager::NodeIndex to) const {
-      return Time(from, to) + coef_service * data->ServiceTime(from) +
-             additional_service +
-             (vehicle_indices[from.value()] != vehicle_indices[to.value()]
-                  ? coef_setup * data->SetupTime(to) +
-                        (data->SetupTime(to) > 0 ? additional_setup : 0)
-                  : 0);
+      int64 current_time = Time(from, to) + coef_service * data->ServiceTime(from) +
+                           additional_service +
+                           (vehicle_indices[from.value()] != vehicle_indices[to.value()]
+                                ? coef_setup * data->SetupTime(to) +
+                                      (data->SetupTime(to) > 0 ? additional_setup : 0)
+                                : 0);
+
+      // In case of order or sequence relations having no duration
+      // will violate relations as the cumul_var will be the same.
+      // Moreover with sequence+shipment lead or-tools to try only
+      // invalid order of nodes
+      if (current_time == 0 && data->SizeAlternativeRelations() > 0) {
+        ++current_time;
+      }
+
+      return current_time;
       // FIXME:
       // (Time(from, to) == 0 ? 0
       // and
@@ -726,6 +739,7 @@ private:
   int32 size_matrix_;
   int32 size_missions_;
   int32 size_rest_;
+  int32 size_alternative_relations_;
   int64 deliveries_counter_;
   int64 horizon_;
   int64 max_distance_;
@@ -1077,31 +1091,39 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
   for (const ortools_vrp::Relation& relation : problem.relations()) {
     RelationType relType;
-    if (relation.type() == "sequence")
+    if (relation.type() == "sequence") {
+      ++size_alternative_relations_;
       relType = Sequence;
-    else if (relation.type() == "order") {
+    } else if (relation.type() == "order") {
+      ++size_alternative_relations_;
       relType = Order;
-    } else if (relation.type() == "same_route")
+    } else if (relation.type() == "same_route") {
+      ++size_alternative_relations_;
       relType = SameRoute;
-    else if (relation.type() == "minimum_day_lapse")
+    } else if (relation.type() == "minimum_day_lapse")
       relType = MinimumDayLapse;
     else if (relation.type() == "maximum_day_lapse")
       relType = MaximumDayLapse;
-    else if (relation.type() == "shipment")
+    else if (relation.type() == "shipment") {
+      ++size_alternative_relations_;
       relType = Shipment;
-    else if (relation.type() == "meetup")
+    } else if (relation.type() == "meetup")
       relType = MeetUp;
     else if (relation.type() == "maximum_duration_lapse")
       relType = MaximumDurationLapse;
-    else if (relation.type() == "force_first")
+    else if (relation.type() == "force_first") {
+      ++size_alternative_relations_;
       relType = ForceFirst;
-    else if (relation.type() == "never_first")
+    } else if (relation.type() == "never_first") {
+      ++size_alternative_relations_;
       relType = NeverFirst;
-    else if (relation.type() == "never_last")
+    } else if (relation.type() == "never_last") {
+      ++size_alternative_relations_;
       relType = NeverLast;
-    else if (relation.type() == "force_end")
+    } else if (relation.type() == "force_end") {
+      ++size_alternative_relations_;
       relType = ForceLast;
-    else if (relation.type() == "vehicle_group_duration")
+    } else if (relation.type() == "vehicle_group_duration")
       relType = VehicleGroupDuration;
     else if (relation.type() == "vehicle_trips") {
       relType = VehicleTrips;
@@ -1166,6 +1188,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     horizon_ = std::max(latest_start, latest_rest_end) + sum_service * max_coef_service_ +
                sum_setup * max_coef_setup_ + sum_max_time_ + sum_lapse + max_rest_;
   }
+
+  if (size_alternative_relations_ > 0)
+    horizon_ += size_missions_;
 
   for (int32 i = 0; i < size_missions_; ++i) {
     max_service_ = std::max(max_service_, tsptw_clients_[i].service_time);
