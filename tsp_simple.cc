@@ -385,6 +385,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                   ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
                                               alternative_index))
                   ->Var());
+          routing.NextVar(alternative_index)->RemoveValues(previous_indices);
+          previous_indices.push_back(alternative_index);
         }
 
         if (link_index >= 1) {
@@ -450,6 +452,8 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                   ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
                                               alternative_index))
                   ->Var());
+          routing.NextVar(alternative_index)->RemoveValues(previous_indices);
+          previous_indices.push_back(alternative_index);
         }
 
         if (link_index >= 1) {
