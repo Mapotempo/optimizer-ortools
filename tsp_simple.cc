@@ -1131,6 +1131,7 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
     const operations_research::RoutingDimension& time_dimension =
         routing.GetDimensionOrDie(kTime);
 
+    const int size_tws               = data.TWsCounter();
     const int64_t start_index        = routing.Start(v);
     const int64_t end_index          = routing.End(v);
     IntVar* const time_cumul_var     = time_dimension.CumulVar(start_index);
@@ -1204,6 +1205,11 @@ void AddVehicleTimeConstraints(const TSPTWDataDT& data, RoutingModel& routing,
                                                                       v);
     } else {
       routing.AddVariableMinimizedByFinalizer(time_cumul_var_end);
+    }
+
+    // Discriminate equivalent solutions to start at the earliest
+    if (size_tws == 0 && vehicle.shift_preference != ForceEnd) {
+      routing.GetMutableDimension(kTime)->SetCumulVarSoftUpperBound(start_index, vehicle.time_start, 1);
     }
 
     if (vehicle.shift_preference == ForceStart)
