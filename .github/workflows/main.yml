@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  ORTOOLS_VERSION: v9.0
+  ORTOOLS_VERSION: v9.3
   REGISTRY: ${{ secrets.REGISTRY }}
   REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
   REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}

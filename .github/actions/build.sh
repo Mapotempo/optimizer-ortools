@@ -29,6 +29,9 @@ case $ORTOOLS_VERSION in
   'v9.0')
     export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v9.0/or-tools_debian-10_v9.0.9048.tar.gz"
     ;;
+  'v9.3')
+    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v9.3/or-tools_amd64_debian-11_v9.3.10497.tar.gz"
+    ;;
   *)
     echo "Unknown OR-Tools version"
 esac
