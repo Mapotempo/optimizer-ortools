@@ -320,7 +320,7 @@ public:
           int64_t lateness_cost           = 0;
           int64_t overload_cost           = 0;
           bool vehicle_used               = false;
-          int64_t earliest_start = data_.EarliestStart();
+          int64_t earliest_start          = data_.EarliestStart();
           for (int64_t index = routing_->Start(route_nbr); !routing_->IsEnd(index);
                index         = routing_->NextVar(index)->Value()) {
             for (std::vector<IntervalVar*>::iterator it = rests.begin();

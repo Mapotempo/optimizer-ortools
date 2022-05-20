@@ -1340,7 +1340,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
-  int64_t earliest_start = data.EarliestStart();
+  const int64_t earliest_start = data.EarliestStart();
 
   double total_time_order_cost(0.0), total_distance_order_cost(0.0),
       total_rest_position_cost(0.0);
@@ -1393,7 +1393,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_type("start");
         DLOG(INFO) << "RouteStartValues:" << route_nbr << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.RouteStartValues(route_nbr).initial_time_value = start_time + earliest_start;
+        routing_values.RouteStartValues(route_nbr).initial_time_value =
+            start_time + earliest_start;
       } else {
         vehicle_used = true;
         activity->set_type("service");
@@ -1401,7 +1402,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
         DLOG(INFO) << "nodeIndex:" << nodeIndex << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.NodeValues(nodeIndex).initial_time_value = start_time + earliest_start;
+        routing_values.NodeValues(nodeIndex).initial_time_value =
+            start_time + earliest_start;
       }
       for (std::size_t q = 0;
            q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
