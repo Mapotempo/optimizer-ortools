@@ -24,7 +24,13 @@ case $ORTOOLS_VERSION in
     export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.5/or-tools_debian-10_v7.5.7466.tar.gz"
     ;;
   'v7.8')
-   export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.8/or-tools_debian-10_v7.8.7959.tar.gz"
+    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v7.8/or-tools_debian-10_v7.8.7959.tar.gz"
+    ;;
+  'v9.0')
+    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v9.0/or-tools_debian-10_v9.0.9048.tar.gz"
+    ;;
+  'v9.3')
+    export ORTOOLS_URL="https://github.com/google/or-tools/releases/download/v9.3/or-tools_amd64_debian-11_v9.3.10497.tar.gz"
     ;;
   *)
     echo "Unknown OR-Tools version"
