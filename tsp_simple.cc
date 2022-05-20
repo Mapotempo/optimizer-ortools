@@ -293,14 +293,6 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(
         rest_array, vehicle_index, data.ServiceTimes());
 
-    if (vehicle.max_interval_between_breaks > 0) {
-      DLOG(INFO) << "\n\nSetting max break distance to "
-                 << vehicle.max_interval_between_breaks << std::endl;
-      // Put an upperbound on the intervals between breaks that are longer than "dur"
-      routing.GetMutableDimension(kTime)->SetBreakDistanceDurationOfVehicle(
-          /*upperbound*/ vehicle.max_interval_between_breaks, /*dur*/ 0, vehicle_index);
-    }
-
     stored_rests.push_back(rest_array);
   }
   return stored_rests;
