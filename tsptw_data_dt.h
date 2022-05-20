@@ -333,9 +333,6 @@ public:
         , capacity(0)
         , overload_multiplier(0)
         , break_size(0)
-        , max_interval_between_breaks(0)
-        , max_interval_between_breaks_UB(0)
-        , max_interval_between_breaks_LB(0)
         , time_start(0)
         , time_end(0)
         , time_maximum_lateness(CUSTOM_MAX_INT)
@@ -542,9 +539,6 @@ public:
     std::vector<int64> overload_multiplier;
     std::vector<Rest> rests;
     int32 break_size;
-    int64 max_interval_between_breaks;
-    int64 max_interval_between_breaks_UB;
-    int64 max_interval_between_breaks_LB;
     int64 time_start;
     int64 time_end;
     int64 time_maximum_lateness;
@@ -571,32 +565,6 @@ public:
   const std::vector<Vehicle>& Vehicles() const { return tsptw_vehicles_; }
 
   const Vehicle& Vehicles(const int64 index) const { return tsptw_vehicles_[index]; }
-
-  int64 MaxBreakDistOfVehicle(const int64 index) const {
-    return tsptw_vehicles_[index].max_interval_between_breaks;
-  }
-
-  int64 MaxBreakDistUBOfVehicle(const int64 index) const {
-    return tsptw_vehicles_[index].max_interval_between_breaks_UB;
-  }
-
-  int64 MaxBreakDistLBOfVehicle(const int64 index) const {
-    return tsptw_vehicles_[index].max_interval_between_breaks_LB;
-  }
-
-  void SetMaxBreakDistOfVehicle(const int64 index, const int64 max_interval) {
-    tsptw_vehicles_[index].max_interval_between_breaks = max_interval;
-  }
-
-  void SetMaxBreakDistUBOfVehicle(const int64 index,
-                                  const int64 max_interval_upperbound) {
-    tsptw_vehicles_[index].max_interval_between_breaks_UB = max_interval_upperbound;
-  }
-
-  void SetMaxBreakDistLBOfVehicle(const int64 index,
-                                  const int64 max_interval_lowerbound) {
-    tsptw_vehicles_[index].max_interval_between_breaks_LB = max_interval_lowerbound;
-  }
 
   bool VehicleHasEnd(const int64 index) const {
     return tsptw_vehicles_[index].time_end < CUSTOM_MAX_INT;
