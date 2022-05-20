@@ -319,6 +319,7 @@ public:
           int64 lateness_cost             = 0;
           int64 overload_cost             = 0;
           bool vehicle_used               = false;
+          const int64 earliest_start      = data_.EarliestStart();
           for (int64 index = routing_->Start(route_nbr); !routing_->IsEnd(index);
                index       = routing_->NextVar(index)->Value()) {
             for (std::vector<IntervalVar*>::iterator it = rests.begin();
@@ -338,7 +339,7 @@ public:
                 ortools_result::Activity* rest = route->add_activities();
                 rest->set_type("break");
                 rest->set_id(parsed_name[1]);
-                rest->set_start_time(rest_start_time);
+                rest->set_start_time(rest_start_time + earliest_start);
                 it = rests.erase(it);
               } else {
                 ++it;
@@ -350,7 +351,7 @@ public:
             activity->set_index(data_.ProblemIndex(nodeIndex));
             const int64 start_time =
                 routing_->GetMutableDimension(kTime)->CumulVar(index)->Min();
-            activity->set_start_time(start_time);
+            activity->set_start_time(start_time + earliest_start);
             const int64 upper_bound =
                 routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
             const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
@@ -407,7 +408,7 @@ public:
 
           const int64 start_time =
               routing_->GetMutableDimension(kTime)->CumulVar(end_index)->Min();
-          end_activity->set_start_time(start_time);
+          end_activity->set_start_time(start_time + earliest_start);
           const int64 upper_bound =
               routing_->GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
           const int64 lateness = std::max<int64>(start_time - upper_bound, 0);

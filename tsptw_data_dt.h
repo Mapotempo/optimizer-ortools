@@ -54,6 +54,7 @@ public:
       , size_alternative_relations_(0)
       , deliveries_counter_(0)
       , horizon_(0)
+      , earliest_start_(CUSTOM_MAX_INT)
       , max_distance_(0)
       , max_distance_cost_(0)
       , max_rest_(0)
@@ -137,6 +138,8 @@ public:
   int64 MatrixIndex(const RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].matrix_index;
   }
+
+  int64 EarliestStart() const { return earliest_start_; }
 
   int64 MaxTime() const { return max_time_; }
 
@@ -710,6 +713,7 @@ private:
   int32 size_alternative_relations_;
   int64 deliveries_counter_;
   int64 horizon_;
+  int64 earliest_start_;
   int64 max_distance_;
   int64 max_distance_cost_;
   int64 max_rest_;
@@ -750,6 +754,11 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     if (!problem.ParseFromIstream(&input)) {
       LOG(FATAL) << "Failed to parse pbf.";
     }
+  }
+
+  // compute earliest start first
+  for (const ortools_vrp::Vehicle& vehicle : problem.vehicles()) {
+    earliest_start_ = std::min((int64)vehicle.time_window().start(), earliest_start_);
   }
 
   int32 node_index   = 0;
@@ -799,15 +808,15 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         matrix_indices.push_back(service.matrix_index());
         std::vector<int64> start;
         if (timewindows.size() > 0 &&
-            timewindows[timewindow_index]->start() > -CUSTOM_MAX_INT)
-          start.push_back(timewindows[timewindow_index]->start());
+            (timewindows[timewindow_index]->start() - earliest_start_) > 0)
+          start.push_back(timewindows[timewindow_index]->start() - earliest_start_);
         else
-          start.push_back(-CUSTOM_MAX_INT);
+          start.push_back(0);
 
         std::vector<int64> end;
         if (timewindows.size() > 0 &&
-            timewindows[timewindow_index]->end() < CUSTOM_MAX_INT)
-          end.push_back(timewindows[timewindow_index]->end());
+            (timewindows[timewindow_index]->end() - earliest_start_) < CUSTOM_MAX_INT)
+          end.push_back(timewindows[timewindow_index]->end() - earliest_start_);
         else
           end.push_back(CUSTOM_MAX_INT);
 
@@ -845,10 +854,12 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       std::vector<int64> max_lateness;
 
       for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-        timewindow->start() > -CUSTOM_MAX_INT ? ready_time.push_back(timewindow->start())
-                                              : ready_time.push_back(-CUSTOM_MAX_INT);
-        timewindow->end() < CUSTOM_MAX_INT ? due_time.push_back(timewindow->end())
-                                           : due_time.push_back(CUSTOM_MAX_INT);
+        (timewindow->start() - earliest_start_) > 0
+            ? ready_time.push_back(timewindow->start() - earliest_start_)
+            : ready_time.push_back(0);
+        (timewindow->end() - earliest_start_) < CUSTOM_MAX_INT
+            ? due_time.push_back(timewindow->end() - earliest_start_)
+            : due_time.push_back(CUSTOM_MAX_INT);
         timewindow->maximum_lateness() < CUSTOM_MAX_INT
             ? max_lateness.push_back(timewindow->maximum_lateness())
             : max_lateness.push_back(CUSTOM_MAX_INT);
@@ -964,11 +975,11 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     v->problem_matrix_index = vehicle.matrix_index();
     v->value_matrix_index   = vehicle.value_matrix_index();
     v->vehicle_indices      = vehicle_indices;
-    v->time_start           = vehicle.time_window().start() > -CUSTOM_MAX_INT
-                        ? vehicle.time_window().start()
-                        : -CUSTOM_MAX_INT;
-    v->time_end = vehicle.time_window().end() < CUSTOM_MAX_INT
-                      ? vehicle.time_window().end()
+    v->time_start           = (vehicle.time_window().start() - earliest_start_) > 0
+                        ? vehicle.time_window().start() - earliest_start_
+                        : 0;
+    v->time_end = (vehicle.time_window().end() - earliest_start_) < CUSTOM_MAX_INT
+                      ? vehicle.time_window().end() - earliest_start_
                       : CUSTOM_MAX_INT;
     v->time_maximum_lateness = vehicle.time_window().maximum_lateness() < CUSTOM_MAX_INT
                                    ? vehicle.time_window().maximum_lateness()
@@ -1020,8 +1031,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     // Add vehicle rests
     for (const ortools_vrp::Rest& rest : vehicle.rests()) {
-      v->rests.emplace_back((std::string)rest.id(), rest.time_window().start(),
-                            rest.time_window().end(), rest.duration());
+      v->rests.emplace_back((std::string)rest.id(),
+                            rest.time_window().start() - earliest_start_,
+                            rest.time_window().end() - earliest_start_, rest.duration());
     }
 
     v_idx++;
