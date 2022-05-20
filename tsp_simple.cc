@@ -1328,6 +1328,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
+  int64_t earliest_start = data.EarliestStart();
+
   double total_time_order_cost(0.0), total_distance_order_cost(0.0),
       total_rest_position_cost(0.0);
 
@@ -1357,7 +1359,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
           ortools_result::Activity* rest = route->add_activities();
           rest->set_type("break");
           rest->set_id(parsed_name[1]);
-          rest->set_start_time(rest_start_time);
+          rest->set_start_time(rest_start_time + earliest_start);
           it = rests.erase(it);
         } else {
           ++it;
@@ -1367,7 +1369,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
       ortools_result::Activity* activity       = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
       activity->set_index(data.ProblemIndex(nodeIndex));
-      activity->set_start_time(start_time);
+      activity->set_start_time(start_time + earliest_start);
       const int64_t upper_bound =
           routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
       const int64_t lateness = std::max<int64_t>(start_time - upper_bound, 0);
@@ -1379,7 +1381,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_type("start");
         DLOG(INFO) << "RouteStartValues:" << route_nbr << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.RouteStartValues(route_nbr).initial_time_value = start_time;
+        routing_values.RouteStartValues(route_nbr).initial_time_value = start_time + earliest_start;
       } else {
         vehicle_used = true;
         activity->set_type("service");
@@ -1387,7 +1389,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
         DLOG(INFO) << "nodeIndex:" << nodeIndex << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.NodeValues(nodeIndex).initial_time_value = start_time;
+        routing_values.NodeValues(nodeIndex).initial_time_value = start_time + earliest_start;
       }
       for (std::size_t q = 0;
            q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -1417,7 +1419,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         }
         rest->set_type("break");
         rest->set_id(parsed_name[1]);
-        rest->set_start_time(rest_start_time);
+        rest->set_start_time(rest_start_time + earliest_start);
       }
     }
 
@@ -1429,7 +1431,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
 
     const int64_t start_time =
         solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
-    end_activity->set_start_time(start_time);
+    end_activity->set_start_time(start_time + earliest_start);
     const int64_t upper_bound =
         routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
     const int64_t lateness = std::max<int64_t>(start_time - upper_bound, 0);
