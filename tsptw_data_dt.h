@@ -947,6 +947,11 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
   int v_idx                      = 0;
   day_index_to_vehicle_index_[0] = v_idx;
   for (const ortools_vrp::Vehicle& vehicle : problem.vehicles()) {
+    if (!vehicle.has_time_window()) {
+      throw std::invalid_argument(
+          "A vehicle should always have an initialized timewindow");
+    }
+
     tsptw_vehicles_.emplace_back(this, size_);
     auto v = tsptw_vehicles_.rbegin();
 
@@ -1113,7 +1118,7 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     else if (relation.type() == "minimum_duration_lapse")
       relType = MinimumDurationLapse;
     else
-      throw "Unknown relation type";
+      throw std::invalid_argument("Unknown relation type");
 
     sum_lapse += relation.lapse();
     tsptw_relations_.emplace_back(re_index, relType, relation.linked_ids(),
