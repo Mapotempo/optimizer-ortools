@@ -80,7 +80,9 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                      RoutingValues& routing_values, RoutingIndexManager& manager,
-                     Assignment* assignment, const int64 size, const int64 min_start) {
+                     Assignment* assignment, const int64 size, const int64 min_start,
+                     const bool free_approach_return) {
+  Solver* solver          = routing.solver();
   const int size_vehicles = data.Vehicles().size();
   // const int size_matrix = data.SizeMatrix();
   const int size_problem = data.SizeProblem();
@@ -120,7 +122,18 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       const std::vector<int64>& maximum_lateness = data.MaximumLateness(i);
       const int64 initial_value = routing_values.NodeValues(i).initial_time_value;
 
-      IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
+      // Timewindows should apply both on kTime and kFakeTime Dimensions.kTime both
+      // compute the true timings of activities and the time cost kFakeTime allows to
+      // compute the time cost of the route when there is an free_approach or free_return
+      // dimension. But it requires true timings to consider correctly waiting times.
+      // Lateness could only apply on true timings, which means these contraints should
+      // only be applied on kTime dimension. Dimensions kNoWait and kFakeNoWait doesn't
+      // need time windows  because it expects no waiting times
+      IntVar* cumul_var = routing.GetMutableDimension(kTime)->CumulVar(index);
+      if (free_approach_return)
+        solver->AddConstraint(solver->MakeEquality(
+            routing.GetMutableDimension(kFakeTime)->CumulVar(index), cumul_var));
+
       const int64 late_multiplier = data.LateMultiplier(i);
       std::string service_id      = data.ServiceId(i);
       if (ready.size() > 0 &&
@@ -1487,7 +1500,10 @@ void ParseSolutionIntoResult(const Assignment* const solution,
 
       const double time_without_wait_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeNoWait);
-      route_costs->set_time_without_wait(time_without_wait_cost);
+      const double fake_time_without_wait_cost = GetSpanCostForVehicleForDimension(
+          routing, solution, route_nbr, kFakeTimeNoWait);
+      route_costs->set_time_without_wait(time_without_wait_cost +
+                                         fake_time_without_wait_cost);
 
       const double value_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kValue);
@@ -1637,8 +1653,8 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   }
 
   // Setting visit time windows
-  MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2,
-                  min_start);
+  MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2, min_start,
+                  free_approach_return);
   std::vector<std::vector<IntervalVar*>> stored_rests =
       RestBuilder(data, routing, horizon);
   RelationBuilder(data, routing, has_overall_duration);
