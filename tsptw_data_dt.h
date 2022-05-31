@@ -478,7 +478,7 @@ public:
       // will violate relations as the cumul_var will be the same.
       // Moreover with sequence+shipment lead or-tools to try only
       // invalid order of nodes
-      if (current_time == 0 && data->SizeAlternativeRelations() > 0) {
+      if (current_time == 0 && data->SizeAlternativeRelations() > 0 && to.value() < data->SizeMissions()) {
         ++current_time;
       }
 
