@@ -205,8 +205,8 @@ namespace {
 class LoggerMonitor : public SearchMonitor {
 public:
   LoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
-                RoutingIndexManager* manager, int64 min_start, int64 size_matrix,
-                bool debug, bool intermediate, ortools_result::Result* result,
+                RoutingIndexManager* manager, int64 size_matrix, bool debug,
+                bool intermediate, ortools_result::Result* result,
                 std::vector<std::vector<IntervalVar*>> stored_rests, std::string filename,
                 const bool minimize = true)
       : SearchMonitor(routing->solver())
@@ -215,7 +215,6 @@ public:
       , manager_(manager)
       , solver_(routing->solver())
       , start_time_(absl::GetCurrentTimeNanos())
-      , min_start_(min_start)
       , size_matrix_(size_matrix)
       , minimize_(minimize)
       , limit_reached_(false)
@@ -560,7 +559,6 @@ public:
     }
 
     if (debug_ && new_best) {
-      std::cout << "min start : " << min_start_ << std::endl;
       for (RoutingIndexManager::NodeIndex i(0); i < data_.SizeMatrix() - 1; ++i) {
         const int64 index       = manager_->NodeToIndex(i);
         const IntVar* cumul_var = routing_->GetMutableDimension(kTime)->CumulVar(index);
@@ -572,8 +570,8 @@ public:
             slack_var->Bound()) {
           std::cout << "Node " << i << " index " << index << " [" << vehicle_var->Value()
                     << "] |";
-          std::cout << (cumul_var->Value() - min_start_) << " + " << transit_var->Value()
-                    << " -> " << slack_var->Value() << std::endl;
+          std::cout << (cumul_var->Value()) << " + " << transit_var->Value() << " -> "
+                    << slack_var->Value() << std::endl;
         }
       }
       std::cout << "-----------" << std::endl;
@@ -614,9 +612,9 @@ public:
   // Allocates a clone of the limit
   virtual SearchMonitor* MakeClone() const {
     // we don't to copy the variables
-    return solver_->RevAlloc(
-        new LoggerMonitor(data_, routing_, manager_, min_start_, size_matrix_, debug_,
-                          intermediate_, result_, stored_rests_, filename_, minimize_));
+    return solver_->RevAlloc(new LoggerMonitor(data_, routing_, manager_, size_matrix_,
+                                               debug_, intermediate_, result_,
+                                               stored_rests_, filename_, minimize_));
   }
 
   virtual std::string DebugString() const {
@@ -643,7 +641,6 @@ private:
   int64 best_result_;
   double cleaned_cost_;
   double start_time_;
-  int64 min_start_;
   int64 size_matrix_;
   bool minimize_;
   bool limit_reached_;
@@ -660,14 +657,14 @@ private:
 } // namespace
 
 LoggerMonitor* MakeLoggerMonitor(const TSPTWDataDT& data, RoutingModel* routing,
-                                 RoutingIndexManager* manager, int64 min_start,
-                                 int64 size_matrix, bool debug, bool intermediate,
+                                 RoutingIndexManager* manager, int64 size_matrix,
+                                 bool debug, bool intermediate,
                                  ortools_result::Result* result,
                                  std::vector<std::vector<IntervalVar*>> stored_rests,
                                  std::string filename, const bool minimize = true) {
   return routing->solver()->RevAlloc(
-      new LoggerMonitor(data, routing, manager, min_start, size_matrix, debug,
-                        intermediate, result, stored_rests, filename, minimize));
+      new LoggerMonitor(data, routing, manager, size_matrix, debug, intermediate, result,
+                        stored_rests, filename, minimize));
 }
 } //  namespace operations_research
 
