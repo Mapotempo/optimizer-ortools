@@ -80,7 +80,7 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                      RoutingValues& routing_values, RoutingIndexManager& manager,
-                     Assignment* assignment, const int64_t size, const int64_t min_start,
+                     Assignment* assignment, const int64_t size,
                      const bool free_approach_return) {
   Solver* solver          = routing.solver();
   const int size_vehicles = data.Vehicles().size();
@@ -139,9 +139,8 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       if (ready.size() > 0 &&
           (ready[0] > -CUSTOM_MAX_INT || due.back() < CUSTOM_MAX_INT)) {
         if (absl::GetFlag(FLAGS_debug)) {
-          std::cout << "Node " << i << " index " << index << " ["
-                    << (ready[0] - min_start) << " : " << (due.back() - min_start)
-                    << "]:" << data.ServiceTime(i) << std::endl;
+          std::cout << "Node " << i << " index " << index << " [" << (ready[0]) << " : "
+                    << (due.back()) << "]:" << data.ServiceTime(i) << std::endl;
         }
         if (ready[0] > -CUSTOM_MAX_INT) {
           cumul_var->SetMin(ready[0]);
@@ -1596,11 +1595,9 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   AddVehicleCapacityConstraints(data, routing);
 
   v                 = 0;
-  int64_t min_start = CUSTOM_MAX_INT;
 
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
     routing.SetFixedCostOfVehicle(vehicle.cost_fixed, v);
-    min_start = std::min(min_start, vehicle.time_start);
     ++v;
   }
 
@@ -1665,7 +1662,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   }
 
   // Setting visit time windows
-  MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2, min_start,
+  MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2,
                   free_approach_return);
   std::vector<std::vector<IntervalVar*>> stored_rests =
       RestBuilder(data, routing, horizon);
@@ -1709,7 +1706,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   const bool build_route = RouteBuilder(data, routing, manager, assignment);
 
   LoggerMonitor* const logger = MakeLoggerMonitor(
-      data, &routing, &manager, min_start, size_matrix, absl::GetFlag(FLAGS_debug),
+      data, &routing, &manager, size_matrix, absl::GetFlag(FLAGS_debug),
       absl::GetFlag(FLAGS_intermediate_solutions), result, stored_rests, filename, true);
   routing.AddSearchMonitor(logger);
 

@@ -763,8 +763,9 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
     earliest_start_ = std::min((int64_t) vehicle.time_window().start(), earliest_start_);
   }
 
-  int32_t node_index   = 0;
-  int32_t matrix_index = 0;
+  int32_t node_index           = 0;
+  int32_t matrix_index         = 0;
+  int32_t previous_matrix_size = 0;
   std::vector<int64_t> matrix_indices;
   for (const ortools_vrp::Service& service : problem.services()) {
     if (!alternative_size_map_.count(service.problem_index()))
@@ -807,47 +808,50 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
 
     if (service.late_multiplier() > 0) {
       do {
-        matrix_indices.push_back(service.matrix_index());
-        std::vector<int64_t> start;
-        if (timewindows.size() > 0 &&
-            (timewindows[timewindow_index]->start() - earliest_start_) > 0)
-          start.push_back(timewindows[timewindow_index]->start() - earliest_start_);
-        else
-          start.push_back(0);
+        if (timewindows.size() == 0 ||
+            (earliest_start_ < timewindows[timewindow_index]->end() +
+                                   timewindows[timewindow_index]->maximum_lateness())) {
+          matrix_indices.push_back(service.matrix_index());
+          std::vector<int64_t> start;
+          if (timewindows.size() > 0 &&
+              (timewindows[timewindow_index]->start() - earliest_start_) > 0)
+            start.push_back(timewindows[timewindow_index]->start() - earliest_start_);
+          else
+            start.push_back(0);
 
-        std::vector<int64_t> end;
-        if (timewindows.size() > 0 &&
-            (timewindows[timewindow_index]->end() - earliest_start_) < CUSTOM_MAX_INT)
-          end.push_back(timewindows[timewindow_index]->end() - earliest_start_);
-        else
-          end.push_back(CUSTOM_MAX_INT);
+          std::vector<int64_t> end;
+          if (timewindows.size() > 0 &&
+              (timewindows[timewindow_index]->end() - earliest_start_) < CUSTOM_MAX_INT)
+            end.push_back(timewindows[timewindow_index]->end() - earliest_start_);
+          else
+            end.push_back(CUSTOM_MAX_INT);
 
-        std::vector<int64_t> max_lateness;
-        if (timewindows.size() > 0 &&
-            timewindows[timewindow_index]->maximum_lateness() < CUSTOM_MAX_INT)
-          max_lateness.push_back(timewindows[timewindow_index]->maximum_lateness());
-        else
-          max_lateness.push_back(CUSTOM_MAX_INT);
+          std::vector<int64_t> max_lateness;
+          if (timewindows.size() > 0 &&
+              timewindows[timewindow_index]->maximum_lateness() < CUSTOM_MAX_INT)
+            max_lateness.push_back(timewindows[timewindow_index]->maximum_lateness());
+          else
+            max_lateness.push_back(CUSTOM_MAX_INT);
 
-        size_problem_ = std::max(size_problem_, (int32_t)service.problem_index());
-        tsptw_clients_.push_back(TSPTWClient(
-            (std::string)service.id(), matrix_index, service.problem_index(),
-            alternative_size_map_[service.problem_index()], start, end, max_lateness,
-            service.duration(), service.additional_value(), service.setup_duration(),
-            service.priority(),
-            timewindows.size() > 0
-                ? (int64_t)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
-                : 0,
-            v_i, q, s_q,
-            service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM_COST
-                                         : -1,
-            r_q));
+          size_problem_ = std::max(size_problem_, (int32_t)service.problem_index());
+          tsptw_clients_.push_back(TSPTWClient(
+              (std::string)service.id(), matrix_index, service.problem_index(),
+              alternative_size_map_[service.problem_index()], start, end, max_lateness,
+              service.duration(), service.additional_value(), service.setup_duration(),
+              service.priority(),
+              start.size() > 0 ? (int64_t)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
+                               : 0,
+              v_i, q, s_q,
+              service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM_COST
+                                           : -1,
+              r_q));
 
-        service_times_.push_back(service.duration());
-        alternative_size_map_[service.problem_index()] += 1;
-        if (ids_map_.find((std::string)service.id()) == ids_map_.end())
-          ids_map_[(std::string)service.id()] = node_index;
-        node_index++;
+          service_times_.push_back(service.duration());
+          alternative_size_map_[service.problem_index()] += 1;
+          if (ids_map_.find((std::string)service.id()) == ids_map_.end())
+            ids_map_[(std::string)service.id()] = node_index;
+          node_index++;
+        }
         ++timewindow_index;
       } while (timewindow_index < service.time_windows_size());
     } else {
@@ -856,15 +860,17 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       std::vector<int64_t> max_lateness;
 
       for (const ortools_vrp::TimeWindow* timewindow : timewindows) {
-        (timewindow->start() - earliest_start_) > 0
-            ? ready_time.push_back(timewindow->start() - earliest_start_)
-            : ready_time.push_back(0);
-        (timewindow->end() - earliest_start_) < CUSTOM_MAX_INT
-            ? due_time.push_back(timewindow->end() - earliest_start_)
-            : due_time.push_back(CUSTOM_MAX_INT);
-        timewindow->maximum_lateness() < CUSTOM_MAX_INT
-            ? max_lateness.push_back(timewindow->maximum_lateness())
-            : max_lateness.push_back(CUSTOM_MAX_INT);
+        if (earliest_start_ < timewindow->end()) {
+          (timewindow->start() - earliest_start_) > 0
+              ? ready_time.push_back(timewindow->start() - earliest_start_)
+              : ready_time.push_back(0);
+          (timewindow->end() - earliest_start_) < CUSTOM_MAX_INT
+              ? due_time.push_back(timewindow->end() - earliest_start_)
+              : due_time.push_back(CUSTOM_MAX_INT);
+          timewindow->maximum_lateness() < CUSTOM_MAX_INT
+              ? max_lateness.push_back(timewindow->maximum_lateness())
+              : max_lateness.push_back(CUSTOM_MAX_INT);
+        }
       }
 
       matrix_indices.push_back(service.matrix_index());
@@ -874,9 +880,8 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           alternative_size_map_[service.problem_index()], ready_time, due_time,
           max_lateness, service.duration(), service.additional_value(),
           service.setup_duration(), service.priority(),
-          timewindows.size() > 0
-              ? (int64_t)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
-              : 0,
+          ready_time.size() > 0 ? (int64_t)(service.late_multiplier() * CUSTOM_BIGNUM_COST)
+                                : 0,
           v_i, q, s_q,
           service.exclusion_cost() > 0 ? service.exclusion_cost() * CUSTOM_BIGNUM_COST
                                        : -1,
@@ -887,6 +892,11 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
         ids_map_[(std::string)service.id()] = node_index;
       node_index++;
     }
+    if (previous_matrix_size == (int32)matrix_indices.size()) {
+      throw std::invalid_argument(
+          "A Service transmitted should always lead to at least one Node");
+    }
+    previous_matrix_size = matrix_indices.size();
     ++matrix_index;
   }
 
