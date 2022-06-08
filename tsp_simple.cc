@@ -252,7 +252,10 @@ bool RouteBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                           route_variable_indicies.end());
     }
   }
-  return routing.RoutesToAssignment(routes, true, false, assignment);
+
+  assignment = routing.ReadAssignmentFromRoutes(routes, true);
+
+  return assignment == nullptr ? false : true;
 }
 
 std::vector<std::vector<IntervalVar*>>
