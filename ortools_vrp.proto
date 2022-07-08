@@ -30,6 +30,7 @@ message Service {
   float exclusion_cost             = 13;
   repeated bool refill_quantities  = 14;
   uint32 problem_index             = 15;
+  string point_id                  = 16;
 }
 
 message Rest {
@@ -75,6 +76,7 @@ message Vehicle {
   uint32 additional_setup            = 26;
   bool free_approach                 = 27;
   bool free_return                   = 28;
+  string start_point_id              = 29;
 }
 
 message Relation {
