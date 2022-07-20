@@ -1,6 +1,6 @@
 OR_TOOLS_TOP=../or-tools
 
-TUTORIAL=resources
+TUTORIAL=./resources
 
 # -isystem prevents most of the warnings rooted in or-tools library appearing in our compilation
 CFLAGS := -std=c++14 -isystem$(OR_TOOLS_TOP)/include
@@ -9,6 +9,7 @@ CFLAGS := -std=c++14 -isystem$(OR_TOOLS_TOP)/include
 # DEVELOPMENT = true
 ifeq ($(DEVELOPMENT), true)
   CFLAGS := $(CFLAGS) -O0 -DDEBUG -ggdb3 -fsanitize=address -fkeep-inline-functions -fno-inline-small-functions
+	# CXX := ../callcatcher/build/scripts-3.6/callcatcher $(CXX) # comment out to check uncalled functions
   CXX := LSAN_OPTION=verbosity=1:log_threads=1 $(CXX) # adress sanitizer works only if the executable launched without gdb
 else
   CFLAGS := $(CFLAGS) -O3 -DNDEBUG
@@ -44,7 +45,7 @@ tsp_simple.o: tsp_simple.cc ortools_vrp.pb.h \
 	tsptw_data_dt.h \
 	limits.h \
 	values.h
-	$(CXX) $(CFLAGS) -I $(TUTORIAL) -c ./tsp_simple.cc -o tsp_simple.o
+	$(CXX) $(CFLAGS) -isystem$(TUTORIAL) -c ./tsp_simple.cc -o tsp_simple.o
 
 tsp_simple: $(ROUTING_DEPS) tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_TOP)/lib/libortools.so
 	$(CXX) $(CFLAGS) -fwhole-program tsp_simple.o ortools_vrp.pb.o ortools_result.pb.o $(OR_TOOLS_LD_FLAGS) \

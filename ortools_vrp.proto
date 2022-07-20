@@ -4,6 +4,7 @@ package ortools_vrp;
 option optimize_for = SPEED;
 
 message Matrix {
+  uint32 size             = 1;
   repeated float time     = 2 [ packed = true ];
   repeated float distance = 3 [ packed = true ];
   repeated float value    = 4 [ packed = true ];

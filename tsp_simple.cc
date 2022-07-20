@@ -287,8 +287,8 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
     for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
-          std::max(rest.ready_time, vehicle.time_start),
-          std::min(rest.due_time, vehicle.time_end - rest.duration),
+          std::max<int64>(rest.ready_time, vehicle.time_start),
+          std::min<int64>(rest.due_time, vehicle.time_end - rest.duration),
           rest.duration, // Currently only one timewindow
           false, absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
@@ -325,10 +325,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   Solver::IndexEvaluator1 day_to_vehicle_evaluator = [&data](int64 index) {
     return data.DayIndexToVehicleIndex(index);
   };
-
-  // Solver::IndexEvaluator1 alternative_vehicle_evaluator = [&data](int64 index) {
-  //   return data.VehicleDayAlt(index);
-  // };
 
   std::vector<IntVar*> next_vars;
   for (int i = 0; i < data.SizeMissions(); ++i) {
@@ -1121,11 +1117,18 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                         RoutingIndexManager& manager) {
   std::vector<int> value_evaluators;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
-    value_evaluators.push_back(routing.RegisterTransitCallback(
-        [&vehicle, &manager](const int64 i, const int64 j) {
-          return vehicle.ValuePlusServiceValue(manager.IndexToNode(i),
-                                               manager.IndexToNode(j));
-        }));
+    if (vehicle.value_matrix->value().empty()) {
+      value_evaluators.push_back(
+          routing.RegisterTransitCallback([&data, &manager](const int64 i, const int64) {
+            return data.ServiceValue(manager.IndexToNode(i));
+          }));
+    } else {
+      value_evaluators.push_back(routing.RegisterTransitCallback(
+          [&vehicle, &data, &manager](const int64 i, const int64 j) {
+            return vehicle.Value(manager.IndexToNode(i), manager.IndexToNode(j)) +
+                   data.ServiceValue(manager.IndexToNode(i));
+          }));
+    }
   }
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, kValue);
   int v = 0;
@@ -1234,11 +1237,9 @@ void AddVehicleDistanceConstraints(const TSPTWDataDT& data, RoutingModel& routin
       routing.GetDimensionOrDie(kDistance);
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
     if (vehicle.distance > 0) {
-      const int64 end_index = routing.End(v);
       // Vehicle maximum distance
-      IntVar* const dist_end_cumul_var = distance_dimension.CumulVar(end_index);
-      solver->AddConstraint(
-          solver->MakeLessOrEqual(dist_end_cumul_var, vehicle.distance));
+      solver->AddConstraint(solver->MakeLessOrEqual(
+          distance_dimension.CumulVar(routing.End(v)), vehicle.distance));
     }
     ++v;
   }
