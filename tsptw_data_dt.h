@@ -147,6 +147,20 @@ public:
     return tsptw_clients_[i.value()].alternative_index;
   }
 
+  int32_t AlternativeActivityIndex(const std::string id) const {
+    if (alternative_activity_ids_map_.find(id) != alternative_activity_ids_map_.end()) {
+      return alternative_activity_ids_map_.at(id);
+    }
+    return -1;
+  }
+
+  int32_t AlternativeActivitySize(const std::string id) const {
+    if (alternative_activity_size_map_.find(id) != alternative_activity_size_map_.end()) {
+      return alternative_activity_size_map_.at(id);
+    }
+    return 0;
+  }
+
   const std::vector<int64_t>& ReadyTime(const RoutingIndexManager::NodeIndex i) const {
     return tsptw_clients_[i.value()].ready_time;
   }
@@ -595,6 +609,7 @@ private:
     int32_t matrix_index;
     int32_t problem_index;
     int32_t alternative_index;
+    int32_t alternative_activity_index;
     std::vector<int64_t> ready_time;
     std::vector<int64_t> due_time;
     std::vector<int64_t> maximum_lateness;
@@ -638,6 +653,8 @@ private:
   std::vector<Relation> tsptw_relations_;
   std::vector<TSPTWClient> tsptw_clients_;
   std::map<int32_t, int32_t> alternative_size_map_;
+  std::map<std::string, int32_t> alternative_activity_size_map_;
+  std::map<std::string, int32_t> alternative_activity_ids_map_;
   std::vector<Route> tsptw_routes_;
   std::vector<int> vehicles_day_;
   std::vector<int64_t> service_times_;
@@ -750,6 +767,23 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
           alternative_size_map_[service.problem_index()] += 1;
           if (ids_map_.find((std::string)service.id()) == ids_map_.end())
             ids_map_[(std::string)service.id()] = node_index;
+
+          if (alternative_activity_ids_map_.find(
+                  (std::string)service.id() + "#" +
+                  std::to_string(service.alternative_index())) ==
+              alternative_activity_ids_map_.end()) {
+            alternative_activity_ids_map_[service.id() + "#" +
+                                          std::to_string(service.alternative_index())] =
+                node_index;
+            alternative_activity_size_map_[service.id() + "#" +
+                                           std::to_string(service.alternative_index())] =
+                1;
+          } else {
+            alternative_activity_size_map_[service.id() + "#" +
+                                           std::to_string(service.alternative_index())] +=
+                1;
+          }
+
           node_index++;
         }
         ++timewindow_index;
@@ -790,6 +824,20 @@ void TSPTWDataDT::LoadInstance(const std::string& filename) {
       alternative_size_map_[service.problem_index()] += 1;
       if (ids_map_.find((std::string)service.id()) == ids_map_.end())
         ids_map_[(std::string)service.id()] = node_index;
+
+      if (alternative_activity_ids_map_.find(
+              (std::string)service.id() + "#" +
+              std::to_string(service.alternative_index())) ==
+          alternative_activity_ids_map_.end()) {
+        alternative_activity_ids_map_[service.id() + "#" +
+                                      std::to_string(service.alternative_index())] =
+            node_index;
+        alternative_activity_size_map_[service.id() + "#" +
+                                       std::to_string(service.alternative_index())] = 1;
+      } else {
+        alternative_activity_size_map_[service.id() + "#" +
+                                       std::to_string(service.alternative_index())] += 1;
+      }
       node_index++;
     }
     if (previous_matrix_size == (int32)service_matrix_indices.size()) {
