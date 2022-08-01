@@ -729,8 +729,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           current_index    = data.IdIndex(relation.linked_ids[link_index]);
           alternative_size = data.AlternativeSize(current_index);
         }
-        std::cout << "alternative_size :" << alternative_size
-                  << " current_index : " << current_index << std::endl;
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
           for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
