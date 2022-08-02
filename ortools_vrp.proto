@@ -32,6 +32,7 @@ message Service {
   repeated bool refill_quantities  = 14;
   uint32 problem_index             = 15;
   string point_id                  = 16;
+  uint32 alternative_index         = 17;
 }
 
 message Rest {

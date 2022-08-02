@@ -721,11 +721,16 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case NeverFirst:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
-        int32 service_index =
-            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
-        alternative_size = data.AlternativeSize(service_index);
-
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
+        std::cout << "alternative_size :" << alternative_size
+                  << " current_index : " << current_index << std::endl;
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
           for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
@@ -743,10 +748,14 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       }
 
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
-        int32 service_index =
-            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
-        alternative_size = data.AlternativeSize(service_index);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
@@ -765,10 +774,14 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case NeverLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
-        int32 service_index =
-            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
-        alternative_size = data.AlternativeSize(service_index);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
@@ -782,10 +795,14 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case ForceLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
-        int32 service_index =
-            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
-        alternative_size = data.AlternativeSize(service_index);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
         for (int64 alternative_index = current_index;
              alternative_index < current_index + alternative_size; ++alternative_index) {
