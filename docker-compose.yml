@@ -1,0 +1,22 @@
+version: '3.7'
+x-app-args: &app-args
+  ARCHITECTURE: ${ARCHITECTURE}
+  RUBY_VERSION: ${RUBY_VERSION}
+  ORTOOLS_VERSION: ${ORTOOLS_VERSION}
+
+x-app: &default-app
+  volumes:
+    - ./:/srv/app/
+  env_file:
+    - ./.env
+
+services:
+  main:
+    <<: *default-app
+    build:
+      args:
+        <<: *app-args
+      context: .
+      dockerfile: Dockerfile
+    image: dev.example.com/mapotempo/optimizer-ortools
+    tty: true
