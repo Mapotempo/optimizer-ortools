@@ -19,5 +19,5 @@ services:
         <<: *app-args
       context: .
       dockerfile: Dockerfile
-    image: dev.example.com/mapotempo/optimizer-ortools
+    image: dev.example.com/mapotempo-ce/optimizer-ortools
     tty: true
