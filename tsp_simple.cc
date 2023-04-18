@@ -80,7 +80,9 @@ double GetUpperBoundCostForDimension(const RoutingModel& routing,
 
 void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                      RoutingValues& routing_values, RoutingIndexManager& manager,
-                     Assignment* assignment, const int64 size, const int64 min_start) {
+                     Assignment* assignment, const int64 size,
+                     const bool free_approach_return) {
+  Solver* solver          = routing.solver();
   const int size_vehicles = data.Vehicles().size();
   // const int size_matrix = data.SizeMatrix();
   const int size_problem = data.SizeProblem();
@@ -101,6 +103,10 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   int64 disjunction_cost =
       !overflow_danger && !CheckOverflow(data_verif, size) ? data_verif : std::pow(2, 52);
 
+  std::vector<int64> all_vehicle_indices;
+  for (int v = 0; v < size_vehicles; ++v)
+    all_vehicle_indices.push_back(v);
+
   for (int activity = 0; activity <= size_problem; ++activity) {
     std::vector<int64>* vect = new std::vector<int64>();
 
@@ -116,16 +122,25 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       const std::vector<int64>& maximum_lateness = data.MaximumLateness(i);
       const int64 initial_value = routing_values.NodeValues(i).initial_time_value;
 
-      IntVar* cumul_var           = routing.GetMutableDimension(kTime)->CumulVar(index);
+      // Timewindows should apply both on kTime and kFakeTime Dimensions.kTime both
+      // compute the true timings of activities and the time cost kFakeTime allows to
+      // compute the time cost of the route when there is an free_approach or free_return
+      // dimension. But it requires true timings to consider correctly waiting times.
+      // Lateness could only apply on true timings, which means these contraints should
+      // only be applied on kTime dimension. Dimensions kNoWait and kFakeNoWait doesn't
+      // need time windows  because it expects no waiting times
+      IntVar* cumul_var = routing.GetMutableDimension(kTime)->CumulVar(index);
+      if (free_approach_return)
+        solver->AddConstraint(solver->MakeEquality(
+            routing.GetMutableDimension(kFakeTime)->CumulVar(index), cumul_var));
+
       const int64 late_multiplier = data.LateMultiplier(i);
-      std::vector<int64> sticky_vehicle = data.VehicleIndices(i);
-      std::string service_id            = data.ServiceId(i);
+      std::string service_id      = data.ServiceId(i);
       if (ready.size() > 0 &&
           (ready[0] > -CUSTOM_MAX_INT || due.back() < CUSTOM_MAX_INT)) {
         if (absl::GetFlag(FLAGS_debug)) {
-          std::cout << "Node " << i << " index " << index << " ["
-                    << (ready[0] - min_start) << " : " << (due.back() - min_start)
-                    << "]:" << data.ServiceTime(i) << std::endl;
+          std::cout << "Node " << i << " index " << index << " [" << (ready[0]) << " : "
+                    << (due.back()) << "]:" << data.ServiceTime(i) << std::endl;
         }
         if (ready[0] > -CUSTOM_MAX_INT) {
           cumul_var->SetMin(ready[0]);
@@ -163,25 +178,15 @@ void MissionsBuilder(const TSPTWDataDT& data, RoutingModel& routing,
         }
       }
 
-      if (sticky_vehicle.size() > 0) {
-        std::vector<int64> vehicle_indices;
-        std::vector<int64> vehicle_intersection;
-        std::vector<int64> vehicle_difference;
+      std::vector<int64> incompatible_vehicle_indices;
+      std::vector<int64> compatible_vehicles = data.VehicleIndices(i);
 
-        for (int v = 0; v < size_vehicles; ++v)
-          vehicle_indices.push_back(v);
+      std::set_difference(all_vehicle_indices.begin(), all_vehicle_indices.end(),
+                          compatible_vehicles.begin(), compatible_vehicles.end(),
+                          std::back_inserter(incompatible_vehicle_indices));
 
-        std::set_intersection(vehicle_indices.begin(), vehicle_indices.end(),
-                              sticky_vehicle.begin(), sticky_vehicle.end(),
-                              std::back_inserter(vehicle_intersection));
-        std::set_difference(vehicle_indices.begin(), vehicle_indices.end(),
-                            vehicle_intersection.begin(), vehicle_intersection.end(),
-                            std::back_inserter(vehicle_difference));
-        if (vehicle_difference.size() > 0) {
-          for (int64 remove : vehicle_difference)
-            routing.VehicleVar(index)->RemoveValue(remove);
-        }
-      }
+      for (int64 remove : incompatible_vehicle_indices)
+        routing.VehicleVar(index)->RemoveValue(remove);
 
       const std::vector<bool>& refill_quantities = data.RefillQuantities(i);
       for (std::size_t q = 0; q < data.Quantities(i).size(); ++q) {
@@ -247,7 +252,10 @@ bool RouteBuilder(const TSPTWDataDT& data, RoutingModel& routing,
                           route_variable_indicies.end());
     }
   }
-  return routing.RoutesToAssignment(routes, true, false, assignment);
+
+  assignment = routing.ReadAssignmentFromRoutes(routes, true);
+
+  return assignment == nullptr ? false : true;
 }
 
 std::vector<std::vector<IntervalVar*>>
@@ -279,8 +287,8 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     const TSPTWDataDT::Vehicle& vehicle = data.Vehicles(vehicle_index);
     for (const TSPTWDataDT::Rest& rest : vehicle.Rests()) {
       IntervalVar* const rest_interval = solver->MakeFixedDurationIntervalVar(
-          std::max(rest.ready_time, vehicle.time_start),
-          std::min(rest.due_time, vehicle.time_end - rest.duration),
+          std::max<int64>(rest.ready_time, vehicle.time_start),
+          std::min<int64>(rest.due_time, vehicle.time_end - rest.duration),
           rest.duration, // Currently only one timewindow
           false, absl::StrCat("Rest/", rest.rest_id, "/", vehicle_index));
       rest_array.push_back(rest_interval);
@@ -300,21 +308,13 @@ RestBuilder(const TSPTWDataDT& data, RoutingModel& routing, const int64 horizon)
     routing.GetMutableDimension(kTime)->SetBreakIntervalsOfVehicle(
         rest_array, vehicle_index, data.ServiceTimes());
 
-    if (vehicle.max_interval_between_breaks > 0) {
-      DLOG(INFO) << "\n\nSetting max break distance to "
-                 << vehicle.max_interval_between_breaks << std::endl;
-      // Put an upperbound on the intervals between breaks that are longer than "dur"
-      routing.GetMutableDimension(kTime)->SetBreakDistanceDurationOfVehicle(
-          /*upperbound*/ vehicle.max_interval_between_breaks, /*dur*/ 0, vehicle_index);
-    }
-
     stored_rests.push_back(rest_array);
   }
   return stored_rests;
 }
 
 void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
-                     RoutingIndexManager& manager, bool& has_overall_duration) {
+                     bool& has_overall_duration) {
   Solver* solver = routing.solver();
   // const int size_vehicles = data.Vehicles().size();
 
@@ -325,10 +325,6 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
   Solver::IndexEvaluator1 day_to_vehicle_evaluator = [&data](int64 index) {
     return data.DayIndexToVehicleIndex(index);
   };
-
-  // Solver::IndexEvaluator1 alternative_vehicle_evaluator = [&data](int64 index) {
-  //   return data.VehicleDayAlt(index);
-  // };
 
   std::vector<IntVar*> next_vars;
   for (int i = 0; i < data.SizeMissions(); ++i) {
@@ -348,6 +344,11 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     RoutingModel::DisjunctionIndex current_disjunction_index;
     std::vector<int64> previous_vehicle_index_set;
     std::vector<int64> current_vehicle_index_set;
+    std::vector<IntVar*> previous_active_var_set;
+    std::vector<IntVar*> current_active_var_set;
+    std::vector<IntVar*> current_active_index_set;
+    std::vector<IntVar*> previous_active_next_var_set;
+    std::vector<IntVar*> current_active_next_var_set;
     std::vector<IntVar*> previous_vehicle_var_set;
     std::vector<IntVar*> current_vehicle_var_set;
     std::vector<IntVar*> previous_active_cumul_var_set;
@@ -355,81 +356,186 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
 
     switch (relation.type) {
     case Sequence:
-      // int64 new_current_index;
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
-        previous_indices.push_back(previous_index);
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        pairs.push_back(std::make_pair(previous_index, current_index));
+        current_active_var_set.clear();
+        current_active_cumul_var_set.clear();
+        current_vehicle_var_set.clear();
+        current_active_next_var_set.clear();
+        current_active_index_set.clear();
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const active_node = routing.ActiveVar(alternative_index);
+          current_vehicle_var_set.push_back(
+              solver->MakeProd(active_node, routing.VehicleVar(alternative_index))
+                  ->Var());
 
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        // routing.AddPickupAndDelivery(previous_index, current_index);
+          // The next var of the current active alternative
+          current_active_next_var_set.push_back(
+              solver->MakeProd(active_node, routing.NextVar(alternative_index))->Var());
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
-        IntExpr* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var)->Var();
-        routing.NextVar(current_index)->RemoveValues(previous_indices);
+          // The index of the current alternative
+          current_active_index_set.push_back(
+              solver->MakeProd(active_node, alternative_index)->Var());
 
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, previous_vehicle_var),
-            solver->MakeProd(isConstraintActive, vehicle_var)));
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, routing.NextVar(previous_index)),
-            solver->MakeProd(isConstraintActive, current_index)));
-        previous_index = current_index;
+          current_active_var_set.push_back(active_node);
+          current_active_cumul_var_set.push_back(
+              solver
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
+                  ->Var());
+          routing.NextVar(alternative_index)->RemoveValues(previous_indices);
+          previous_indices.push_back(alternative_index);
+        }
+
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
+          // The current set may be active only if the predecessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+
+          // The current active alternative node should belong to the same route than the
+          // active predecessor
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+
+          // The successor of the predecessor should be the current active alternative
+          // node
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_next_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_index_set))));
+
+          // The current active alternative should start after the active predecessor
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_cumul_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_cumul_var_set))));
+        }
+        previous_active_var_set       = current_active_var_set;
+        previous_active_next_var_set  = current_active_next_var_set;
+        previous_vehicle_var_set      = current_vehicle_var_set;
+        previous_active_cumul_var_set = current_active_cumul_var_set;
       }
-      if (relation.linked_ids.size() > 1)
-        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case Order:
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      previous_indices.push_back(previous_index);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        pairs.push_back(std::make_pair(previous_index, current_index));
-        // routing.AddPickupAndDelivery(previous_index, current_index);
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
+        current_active_var_set.clear();
+        current_vehicle_var_set.clear();
+        current_active_cumul_var_set.clear();
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
-        routing.NextVar(current_index)->RemoveValues(previous_indices);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* active_node = routing.ActiveVar(alternative_index);
+          current_active_var_set.push_back(active_node);
+          current_vehicle_var_set.push_back(routing.VehicleVar(alternative_index));
+          current_active_cumul_var_set.push_back(
+              solver
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
+                  ->Var());
+          routing.NextVar(alternative_index)->RemoveValues(previous_indices);
+          previous_indices.push_back(alternative_index);
+        }
 
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        IntExpr* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var);
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(isConstraintActive, previous_vehicle_var),
-            solver->MakeProd(isConstraintActive, vehicle_var)));
-        previous_indices.push_back(current_index);
-        previous_index = current_index;
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
+
+          // The current set may be active only if the predessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+          // The active alternatives should belong to the same route
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+
+          // The current active alternative should start after the active predecessor
+          solver->AddConstraint(solver->MakeLessOrEqual(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_active_cumul_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_active_cumul_var_set))));
+        }
+        previous_active_var_set       = current_active_var_set;
+        previous_vehicle_var_set      = current_vehicle_var_set;
+        previous_active_cumul_var_set = current_active_cumul_var_set;
       }
-      if (relation.linked_ids.size() > 1)
-        solver->AddConstraint(solver->MakePathPrecedenceConstraint(next_vars, pairs));
       break;
     case SameRoute:
-      previous_index = data.IdIndex(relation.linked_ids[0]);
-      for (int link_index = 1; link_index < relation.linked_ids.size(); ++link_index) {
+      for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
         current_index = data.IdIndex(relation.linked_ids[link_index]);
+        int32 service_index =
+            data.ProblemIndex(RoutingIndexManager::NodeIndex(current_index));
+        alternative_size = data.AlternativeSize(service_index);
 
-        IntVar* const previous_active_var = routing.ActiveVar(previous_index);
-        IntVar* const active_var          = routing.ActiveVar(current_index);
+        current_active_var_set.clear();
+        current_vehicle_var_set.clear();
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const active_node = routing.ActiveVar(alternative_index);
+          current_active_var_set.push_back(active_node);
+          // Current vehicle var is active only if one of the previous active var is
+          // active and if the current alternative is active
+          current_vehicle_var_set.push_back(
+              solver
+                  ->MakeProd(solver->MakeProd(solver->MakeMax(previous_active_var_set),
+                                              active_node),
+                             routing.VehicleVar(alternative_index))
+                  ->Var());
+        }
 
-        IntVar* const previous_vehicle_var = routing.VehicleVar(previous_index);
-        IntVar* const vehicle_var          = routing.VehicleVar(current_index);
+        if (link_index >= 1) {
+          // The constraint is only active if both of the services have one active
+          // alternative
+          IntVar* active_constraint =
+              solver
+                  ->MakeProd(solver->MakeMax(previous_active_var_set),
+                             solver->MakeMax(current_active_var_set))
+                  ->Var();
 
-        solver->AddConstraint(solver->MakeLessOrEqual(active_var, previous_active_var));
-        IntVar* const isConstraintActive =
-            solver->MakeProd(previous_active_var, active_var)->Var();
-        solver->AddConstraint(solver->MakeEquality(
-            solver->MakeProd(previous_vehicle_var, isConstraintActive),
-            solver->MakeProd(vehicle_var, isConstraintActive)));
-        previous_index = current_index;
+          // The current set may be active only if the predessor set is active
+          solver->AddConstraint(
+              solver->MakeLessOrEqual(solver->MakeMax(current_active_var_set),
+                                      solver->MakeMax(previous_active_var_set)));
+          // The active alternatives should belong to the same route
+          solver->AddConstraint(solver->MakeEquality(
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(previous_vehicle_var_set)),
+              solver->MakeProd(active_constraint,
+                               solver->MakeMax(current_vehicle_var_set))));
+        }
+        previous_active_var_set  = current_active_var_set;
+        previous_vehicle_var_set = current_vehicle_var_set;
       }
       break;
     case MinimumDayLapse:
@@ -509,18 +615,20 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
           IntVar* const active_node = routing.ActiveVar(alternative_index);
           current_active_cumul_var_set.push_back(
               solver
-                  ->MakeProd(active_node,
-                             routing.GetMutableDimension(kTime)->CumulVar(current_index))
+                  ->MakeProd(active_node, routing.GetMutableDimension(kTime)->CumulVar(
+                                              alternative_index))
                   ->Var());
         }
 
         if (link_index >= 1) {
           routing.AddPickupAndDeliverySets(previous_disjunction_index,
                                            current_disjunction_index);
+          // The active alternatives should belong to the same route
           solver->AddConstraint(
               solver->MakeEquality(solver->MakeMax(previous_vehicle_var_set),
                                    solver->MakeMax(current_vehicle_var_set)));
 
+          // The current active alternative should start after the active predecessor
           solver->AddConstraint(
               solver->MakeLessOrEqual(solver->MakeMax(previous_active_cumul_var_set),
                                       solver->MakeMax(current_active_cumul_var_set)));
@@ -613,13 +721,22 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case NeverFirst:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
-
-        for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
-          int64 start_index = routing.Start(v);
-          // int64 end_index = routing.End(v);
-          IntVar* const next_var = routing.NextVar(start_index);
-          next_var->RemoveValue(current_index);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
+            int64 start_index = routing.Start(v);
+            // int64 end_index = routing.End(v);
+            IntVar* const next_var = routing.NextVar(start_index);
+            next_var->RemoveValue(alternative_index);
+          }
         }
       }
       break;
@@ -629,13 +746,23 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       }
 
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
-        intermediate_values.push_back(current_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          intermediate_values.push_back(alternative_index);
 
-        std::vector<int64>::iterator it =
-            std::find(values.begin(), values.end(), current_index);
-        values.erase(it);
+          std::vector<int64>::iterator it =
+              std::find(values.begin(), values.end(), alternative_index);
+          values.erase(it);
+        }
       }
 
       for (int index : values) {
@@ -645,20 +772,40 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
       break;
     case NeverLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
-        IntVar* const next_var = routing.NextVar(current_index);
-        for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
-          int64 end_index = routing.End(v);
-          next_var->RemoveValue(end_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          IntVar* const next_var = routing.NextVar(alternative_index);
+          for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
+            int64 end_index = routing.End(v);
+            next_var->RemoveValue(end_index);
+          }
         }
       }
       break;
     case ForceLast:
       for (int link_index = 0; link_index < relation.linked_ids.size(); ++link_index) {
-        current_index = data.IdIndex(relation.linked_ids[link_index]);
+        current_index = data.AlternativeActivityIndex(relation.linked_ids[link_index]);
+        if (current_index >= 0) {
+          alternative_size =
+              data.AlternativeActivitySize(relation.linked_ids[link_index]);
+        } else {
+          current_index    = data.IdIndex(relation.linked_ids[link_index]);
+          alternative_size = data.AlternativeSize(current_index);
+        }
 
-        values.push_back(current_index);
+        for (int64 alternative_index = current_index;
+             alternative_index < current_index + alternative_size; ++alternative_index) {
+          values.push_back(alternative_index);
+        }
       }
       intermediate_values.insert(intermediate_values.end(), values.begin(), values.end());
       for (std::size_t v = 0; v < data.Vehicles().size(); ++v) {
@@ -739,7 +886,7 @@ void RelationBuilder(const TSPTWDataDT& data, RoutingModel& routing,
     default:
       std::cout << "ERROR: Relation type (" << relation.type << ") is not implemented"
                 << std::endl;
-      throw - 1;
+      throw -1;
     }
   }
 }
@@ -985,11 +1132,18 @@ void AddValueDimensions(const TSPTWDataDT& data, RoutingModel& routing,
                         RoutingIndexManager& manager) {
   std::vector<int> value_evaluators;
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
-    value_evaluators.push_back(routing.RegisterTransitCallback(
-        [&vehicle, &manager](const int64 i, const int64 j) {
-          return vehicle.ValuePlusServiceValue(manager.IndexToNode(i),
-                                               manager.IndexToNode(j));
-        }));
+    if (vehicle.value_matrix->value().empty()) {
+      value_evaluators.push_back(
+          routing.RegisterTransitCallback([&data, &manager](const int64 i, const int64) {
+            return data.ServiceValue(manager.IndexToNode(i));
+          }));
+    } else {
+      value_evaluators.push_back(routing.RegisterTransitCallback(
+          [&vehicle, &data, &manager](const int64 i, const int64 j) {
+            return vehicle.Value(manager.IndexToNode(i), manager.IndexToNode(j)) +
+                   data.ServiceValue(manager.IndexToNode(i));
+          }));
+    }
   }
   routing.AddDimensionWithVehicleTransits(value_evaluators, 0, LLONG_MAX, true, kValue);
   int v = 0;
@@ -1098,11 +1252,9 @@ void AddVehicleDistanceConstraints(const TSPTWDataDT& data, RoutingModel& routin
       routing.GetDimensionOrDie(kDistance);
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
     if (vehicle.distance > 0) {
-      const int64 end_index = routing.End(v);
       // Vehicle maximum distance
-      IntVar* const dist_end_cumul_var = distance_dimension.CumulVar(end_index);
-      solver->AddConstraint(
-          solver->MakeLessOrEqual(dist_end_cumul_var, vehicle.distance));
+      solver->AddConstraint(solver->MakeLessOrEqual(
+          distance_dimension.CumulVar(routing.End(v)), vehicle.distance));
     }
     ++v;
   }
@@ -1199,6 +1351,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
                              std::vector<std::vector<IntervalVar*>>& stored_rests) {
   result->clear_routes();
 
+  const int64_t earliest_start = data.EarliestStart();
+
   double total_time_order_cost(0.0), total_distance_order_cost(0.0),
       total_rest_position_cost(0.0);
 
@@ -1228,7 +1382,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
           ortools_result::Activity* rest = route->add_activities();
           rest->set_type("break");
           rest->set_id(parsed_name[1]);
-          rest->set_start_time(rest_start_time);
+          rest->set_start_time(rest_start_time + earliest_start);
           it = rests.erase(it);
         } else {
           ++it;
@@ -1238,7 +1392,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
       ortools_result::Activity* activity       = route->add_activities();
       RoutingIndexManager::NodeIndex nodeIndex = manager.IndexToNode(index);
       activity->set_index(data.ProblemIndex(nodeIndex));
-      activity->set_start_time(start_time);
+      activity->set_start_time(start_time + earliest_start);
       const int64 upper_bound =
           routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(index);
       const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
@@ -1250,7 +1404,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_type("start");
         DLOG(INFO) << "RouteStartValues:" << route_nbr << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.RouteStartValues(route_nbr).initial_time_value = start_time;
+        routing_values.RouteStartValues(route_nbr).initial_time_value =
+            start_time + earliest_start;
       } else {
         vehicle_used = true;
         activity->set_type("service");
@@ -1258,7 +1413,8 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         activity->set_alternative(data.AlternativeIndex(nodeIndex));
         DLOG(INFO) << "nodeIndex:" << nodeIndex << "\t start_time: " << start_time
                    << std::endl;
-        routing_values.NodeValues(nodeIndex).initial_time_value = start_time;
+        routing_values.NodeValues(nodeIndex).initial_time_value =
+            start_time + earliest_start;
       }
       for (std::size_t q = 0;
            q < data.Quantities(RoutingIndexManager::NodeIndex(0)).size(); ++q) {
@@ -1288,7 +1444,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
         }
         rest->set_type("break");
         rest->set_id(parsed_name[1]);
-        rest->set_start_time(rest_start_time);
+        rest->set_start_time(rest_start_time + earliest_start);
       }
     }
 
@@ -1300,7 +1456,7 @@ void ParseSolutionIntoResult(const Assignment* const solution,
 
     const int64 start_time =
         solution->Min(routing.GetMutableDimension(kTime)->CumulVar(end_index));
-    end_activity->set_start_time(start_time);
+    end_activity->set_start_time(start_time + earliest_start);
     const int64 upper_bound =
         routing.GetMutableDimension(kTime)->GetCumulVarSoftUpperBound(end_index);
     const int64 lateness = std::max<int64>(start_time - upper_bound, 0);
@@ -1366,7 +1522,10 @@ void ParseSolutionIntoResult(const Assignment* const solution,
 
       const double time_without_wait_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kTimeNoWait);
-      route_costs->set_time_without_wait(time_without_wait_cost);
+      const double fake_time_without_wait_cost = GetSpanCostForVehicleForDimension(
+          routing, solution, route_nbr, kFakeTimeNoWait);
+      route_costs->set_time_without_wait(time_without_wait_cost +
+                                         fake_time_without_wait_cost);
 
       const double value_cost =
           GetSpanCostForVehicleForDimension(routing, solution, route_nbr, kValue);
@@ -1447,12 +1606,10 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   AddVehicleDistanceConstraints(data, routing);
   AddVehicleCapacityConstraints(data, routing);
 
-  v               = 0;
-  int64 min_start = CUSTOM_MAX_INT;
+  v = 0;
 
   for (const TSPTWDataDT::Vehicle& vehicle : data.Vehicles()) {
     routing.SetFixedCostOfVehicle(vehicle.cost_fixed, v);
-    min_start = std::min(min_start, vehicle.time_start);
     ++v;
   }
 
@@ -1517,10 +1674,10 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
 
   // Setting visit time windows
   MissionsBuilder(data, routing, routing_values, manager, assignment, size - 2,
-                  min_start);
+                  free_approach_return);
   std::vector<std::vector<IntervalVar*>> stored_rests =
       RestBuilder(data, routing, horizon);
-  RelationBuilder(data, routing, manager, has_overall_duration);
+  RelationBuilder(data, routing, has_overall_duration);
   RoutingSearchParameters parameters = DefaultRoutingSearchParameters();
 
   CHECK(google::protobuf::TextFormat::MergeFromString(
@@ -1560,7 +1717,7 @@ const ortools_result::Result* TSPTWSolver(const TSPTWDataDT& data,
   const bool build_route = RouteBuilder(data, routing, manager, assignment);
 
   LoggerMonitor* const logger = MakeLoggerMonitor(
-      data, &routing, &manager, min_start, size_matrix, absl::GetFlag(FLAGS_debug),
+      data, &routing, &manager, size_matrix, absl::GetFlag(FLAGS_debug),
       absl::GetFlag(FLAGS_intermediate_solutions), result, stored_rests, filename, true);
   routing.AddSearchMonitor(logger);
 
