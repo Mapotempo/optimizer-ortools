@@ -6,6 +6,7 @@ require 'google/protobuf'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("ortools_vrp.proto", :syntax => :proto3) do
     add_message "ortools_vrp.Matrix" do
+      optional :size, :uint32, 1
       repeated :time, :float, 2
       repeated :distance, :float, 3
       repeated :value, :float, 4
@@ -30,6 +31,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :exclusion_cost, :float, 13
       repeated :refill_quantities, :bool, 14
       optional :problem_index, :uint32, 15
+      optional :point_id, :string, 16
+      optional :alternative_index, :uint32, 17
     end
     add_message "ortools_vrp.Rest" do
       optional :time_window, :message, 1, "ortools_vrp.TimeWindow"
@@ -72,6 +75,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :additional_setup, :uint32, 26
       optional :free_approach, :bool, 27
       optional :free_return, :bool, 28
+      optional :start_point_id, :string, 29
     end
     add_message "ortools_vrp.Relation" do
       optional :type, :string, 1

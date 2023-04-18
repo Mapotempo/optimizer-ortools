@@ -4,6 +4,7 @@ package ortools_vrp;
 option optimize_for = SPEED;
 
 message Matrix {
+  uint32 size             = 1;
   repeated float time     = 2 [ packed = true ];
   repeated float distance = 3 [ packed = true ];
   repeated float value    = 4 [ packed = true ];
@@ -30,6 +31,8 @@ message Service {
   float exclusion_cost             = 13;
   repeated bool refill_quantities  = 14;
   uint32 problem_index             = 15;
+  string point_id                  = 16;
+  uint32 alternative_index         = 17;
 }
 
 message Rest {
@@ -75,6 +78,7 @@ message Vehicle {
   uint32 additional_setup            = 26;
   bool free_approach                 = 27;
   bool free_return                   = 28;
+  string start_point_id              = 29;
 }
 
 message Relation {
